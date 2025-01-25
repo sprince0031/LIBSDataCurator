@@ -254,38 +254,6 @@ public class LIBSDataService {
         }
     }
 
-//    public void generateCompositionalVariationsDataset(ArrayList<ArrayList<Element>> compositions,
-//                                                       String minWavelength, String maxWavelength, String savePath) {
-//        // TODO: Fetch data for each compositional variation from NIST LIBS db and save to master CSV
-//
-//        Set<Double> allWavelengths = new TreeSet<>();
-//        int compositionsProcessed = 0;
-//        for (ArrayList<Element> composition: compositions) {
-//            String nistSpectralData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
-//            if (!nistSpectralData.equals(HttpURLConnection.HTTP_NOT_FOUND)) {
-//                // TODO: Format data to required data record
-//
-//                StringReader stringReader = new StringReader(nistSpectralData);
-//
-//                try {
-//                    Iterable<CSVRecord> records = CSVFormat.DEFAULT
-//                            .withFirstRecordAsHeader()
-//                            .parse(stringReader);
-//
-//                    for (CSVRecord record: records) {
-//                        String wavelength = record.get("Wavelength (nm)");
-//                        String intensity = record.get("Sum");
-//
-//                        compositionalDataset.putIfAbsent(wavelength, new HashMap<>());
-//                    }
-//
-//                } catch (IOException e) {
-//                    throw new RuntimeException(e);
-//                }
-//            }
-//        }
-//    }
-
     public void generateCompositionalVariationsDataset(
             ArrayList<ArrayList<Element>> compositions,
             String minWavelength,
