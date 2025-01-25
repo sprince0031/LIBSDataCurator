@@ -7,10 +7,14 @@ package com.medals.libsdatagenerator.controller;
 
 public class LIBSDataGenConstants {
 
-    // #### Selenium Constants ####
+    /**
+     * #### Selenium Constants ####
+     */
     public static final String SELENIUM_WEB_DRIVER = "https://selenium.dev";
 
-    // #### Cmdline  options ####
+    /**
+     * #### Cmdline  options ####
+     */
     public static final String CMD_OPT_COMPOSITION_SHORT = "c";
     public static final String CMD_OPT_COMPOSITION_LONG = "composition";
     public static final String CMD_OPT_COMPOSITION_DESC = "Chemical Composition. " +
@@ -25,8 +29,13 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_OUTPUT_PATH_SHORT = "o";
     public static final String CMD_OPT_OUTPUT_PATH_LONG = "output";
     public static final String CMD_OPT_OUTPUT_PATH_DESC = "Path to save CSV file";
+    public static final String CMD_OPT_COMP_VAR_SHORT = "v";
+    public static final String CMD_OPT_COMP_VAR_LONG = "compvar";
+    public static final String CMD_OPT_COMP_VAR_DESC = "Perform compositional variations to input composition and save extensive data.";
 
-    // #### NIST LIBS Constants ####
+    /**
+     * #### NIST LIBS Constants ####
+     */
     public static final String NIST_LIBS_FORM_URL = "https://physics.nist.gov/PhysRefData/ASD/LIBS/libs-form.html";
 
     // Form URL String Components
@@ -47,5 +56,9 @@ public class LIBSDataGenConstants {
     public static final String NIST_LIBS_QUERY_PARAM_MIN_REL_INT = "min_rel_int";
     public static final String NIST_LIBS_QUERY_PARAM_INT_SCALE = "int_scale";
     public static final String NIST_LIBS_QUERY_PARAM_LIBS = "libs";
+
+    /**
+     * #### Miscellaneous Constants ####
+     */
 
 }
