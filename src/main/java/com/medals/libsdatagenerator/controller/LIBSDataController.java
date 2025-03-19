@@ -42,12 +42,25 @@ public class LIBSDataController {
                     String csvDirPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT, CommonUtils.DATA_PATH);
                     logger.info("Processed input data");
 
-                    // Fetching data from NIST LIBS database
-                    System.out.println("\nFetching data record from NIST LIBS database...");
                     if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT)) {
-                        ArrayList<ArrayList<Element>> compositions = libsDataService.generateCompositionalVariations(elements, 0.2, 2); // TODO: Provide input args to set varyBy and limit
+                        double varyBy = Double.parseDouble(
+                                cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1")
+                        );
+                        double maxDelta = Double.parseDouble(
+                                cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.5")
+                        );
+                        boolean appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
+                        boolean forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
 
-                        libsDataService.generateCompositionalVariationsDataset(compositions, minWavelength, maxWavelength, csvDirPath);
+                        int variationMode = Integer.parseInt(cmd.getOptionValue(
+                                LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
+                                String.valueOf(LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST)
+                        ));
+                        int numSamples = 50;
+                        ArrayList<ArrayList<Element>> compositions = libsDataService.generateCompositionalVariations(
+                                elements, varyBy, maxDelta, variationMode, numSamples);
+
+                        libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath, appendMode, forceFetch);
 
                     } else {
                         libsDataService.fetchLIBSData(elements, minWavelength, maxWavelength, csvDirPath);

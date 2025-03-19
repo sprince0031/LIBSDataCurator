@@ -47,6 +47,7 @@ public class CommonUtils {
     public CommandLine getTerminalArgHandler(String[] args) {
         Options options = new Options();
 
+        // Composition flag
         Option composition = new Option(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT,
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,
                 true,
@@ -54,25 +55,59 @@ public class CommonUtils {
         composition.setRequired(true);
         options.addOption(composition);
 
+        // Min Wavelength
         options.addOption(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_LONG,
                 true,
                 LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_DESC);
 
+        // Max Wavelength
         options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_LONG,
                 true,
                 LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_DESC);
 
+        // Data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,
                 true,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_DESC);
 
+        // Perform compositional variations
         options.addOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT,
                 LIBSDataGenConstants.CMD_OPT_COMP_VAR_LONG,
                 false,
                 LIBSDataGenConstants.CMD_OPT_COMP_VAR_DESC);
+
+        // Force fetch
+        options.addOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT,
+                LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_DESC);
+
+        // Append mode
+        options.addOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_DESC);
+
+        // vary by (for compositions)
+        options.addOption(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT,
+                LIBSDataGenConstants.CMD_OPT_VARY_BY_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_VARY_BY_DESC);
+
+        // Append mode
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_DESC);
+
+        // Variation mode
+        options.addOption(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_VAR_MODE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_VAR_MODE_DESC);
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();

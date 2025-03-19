@@ -13,6 +13,8 @@ import org.openqa.selenium.WebElement;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.io.PrintStream;
+import java.io.BufferedReader;
 import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Service class for all NIST LIBS website related functionality.
@@ -64,6 +67,7 @@ public class LIBSDataService {
     }
 
 
+    // Fetching data from NIST LIBS database
     public String fetchLIBSData(ArrayList<Element> elements, String minWavelength, String maxWavelength, String savePath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
@@ -127,6 +131,14 @@ public class LIBSDataService {
             spectra = String.join(",", spectra, element.getSymbol() + "0-2");
         }
 
+        // Adding remaining elements from full composition list
+        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
+            if (!composition.contains(element)) {
+                composition = String.join(";", composition, element + ":0");
+                spectra = String.join(",", spectra, element + "0-2");
+            }
+        }
+
         // Adding composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
 
@@ -183,102 +195,60 @@ public class LIBSDataService {
         return elementsList;
     }
 
-    public ArrayList<ArrayList<Element>> generateCompositionalVariations(ArrayList<Element> originalComposition, double varyBy, double limit) {
+    public ArrayList<ArrayList<Element>> generateCompositionalVariations(ArrayList<Element> originalComposition,
+                                                                         double varyBy, double maxDelta, int variationMode,
+                                                                         int samples) {
         ArrayList<ArrayList<Element>> compositions = new ArrayList<>();
         compositions.add(originalComposition); // Adding the original composition
 
-        // Generate all combinations
-        // Start backtracking with an empty "current combo" and a running sum of 0
-        backtrackVariations(0, originalComposition, varyBy, limit, 0.0,
-                new ArrayList<Element>(), compositions);
+        // Generate all combinations by Uniform distribution
+        System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
+
+        if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
+            CompositionalVariations.getInstance().gaussianSampling(originalComposition, maxDelta, samples, compositions);
+
+        } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
+            // TODO: Call dirichlet sampling method
+
+        } else { // For uniform distribution
+            // Start backtracking with an empty "current combo" and a running sum of 0
+            CompositionalVariations.getInstance().getUniformDistribution(0, originalComposition, varyBy, maxDelta, 0.0,
+                    new ArrayList<Element>(), compositions);
+        }
 
         return compositions;
     }
 
-    private void backtrackVariations(
-            int index,
-            ArrayList<Element> original,
-            double varyBy,
-            double limit,
-            double currentSum,
-            ArrayList<Element> currentCombo,
-            ArrayList<ArrayList<Element>> results) {
 
-        // If this is the last element, we must "fix" it so total = 100%
-        if (index == original.size() - 1) {
-            double originalVal = original.get(index).getPercentageComposition();
-            // Allowed range for this element:
-            double low = Math.max(0, originalVal - limit);
-            double high = Math.min(100, originalVal + limit);
 
-            // The only possible value (if valid) to keep sum at 100
-            double lastVal = 100 - currentSum;
+    public void generateDataset(ArrayList<ArrayList<Element>> compositions, String minWavelength, String maxWavelength,
+                                String savePath, boolean appendMode, boolean forceFetch) {
 
-            // Check if lastVal is within [low, high]
-            if (lastVal >= low && lastVal <= high) {
-                // Accept this composition
-                currentCombo.add(new Element(
-                        original.get(index).getName(),
-                        original.get(index).getSymbol(),
-                        lastVal
-                ));
-                ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
-                results.add(newComposition);
-                logger.info("New composition added: " + commonUtils.buildCompositionString(newComposition));
-                currentCombo.remove(currentCombo.size() - 1);
-            }
-            // If lastVal not in range, no valid composition from this path
-            return;
-        }
-
-        // Not the last element: try all valid values from (originalVal-limit) to (originalVal+limit)
-        double originalVal = original.get(index).getPercentageComposition();
-        double low = Math.max(0, originalVal - limit);
-        double high = Math.min(100, originalVal + limit);
-
-        for (double val = low; val <= high; val += varyBy) {
-            // Only proceed if we won't exceed 100% so far
-            if (currentSum + val <= 100) {
-                currentCombo.add(new Element(
-                        original.get(index).getName(),
-                        original.get(index).getSymbol(),
-                        val
-                ));
-                // Recurse for the next element
-                backtrackVariations(index + 1, original, varyBy, limit,
-                        currentSum + val, currentCombo, results);
-
-                // Backtrack (undo)
-                currentCombo.remove(currentCombo.size() - 1);
-            }
-        }
-    }
-
-    public void generateCompositionalVariationsDataset(
-            ArrayList<ArrayList<Element>> compositions,
-            String minWavelength,
-            String maxWavelength,
-            String savePath) {
-
-        // 1) We'll keep track of all WAVELENGTHS across all comps:
+        // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
 
-        // 2) We'll keep track of all ELEMENT SYMBOLS across all comps:
+        // all Element symbols across all comps:
         Set<String> allElementSymbols = new TreeSet<>();
 
-        // 3) We'll store for each composition's *string ID* -> (wave -> intensity)
+        // Store for each composition's *string ID* -> (wave -> intensity)
         Map<String, Map<Double, Double>> compWaveIntensity = new HashMap<>();
-        // 4) We'll store for each composition's *string ID* -> (element symbol -> percentage)
+        // Store for each composition's *string ID* -> (element symbol -> percentage)
         Map<String, Map<String, Double>> compElementPcts = new HashMap<>();
 
         int compositionsProcessed = 0;
 
-        // 5) For each composition, fetch the CSV, parse it, store data
+        PrintStream out = System.out;
+
+        int progressBarWidth = 50; // Width of the progress bar
+        out.println("Fetching samples...");
+
+        // For each composition, fetch the CSV, parse it, store data
         for (ArrayList<Element> composition : compositions) {
 
             // Build a string like "Cu:50;Fe:50" for identifying this composition
             String compositionId = commonUtils.buildCompositionString(composition);
 
+            // Sleep for 5 seconds after every 5 requests to the NIST LIBS server
             if (compositionsProcessed % 5 == 0) {
                 try {
                     Thread.sleep(5000);
@@ -286,8 +256,23 @@ public class LIBSDataService {
                     throw new RuntimeException(e);
                 }
             }
+
             // Fetch CSV data from NIST
-            String csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
+            String csvData;
+            String compositionFileName = "composition_" + compositionId + ".csv";
+            Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR, compositionFileName);
+            boolean compositionFileExists = Files.exists(compositionFilePath);
+            if (forceFetch || !compositionFileExists) {
+                csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
+                logger.info("Composition data for " + compositionId + "does not exist. Going to fetch from LIBS database.");
+            } else {
+                try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
+                    logger.info("Composition data for " + compositionId + "already downloaded!");
+                    csvData = csvReader.lines().collect(Collectors.joining()); // Read and collect all lines into csv string
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
 
             // If fetch failed, skip
             if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
@@ -314,12 +299,16 @@ public class LIBSDataService {
             }
             compElementPcts.put(compositionId, elemMap);
 
+            // Calculate progress
+            int progress = (compositionsProcessed + 1) * progressBarWidth / compositions.size();
+            String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
+            out.printf("\r[%s] %d/%d samples completed", bar, compositionsProcessed + 1, compositions.size());
+
             compositionsProcessed++;
         }
 
-        // 6) Now, let's write a single "master CSV" of all results
-        //    We'll build columns: composition, then each wavelength (sorted),
-        //    then each element symbol (sorted).
+        // Write a single "master CSV" of all results
+        // columns: composition, each wavelength (sorted), each element symbol (sorted).
 
         // Convert sets to sorted lists
         List<Double> sortedWaves = new ArrayList<>(allWavelengths);
@@ -383,6 +372,8 @@ public class LIBSDataService {
      */
     private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException {
         Map<Double, Double> waveMap = new HashMap<>();
+
+        // Check if CSV string is correctly parsed
 
         StringReader sr = new StringReader(csvData);
         Iterable<CSVRecord> records = CSVFormat.DEFAULT
