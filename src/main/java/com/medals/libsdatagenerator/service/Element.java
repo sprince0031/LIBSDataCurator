@@ -15,18 +15,26 @@ public class Element {
 
     private static Logger logger = Logger.getLogger(Element.class.getName());
 
-    public final String name;
-    public final String symbol;
-    public Double percentageComposition;
+    private final String name;
+    private final String symbol;
+    private Double percentageComposition;
+    private Double percentageCompositionMin;
+    private Double percentageCompositionMax;
     public int numberDecimalPlaces = 3;
 
-    public Element(String name, String symbol, Double percentageComposition) {
+    public Element(String name, String symbol, Double percentageComposition, Double min, Double max) {
         Objects.requireNonNull(name);
         this.name = name;
         Objects.requireNonNull(symbol);
         this.symbol = symbol;
         if (percentageComposition != null) {
             percentageComposition = CommonUtils.roundToNDecimals(percentageComposition, numberDecimalPlaces);
+        }
+        if (min != null) {
+            percentageCompositionMin = CommonUtils.roundToNDecimals(min, numberDecimalPlaces);
+        }
+        if (max != null) {
+            percentageCompositionMax = CommonUtils.roundToNDecimals(max, numberDecimalPlaces);
         }
         this.percentageComposition = Objects.requireNonNullElse(percentageComposition, 0.0);
     }
@@ -48,12 +56,28 @@ public class Element {
         return this.percentageComposition;
     }
 
+    public void setPercentageComposition(Double percentageComposition) {
+        this.percentageComposition = CommonUtils.roundToNDecimals(percentageComposition, numberDecimalPlaces);
+    }
+
     public String getQueryRepresentation() {
         return this.symbol + ":" + this.percentageComposition;
     }
 
-    public void setPercentageComposition(Double percentageComposition) {
-        this.percentageComposition = CommonUtils.roundToNDecimals(percentageComposition, numberDecimalPlaces);
+    public Double getPercentageCompositionMin() {
+        return this.percentageCompositionMin;
+    }
+
+    public void setPercentageCompositionMin(Double percentageCompositionMin) {
+        this.percentageCompositionMin = percentageCompositionMin;
+    }
+
+    public Double getPercentageCompositionMax() {
+        return this.percentageCompositionMax;
+    }
+
+    public void setPercentageCompositionMax(Double percentageCompositionMax) {
+        this.percentageCompositionMax = percentageCompositionMax;
     }
 
     public int getNumberDecimalPlaces() {

@@ -1,14 +1,15 @@
 package com.medals.libsdatagenerator.controller;
 
-
 import com.medals.libsdatagenerator.service.Element;
 import com.medals.libsdatagenerator.service.LIBSDataService;
+import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 
 /**
  * @author Siddharth Prince | 16/12/24 18:22
@@ -31,9 +32,18 @@ public class LIBSDataController {
 
                 if (cmd != null) {
                     // Parsing user inputs
-                    String[] composition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT)
-                            .split(",");
-                    ArrayList<Element> elements = libsDataService.generateElementsList(composition); // Parses the input composition string into an array list of Element objects.
+                    String compositionInput = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
+
+                    // Check if input is a matweb datasheet GUID
+                    Pattern pattern = Pattern.compile(LIBSDataGenConstants.MATWEB_GUID_REGEX);
+                    String[] composition;
+                    if (!pattern.matcher(compositionInput).matches()) {
+                        composition = compositionInput.split(",");
+                    } else {
+                        composition = new MatwebDataService().getMaterialComposition(compositionInput);
+                    }
+                    // Parse the input composition string into an array list of Element objects.
+                    ArrayList<Element> elements = libsDataService.generateElementsList(composition);
 
                     String minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT,
                             "200");
@@ -60,7 +70,8 @@ public class LIBSDataController {
                         ArrayList<ArrayList<Element>> compositions = libsDataService.generateCompositionalVariations(
                                 elements, varyBy, maxDelta, variationMode, numSamples);
 
-                        libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath, appendMode, forceFetch);
+                        libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath,
+                                appendMode, forceFetch);
 
                     } else {
                         libsDataService.fetchLIBSData(elements, minWavelength, maxWavelength, csvDirPath);

@@ -40,15 +40,15 @@ public class CompositionalVariations {
             // First pass: Apply Gaussian noise
             for(Element e : baseComp) {
                 double baseVal = e.getPercentageComposition();
-                double delta = rand.nextGaussian() * LIBSDataGenConstants.ELEMENT_STD_DEVS.get(e.getSymbol());
+                double delta = rand.nextGaussian() * LIBSDataGenConstants.ELEMENT_STD_DEVS.get(e.getSymbol()); // TODO: Refactor to use matweb
                 delta = Math.max(-maxDelta, Math.min(delta, maxDelta));
                 double newVal = baseVal + delta;
                 newVal = Math.max(0, newVal);
                 if (newVal == 0) {
-                    logger.info("Element: " + e.name + " sampled with 0 percentage. Skipping.");
+                    logger.info("Element: " + e.getName() + " sampled with 0 percentage. Skipping.");
                     break; // Do not take any variant with any of the element percentages being 0.
                 }
-                variant.add(new Element(e.name, e.symbol, newVal));
+                variant.add(new Element(e.getName(), e.getSymbol(), newVal, 0.0, 0.0));
                 total += newVal;
             }
 
@@ -90,7 +90,9 @@ public class CompositionalVariations {
                 currentCombo.add(new Element(
                         original.get(index).getName(),
                         original.get(index).getSymbol(),
-                        lastVal
+                        lastVal,
+                        0.0,
+                        0.0
                 ));
                 ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
                 results.add(newComposition);
@@ -112,7 +114,9 @@ public class CompositionalVariations {
                 currentCombo.add(new Element(
                         original.get(index).getName(),
                         original.get(index).getSymbol(),
-                        val
+                        val,
+                        0.0,
+                        0.0
                 ));
                 // Recurse for the next element
                 getUniformDistribution(index + 1, original, varyBy, limit,

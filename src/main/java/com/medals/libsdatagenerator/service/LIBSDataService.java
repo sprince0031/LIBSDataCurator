@@ -75,7 +75,7 @@ public class LIBSDataService {
             HashMap<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
             seleniumUtils.connectToWebsite(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams);
 
-            WebElement csvButton = seleniumUtils.getDriver().findElement(By.name("ViewDataCSV"));
+            WebElement csvButton = seleniumUtils.getDriver().findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
             csvButton.click();
 
             // Switch to the new tab/window
@@ -182,14 +182,31 @@ public class LIBSDataService {
             }
 
             double currentPercentage;
-            // If the element percentage value is "*", consider as the remaining percentage composition
+            double minPercentage = 0;
+            double maxPercentage = 0;
+            if (elementNamePercent[1].contains(":")) {
+                String[] compositionRange = elementNamePercent[1].split(":");
+                minPercentage = Double.parseDouble(compositionRange[0]);
+                maxPercentage = Double.parseDouble(compositionRange[1]);
+            }
+            // If the element percentage value is "#", consider as the remaining percentage composition
             if (!elementNamePercent[1].equals("#")) {
-                currentPercentage = Double.parseDouble(elementNamePercent[1]);
+                if (minPercentage == 0 && maxPercentage == 0) {
+                    currentPercentage = Double.parseDouble(elementNamePercent[1]);
+                } else {
+                    currentPercentage = (minPercentage + maxPercentage)/2;
+                }
                 totalPercentage += currentPercentage;
             } else {
                 currentPercentage = 100 - totalPercentage;
             }
-            Element element = new Element(elementProps.getProperty(elementNamePercent[0]), elementNamePercent[0], currentPercentage);
+            Element element = new Element(
+                    elementProps.getProperty(elementNamePercent[0]),
+                    elementNamePercent[0],
+                    currentPercentage,
+                    minPercentage,
+                    maxPercentage
+            );
             elementsList.add(element);
         }
         return elementsList;

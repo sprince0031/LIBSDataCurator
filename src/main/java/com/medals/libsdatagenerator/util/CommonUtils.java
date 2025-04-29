@@ -97,7 +97,7 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_VARY_BY_DESC);
 
-        // Append mode
+        // Max delta value
         options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT,
                 LIBSDataGenConstants.CMD_OPT_MAX_DELTA_LONG,
                 true,
@@ -129,7 +129,14 @@ public class CommonUtils {
     public ArrayList<Element> deepCopy(ArrayList<Element> composition) {
         ArrayList<Element> copy = new ArrayList<>();
         for (Element e : composition) {
-            copy.add(new Element(e.getName(), e.getSymbol(), e.getPercentageComposition()));
+            copy.add(new Element(
+                    e.getName(),
+                    e.getSymbol(),
+                    e.getPercentageComposition(),
+                    e.getPercentageCompositionMin(),
+                    e.getPercentageCompositionMax()
+                    )
+            );
         }
         return copy;
     }
