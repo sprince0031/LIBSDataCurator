@@ -1,0 +1,66 @@
+name: Java CI Build and Release
+
+on:
+  push:
+    branches:
+      - main # Trigger only on pushes to main (after merge)
+  pull_request:
+    branches:
+      - main # Also trigger on PRs targeting main (for checks)
+      - LIBS-Data-Curator # Trigger on PRs from the curator branch
+
+jobs:
+  build-and-test:
+    # Only run this job fully on merge to main from LIBS-Data-Curator
+    # For direct pushes to main or PRs, it runs tests but doesn't release.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for version tagging
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin" # Popular distribution
+          cache: "maven" # Cache Maven dependencies
+
+      - name: Build with Maven and Run Tests
+        run: mvn -B package --file pom.xml # -B for batch mode, package runs tests
+
+      - name: Get Current Date for Tag
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+        # Only run tagging/release steps if merging LIBS-Data-Curator into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from LIBS-Data-Curator')
+
+      - name: Create Git Tag
+        # Only run tagging/release steps if merging LIBS-Data-Curator into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from LIBS-Data-Curator')
+        run: |
+          TAG_NAME="v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}"
+          echo "Creating tag: $TAG_NAME"
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag $TAG_NAME
+          git push origin $TAG_NAME
+
+      - name: Create GitHub Release
+        # Only run tagging/release steps if merging LIBS-Data-Curator into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from LIBS-Data-Curator')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}
+          name: Release v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}
+          body: |
+            Automated release based on merge from LIBS-Data-Curator branch.
+            See CHANGELOG.md for details.
+          files: |
+            target/libsdatagenerator-*.jar # Upload both the thin and fat JARs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions

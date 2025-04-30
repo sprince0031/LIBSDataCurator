@@ -1,6 +1,5 @@
 package com.medals.libsdatagenerator.service;
 
-
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
@@ -26,6 +25,7 @@ import java.util.stream.Collectors;
 
 /**
  * Service class for all NIST LIBS website related functionality.
+ * 
  * @author Siddharth Prince | 17/12/24 13:21
  */
 
@@ -35,6 +35,17 @@ public class LIBSDataService {
     public static LIBSDataService instance = null;
     private static Map<String, Map<Double, Double>> compositionalDataset = new HashMap<>();
     private CommonUtils commonUtils = new CommonUtils();
+    private String elementsPropertiesPath = CommonUtils.CONF_PATH + File.separator + "elements.properties";
+
+    /**
+     * Sets a custom path for the elements.properties file.
+     * This is particularly useful for testing purposes.
+     * 
+     * @param elementsPropertiesPath the custom path to the elements.properties file
+     */
+    public void setElementsPropertiesPath(String elementsPropertiesPath) {
+        this.elementsPropertiesPath = elementsPropertiesPath;
+    }
 
     public static LIBSDataService getInstance() {
         if (instance == null) {
@@ -45,6 +56,7 @@ public class LIBSDataService {
 
     /**
      * Testing if the NIST LIBS website is reachable
+     * 
      * @return boolean - True if website live, false otherwise
      */
     public boolean isNISTLIBSReachable() {
@@ -66,16 +78,17 @@ public class LIBSDataService {
         }
     }
 
-
     // Fetching data from NIST LIBS database
-    public String fetchLIBSData(ArrayList<Element> elements, String minWavelength, String maxWavelength, String savePath) {
+    public String fetchLIBSData(ArrayList<Element> elements, String minWavelength, String maxWavelength,
+            String savePath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
             HashMap<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
             seleniumUtils.connectToWebsite(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams);
 
-            WebElement csvButton = seleniumUtils.getDriver().findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+            WebElement csvButton = seleniumUtils.getDriver()
+                    .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
             csvButton.click();
 
             // Switch to the new tab/window
@@ -97,10 +110,11 @@ public class LIBSDataService {
             }
 
             // Save to a file with a unique name
-            String filename = "composition_" + queryParams.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION) + ".csv";
+            String filename = "composition_" + queryParams.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION)
+                    + ".csv";
             Path csvPath = Paths.get(String.valueOf(dataPath), filename);
             Files.write(csvPath, csvData.getBytes());
-//            System.out.println("Saved: " + filename);
+            // System.out.println("Saved: " + filename);
             logger.info("Saved: " + csvPath);
 
             // Close the CSV tab
@@ -116,8 +130,10 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    public HashMap<String, String> processLIBSQueryParams(ArrayList<Element> elements, String minWavelength, String maxWavelength) {
-        // Processing the information for each element and adding to the query params hashmap
+    public HashMap<String, String> processLIBSQueryParams(ArrayList<Element> elements, String minWavelength,
+            String maxWavelength) {
+        // Processing the information for each element and adding to the query params
+        // hashmap
         // Sample query params:
         // composition=C:0.26;Mn:0.65;Si:0.22;Fe:98.87&mytext[]=C&myperc[]=0.26&spectra=C0-2,Mn0-2,Si0-2,Fe0-2&mytext[]=Mn&myperc[]=0.65&mytext[]=Si&myperc[]=0.22&mytext[]=Fe&myperc[]=98.87&low_w=200&limits_type=0&upp_w=600&show_av=2&unit=1&resolution=1000&temp=1&eden=1e17&maxcharge=2&min_rel_int=0.01&int_scale=1&libs=1
         // https://physics.nist.gov/cgi-bin/ASD/lines1.pl?composition=C%3A0.26%3BMn%3A0.65%3BSi%3A0.22%3BFe%3A98.87&mytext%5B%5D=C&myperc%5B%5D=0.26&spectra=C0-2%2CMn0-2%2CSi0-2%2CFe0-2&mytext%5B%5D=Mn&myperc%5B%5D=0.65&mytext%5B%5D=Si&myperc%5B%5D=0.22&mytext%5B%5D=Fe&myperc%5B%5D=98.87&low_w=200&limits_type=0&upp_w=600&show_av=2&unit=1&resolution=1000&temp=1&eden=1e17&maxcharge=2&min_rel_int=0.01&int_scale=1&libs=1
@@ -151,7 +167,8 @@ public class LIBSDataService {
         // Adding max wavelength
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UPP_W, maxWavelength);
 
-        // The rest of the query params are kept constant for now. Can update to take custom values as needed in the future.
+        // The rest of the query params are kept constant for now. Can update to take
+        // custom values as needed in the future.
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LIMITS_TYPE, "0");
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SHOW_AV, "2");
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UNIT, "1");
@@ -169,13 +186,14 @@ public class LIBSDataService {
     public ArrayList<Element> generateElementsList(String[] composition) throws IOException {
         ArrayList<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;
-        for (String elementString: composition) {
-            // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of composition
+        for (String elementString : composition) {
+            // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
+            // composition
             String[] elementNamePercent = elementString.split("-");
-            String elementPropsPath = CommonUtils.CONF_PATH + File.separator + "elements.properties";
-            Properties elementProps = commonUtils.readProperties(elementPropsPath);
+            Properties elementProps = commonUtils.readProperties(elementsPropertiesPath);
 
-            // Check if the current input element exists in the periodic table (element list stored in elements.properties)
+            // Check if the current input element exists in the periodic table (element list
+            // stored in elements.properties)
             if (!elementProps.containsKey(elementNamePercent[0])) {
                 logger.log(Level.SEVERE, "Invalid input. " + elementNamePercent[0] + " does not exist.");
                 throw new IOException("Invalid element " + elementNamePercent[0] + " given as input");
@@ -189,12 +207,13 @@ public class LIBSDataService {
                 minPercentage = Double.parseDouble(compositionRange[0]);
                 maxPercentage = Double.parseDouble(compositionRange[1]);
             }
-            // If the element percentage value is "#", consider as the remaining percentage composition
+            // If the element percentage value is "#", consider as the remaining percentage
+            // composition
             if (!elementNamePercent[1].equals("#")) {
                 if (minPercentage == 0 && maxPercentage == 0) {
                     currentPercentage = Double.parseDouble(elementNamePercent[1]);
                 } else {
-                    currentPercentage = (minPercentage + maxPercentage)/2;
+                    currentPercentage = (minPercentage + maxPercentage) / 2;
                 }
                 totalPercentage += currentPercentage;
             } else {
@@ -205,16 +224,15 @@ public class LIBSDataService {
                     elementNamePercent[0],
                     currentPercentage,
                     minPercentage,
-                    maxPercentage
-            );
+                    maxPercentage);
             elementsList.add(element);
         }
         return elementsList;
     }
 
     public ArrayList<ArrayList<Element>> generateCompositionalVariations(ArrayList<Element> originalComposition,
-                                                                         double varyBy, double maxDelta, int variationMode,
-                                                                         int samples) {
+            double varyBy, double maxDelta, int variationMode,
+            int samples) {
         ArrayList<ArrayList<Element>> compositions = new ArrayList<>();
         compositions.add(originalComposition); // Adding the original composition
 
@@ -222,7 +240,8 @@ public class LIBSDataService {
         System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
 
         if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
-            CompositionalVariations.getInstance().gaussianSampling(originalComposition, maxDelta, samples, compositions);
+            CompositionalVariations.getInstance().gaussianSampling(originalComposition, maxDelta, samples,
+                    compositions);
 
         } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
             // TODO: Call dirichlet sampling method
@@ -236,10 +255,8 @@ public class LIBSDataService {
         return compositions;
     }
 
-
-
     public void generateDataset(ArrayList<ArrayList<Element>> compositions, String minWavelength, String maxWavelength,
-                                String savePath, boolean appendMode, boolean forceFetch) {
+            String savePath, boolean appendMode, boolean forceFetch) {
 
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
@@ -277,15 +294,18 @@ public class LIBSDataService {
             // Fetch CSV data from NIST
             String csvData;
             String compositionFileName = "composition_" + compositionId + ".csv";
-            Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR, compositionFileName);
+            Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
+                    compositionFileName);
             boolean compositionFileExists = Files.exists(compositionFilePath);
             if (forceFetch || !compositionFileExists) {
                 csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
-                logger.info("Composition data for " + compositionId + "does not exist. Going to fetch from LIBS database.");
+                logger.info(
+                        "Composition data for " + compositionId + "does not exist. Going to fetch from LIBS database.");
             } else {
                 try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
                     logger.info("Composition data for " + compositionId + "already downloaded!");
-                    csvData = csvReader.lines().collect(Collectors.joining()); // Read and collect all lines into csv string
+                    csvData = csvReader.lines().collect(Collectors.joining()); // Read and collect all lines into csv
+                                                                               // string
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -329,7 +349,7 @@ public class LIBSDataService {
 
         // Convert sets to sorted lists
         List<Double> sortedWaves = new ArrayList<>(allWavelengths);
-        Collections.sort(sortedWaves);  // TreeSet is already sorted, but okay to be explicit
+        Collections.sort(sortedWaves); // TreeSet is already sorted, but okay to be explicit
         List<String> sortedSymbols = new ArrayList<>(allElementSymbols);
         Collections.sort(sortedSymbols);
 
@@ -349,8 +369,7 @@ public class LIBSDataService {
         Path masterCsvPath = Paths.get(savePath, "master_dataset.csv");
         try (CSVPrinter printer = new CSVPrinter(
                 Files.newBufferedWriter(masterCsvPath),
-                CSVFormat.DEFAULT.withHeader(header.toArray(new String[0])))
-        ) {
+                CSVFormat.DEFAULT.withHeader(header.toArray(new String[0])))) {
             // Each composition => one row
             for (String compId : compWaveIntensity.keySet()) {
                 Map<Double, Double> waveMap = compWaveIntensity.get(compId);
@@ -381,11 +400,11 @@ public class LIBSDataService {
         }
     }
 
-
     /**
      * Parse in-memory CSV from NIST (with columns "Wavelength (nm)" and "Sum"),
+     * 
      * @return a map: (wavelength -> intensity).
-     * Also add each encountered wavelength to 'allWavelengths'.
+     *         Also add each encountered wavelength to 'allWavelengths'.
      */
     private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException {
         Map<Double, Double> waveMap = new HashMap<>();
@@ -399,12 +418,12 @@ public class LIBSDataService {
 
         // Headers might be "Wavelength (nm)" and "Sum"—confirm with a real example.
         for (CSVRecord record : records) {
-            String waveStr = record.get("Wavelength (nm)");  // or "Wavelength"
-            String sumStr  = record.get("Sum");              // or "Sum"
+            String waveStr = record.get("Wavelength (nm)"); // or "Wavelength"
+            String sumStr = record.get("Sum"); // or "Sum"
 
             if (waveStr != null && sumStr != null) {
                 double wavelength = Double.parseDouble(waveStr);
-                double intensity  = Double.parseDouble(sumStr);
+                double intensity = Double.parseDouble(sumStr);
 
                 waveMap.put(wavelength, intensity);
                 allWavelengths.add(wavelength);

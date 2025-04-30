@@ -104,6 +104,7 @@ public class MatwebDataService {
     private String[] parseCompositionData(List<String> elementList, List<String> compositionList, List<String> comments) {
         String[] parsedElementString = new String[elementList.size()];
         for (int i = 0; i < elementList.size(); i++) {
+            logger.info("Scraped matweb table output: " + elementList.get(i));
             String element = elementList.get(i).split(",")[1].trim(); // Get the element symbol alone and discard name
 
             // Parse and extract data from weight percentage possibilities
