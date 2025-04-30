@@ -1,6 +1,5 @@
 package com.medals.libsdatagenerator.service;
 
-
 /**
  * @author Siddharth Prince | 20/03/25 06:41
  */
@@ -33,7 +32,8 @@ public class MatwebDataService {
             if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE, queryParams)) {
                 List<List<String>> compositionTableData = fetchCompositionTableData();
                 if (!compositionTableData.isEmpty()) {
-                    return parseCompositionData(compositionTableData.get(0), compositionTableData.get(1), compositionTableData.get(3));
+                    return parseCompositionData(compositionTableData.get(0), compositionTableData.get(1),
+                            compositionTableData.get(3));
                 }
             }
         } catch (Exception e) {
@@ -41,13 +41,20 @@ public class MatwebDataService {
         } finally {
             seleniumUtils.quitSelenium();
         }
-        return new String[] {String.valueOf(HttpURLConnection.HTTP_NOT_FOUND)};
+        return new String[] { String.valueOf(HttpURLConnection.HTTP_NOT_FOUND) };
     }
 
     private List<List<String>> fetchCompositionTableData() {
         List<List<String>> compositionTableData = new ArrayList<>();
 
-        List<WebElement> tables = seleniumUtils.getDriver().findElements(By.cssSelector("table.tabledataformat")); // Find the main table by class name
+        // Initialize lists for each column
+        List<String> elementNames = new ArrayList<>();
+        List<String> metricValues = new ArrayList<>();
+        List<String> englishValues = new ArrayList<>();
+        List<String> commentsValues = new ArrayList<>();
+
+        // Find the main table by class name
+        List<WebElement> tables = seleniumUtils.getDriver().findElements(By.cssSelector("table.tabledataformat"));
         WebElement targetTable = null;
 
         // Iterate through the tables and select the one that contains the desired header text
@@ -60,15 +67,14 @@ public class MatwebDataService {
 
         // If no table contains the header, log and return empty data.
         if (targetTable == null) {
-            System.err.println("No table containing 'Component Elements Properties' was found.");
+            logger.severe("No table containing 'Component Elements Properties' was found.");
             return compositionTableData;
         }
 
         // Locate the row with the heading "Component Elements Properties"
         // This XPath finds a <tr> that has a <th> containing that text
         WebElement componentHeadingRow = targetTable.findElement(
-                By.xpath(".//tr[th[contains(normalize-space(.), 'Component Elements Properties')]]")
-        );
+                By.xpath(".//tr[th[contains(normalize-space(.), 'Component Elements Properties')]]"));
 
         // From that row, get all subsequent sibling <tr> elements
         // 'following-sibling::tr' gets the rows that come after the heading row
@@ -84,45 +90,64 @@ public class MatwebDataService {
 
             // Otherwise, this row should contain <td> cells with composition data
             List<WebElement> dataCells = row.findElements(By.tagName("td"));
-            if (dataCells.isEmpty()) {
-                // If no <td> found, might be an empty or separator row—skip it
+            if (dataCells.isEmpty() || dataCells.size() < 4) {
+                // If no <td> found or not enough cells, might be an empty or separator row—skip it
                 continue;
             }
 
-            // Gather the text of each cell into a list
-            List<String> rowValues = new ArrayList<>();
-            for (WebElement td : dataCells) {
-                rowValues.add(td.getText().trim());
-            }
-
-            // Add to resultS
-            compositionTableData.add(rowValues);
+            // Add each cell to its respective column list
+            elementNames.add(dataCells.get(0).getText().trim());
+            metricValues.add(dataCells.get(1).getText().trim());
+            englishValues.add(dataCells.get(2).getText().trim());
+            commentsValues.add(dataCells.get(3).getText().trim());
         }
+
+        // Add all column lists to the result
+        if (!elementNames.isEmpty()) {
+            compositionTableData.add(elementNames);
+            compositionTableData.add(metricValues);
+            compositionTableData.add(englishValues);
+            compositionTableData.add(commentsValues);
+        }
+
         return compositionTableData;
     }
 
-    private String[] parseCompositionData(List<String> elementList, List<String> compositionList, List<String> comments) {
+    private String[] parseCompositionData(List<String> elementList, List<String> compositionList,
+            List<String> comments) {
         String[] parsedElementString = new String[elementList.size()];
         for (int i = 0; i < elementList.size(); i++) {
-            logger.info("Scraped matweb table output: " + elementList.get(i));
-            String element = elementList.get(i).split(",")[1].trim(); // Get the element symbol alone and discard name
+            String elementString = elementList.get(i);
+            logger.info("Scraped matweb table output: " + elementString);
+
+            // Extract element symbol - handle both formats "Element, Symbol" and "Element Symbol"
+            String element;
+            if (elementString.contains(",")) {
+                element = elementString.split(",")[1].trim(); // Get the element symbol after comma
+            } else {
+                // If no comma, try to extract the element symbol another way
+                // Most element symbols are 1-2 characters at the end of the string
+                String[] parts = elementString.split("\\s+");
+                element = parts[parts.length - 1]; // Take the last part as the element symbol
+            }
 
             // Parse and extract data from weight percentage possibilities
-            // Possible options:
-            //  1. Direct percentage value
-            //  2. Percentage range separated by " - "
-            //  3. <= max percentage value
-            //  4. >= min percentage value OR comment specifies that the element makes up the remainder
-            String composition = compositionList.get(i); // Option 1
-            composition = composition.substring(0, composition.length()-2);
-            if (composition.contains(" - ")) { // Option 2
+            String composition = compositionList.get(i);
+            logger.info("Composition value: " + composition);
+
+            // Remove trailing '%' and any whitespace
+            if (composition.endsWith("%")) {
+                composition = composition.substring(0, composition.length() - 1).trim();
+            }
+
+            // Handle composition formats
+            if (composition.contains(" - ")) { // Percentage range
                 String[] compositionRange = composition.split(" - ");
                 composition = compositionRange[0] + ":" + compositionRange[1];
-            }
-            if (composition.contains("<=")) { // Option 3
-                composition = composition.substring(3);
-            }
-            if (composition.contains(">=") || comments.get(i).contains("remainder")) { // Option 4
+            } else if (composition.contains("<=")) { // Max percentage
+                composition = composition.substring(2).trim();
+            } else if (composition.contains(">=") ||
+                    (i < comments.size() && comments.get(i).contains("remainder"))) { // Min or remainder
                 composition = "#";
             }
 
