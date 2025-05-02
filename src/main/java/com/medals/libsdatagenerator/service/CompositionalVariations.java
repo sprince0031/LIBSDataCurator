@@ -99,7 +99,7 @@ public class CompositionalVariations {
                 ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
                 results.add(newComposition);
                 logger.info("New composition added: " + commonUtils.buildCompositionString(newComposition));
-                currentCombo.removeLast();
+                currentCombo.remove(currentCombo.size() - 1);
             }
             // If lastVal not in range, no valid composition from this path
             return;
