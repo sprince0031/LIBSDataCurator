@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.CommonUtils;
+import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -33,19 +34,8 @@ public class LIBSDataService {
     private static Logger logger = Logger.getLogger(LIBSDataService.class.getName());
 
     public static LIBSDataService instance = null;
-    private static Map<String, Map<Double, Double>> compositionalDataset = new HashMap<>();
-    private CommonUtils commonUtils = new CommonUtils();
-    private String elementsPropertiesPath = CommonUtils.CONF_PATH + File.separator + "elements.properties";
-
-    /**
-     * Sets a custom path for the elements.properties file.
-     * This is particularly useful for testing purposes.
-     * 
-     * @param elementsPropertiesPath the custom path to the elements.properties file
-     */
-    public void setElementsPropertiesPath(String elementsPropertiesPath) {
-        this.elementsPropertiesPath = elementsPropertiesPath;
-    }
+//    private static Map<String, Map<Double, Double>> compositionalDataset = new HashMap<>();
+    private final CommonUtils commonUtils = new CommonUtils();
 
     public static LIBSDataService getInstance() {
         if (instance == null) {
@@ -143,7 +133,7 @@ public class LIBSDataService {
         String composition = "";
         String spectra = "";
         for (Element element : elements) {
-            composition = String.join(";", composition, element.getQueryRepresentation());
+            composition = String.join(";", composition, element.toString());
             spectra = String.join(",", spectra, element.getSymbol() + "0-2");
         }
 
@@ -190,11 +180,9 @@ public class LIBSDataService {
             // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
             // composition
             String[] elementNamePercent = elementString.split("-");
-            Properties elementProps = commonUtils.readProperties(elementsPropertiesPath);
 
-            // Check if the current input element exists in the periodic table (element list
-            // stored in elements.properties)
-            if (!elementProps.containsKey(elementNamePercent[0])) {
+            // Check if the current input element exists in the periodic table
+            if (!PeriodicTable.isValidElement(elementNamePercent[0])) {
                 logger.log(Level.SEVERE, "Invalid input. " + elementNamePercent[0] + " does not exist.");
                 throw new IOException("Invalid element " + elementNamePercent[0] + " given as input");
             }
@@ -220,11 +208,12 @@ public class LIBSDataService {
                 currentPercentage = 100 - totalPercentage;
             }
             Element element = new Element(
-                    elementProps.getProperty(elementNamePercent[0]),
+                    PeriodicTable.getElementName(elementNamePercent[0]),
                     elementNamePercent[0],
                     currentPercentage,
                     minPercentage,
-                    maxPercentage);
+                    maxPercentage,
+                    null);
             elementsList.add(element);
         }
         return elementsList;

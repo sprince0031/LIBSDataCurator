@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.controller;
 
-
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -55,9 +56,10 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
     public static final String CMD_OPT_VAR_MODE_DESC = "Chooses the variation mode: " +
             "0 - uniform dist, 1 - Gaussian sampling (default), 2 - Dirichlet sampling";
-    public static final String CMD_OPT_MATWEB_SHORT = "mw";
-    public static final String CMD_OPT_MATWEB_LONG = "matweb-guid";
-    public static final String CMD_OPT_MATWEB_DESC = "Fetches composition from matweb.com based on the provided datasheet GUID (taken from the URL parameter)";
+    static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
+    public static final String CMD_OPT_OVERVIEW_GUID_LONG = "overview-guid";
+    public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
+            "Required for Dirichlet sampling mode (mode 2) to get series average compositions.";
 
     /**
      * #### NIST LIBS Constants ####
@@ -91,6 +93,8 @@ public class LIBSDataGenConstants {
      */
     public static final String MATWEB_DATASHEET_URL_BASE = "https://www.matweb.com/search/DataSheet.aspx";
     public static final String MATWEB_DATASHEET_PARAM_GUID = "MatGUID";
+    // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
+    public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";
 
     /**
      * #### Miscellaneous Constants ####
@@ -100,43 +104,40 @@ public class LIBSDataGenConstants {
     public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 1; // Gaussian sampling mode
     public static final int STAT_VAR_MODE_DIRICHLET_DIST = 2; // Dirichlet sampling mode
 
+    // Default concentration parameter for Dirichlet distribution. Higher = less variance.
+    public static final double DIRICHLET_BASE_CONCENTRATION = 100.0;
+
+    // Default alpha value for elements missing an average in the overview sheet
+    public static final double DIRICHLET_DEFAULT_ALPHA = 0.5; // Low value to allow wide variance
+
     public static final String[] STD_ELEMENT_LIST = {
-            "C",
-            "Si",
-            "Mn",
-            "P",
-            "S",
-            "Cu",
-            "Al",
-            "Cr",
-            "Mo",
-            "Ni",
-            "V",
-            "Ti",
-            "Nb",
-            "Co",
-            "W",
-            "Sn",
-            "Pb",
-            "B",
-            "As",
-            "Zr",
-            "Bi",
-            "Cd",
-            "Se",
-            "Fe"
+            "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",
+            "Ti", "Nb", "Co", "W", "Sn", "Pb", "B", "As", "Zr", "Bi", "Cd",
+            "Se", "Fe"
     };
 
-    public static final Map<String, Double> ELEMENT_STD_DEVS = Map.of(
-            "C", 0.113,
-            "Mn", 0.396,
-            "Si", 0.211,
-            "Ni", 0.526,
-            "Cr", 3.212,
-            "V", 0.219,
-            "Mo", 0.370,
-            "Cu", 0.242,
-            "Fe", 2.841
-    );
+    // Fallback to use if Gaussian sampling chosen over Dirichlet sampling.
+    @Deprecated
+    public static final Map<String, Double> ELEMENT_STD_DEVS_FALLBACK;
+
+    static {
+        Map<String, Double> elements = new HashMap<>();
+        elements.put("C", 0.113);
+        elements.put("Mn", 0.396); 
+        elements.put("Si", 0.211); 
+        elements.put("Ni", 0.526); 
+        elements.put("Cr", 3.212);
+        elements.put("V", 0.219); 
+        elements.put("Mo", 0.370); 
+        elements.put("Cu", 0.242); 
+        elements.put("Fe", 2.841); 
+        elements.put("S", 0.05);
+        elements.put("P", 0.05);
+        // Add other elements with estimated SDs if needed for Gaussian fallback
+
+        ELEMENT_STD_DEVS_FALLBACK = Collections.unmodifiableMap(elements);
+
+    }
+
 
 }

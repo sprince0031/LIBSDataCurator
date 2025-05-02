@@ -44,6 +44,7 @@ public class LIBSDataController {
                     }
                     // Parse the input composition string into an array list of Element objects.
                     ArrayList<Element> elements = libsDataService.generateElementsList(composition);
+                    logger.info("Elements: " + new CommonUtils().buildCompositionString(elements));
 
                     String minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT,
                             "200");

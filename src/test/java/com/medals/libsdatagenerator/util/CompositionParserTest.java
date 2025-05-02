@@ -23,10 +23,6 @@ class CompositionParserTest {
     @BeforeEach
     void setUp() {
         libsDataService = LIBSDataService.getInstance();
-
-        // Set custom path for elements.properties file for testing
-        String testElementsPath = "src/test/resources/test_elements.properties";
-        libsDataService.setElementsPropertiesPath(testElementsPath);
     }
 
     @Test
@@ -83,8 +79,8 @@ class CompositionParserTest {
     void testQueryParamGeneration() {
         // Test that elements are properly converted to query parameters
         ArrayList<Element> elements = new ArrayList<>();
-        elements.add(new Element("Carbon", "C", 0.2, null, null));
-        elements.add(new Element("Iron", "Fe", 99.8, null, null));
+        elements.add(new Element("Carbon", "C", 0.2, null, null, null));
+        elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 
         HashMap<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
 

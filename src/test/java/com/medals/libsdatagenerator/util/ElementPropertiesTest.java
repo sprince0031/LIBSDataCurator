@@ -57,7 +57,7 @@ class ElementPropertiesTest {
     @Test
     void testElementCreation() {
         // Test that Element objects can be created with correct properties
-        Element iron = new Element("Iron", "Fe", 98.5, 98.0, 99.0);
+        Element iron = new Element("Iron", "Fe", 98.5, 98.0, 99.0, null);
 
         assertEquals("Iron", iron.getName());
         assertEquals("Fe", iron.getSymbol());
@@ -65,13 +65,12 @@ class ElementPropertiesTest {
         assertEquals(98.0, iron.getPercentageCompositionMin());
         assertEquals(99.0, iron.getPercentageCompositionMax());
         assertEquals("Fe:98.5", iron.toString());
-        assertEquals("Fe:98.5", iron.getQueryRepresentation());
     }
 
     @Test
     void testElementPercentageRounding() {
         // Test that percentage values are properly rounded
-        Element carbon = new Element("Carbon", "C", 0.1234, null, null);
+        Element carbon = new Element("Carbon", "C", 0.1234, null, null, null);
         assertEquals(0.123, carbon.getPercentageComposition()); // Should round to 3 decimal places by default
 
         // Test setting new percentage
@@ -82,7 +81,7 @@ class ElementPropertiesTest {
     @Test
     void testElementDecimalPrecision() {
         // Test customizing decimal precision
-        Element silicon = new Element("Silicon", "Si", 1.23456, null, null);
+        Element silicon = new Element("Silicon", "Si", 1.23456, null, null, null);
         assertEquals(1.235, silicon.getPercentageComposition()); // Default 3 places
 
         silicon.setNumberDecimalPlaces(2);

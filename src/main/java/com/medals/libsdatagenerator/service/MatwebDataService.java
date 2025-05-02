@@ -1,25 +1,22 @@
 package com.medals.libsdatagenerator.service;
 
-/**
- * @author Siddharth Prince | 20/03/25 06:41
- */
-
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
 
 import java.net.HttpURLConnection;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Fetches data from matweb.com
+ * @author Siddharth Prince | 20/03/25 06:41
  */
 public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
@@ -32,8 +29,11 @@ public class MatwebDataService {
             if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE, queryParams)) {
                 List<List<String>> compositionTableData = fetchCompositionTableData();
                 if (!compositionTableData.isEmpty()) {
-                    return parseCompositionData(compositionTableData.get(0), compositionTableData.get(1),
-                            compositionTableData.get(3));
+                    return parseCompositionData(
+                            compositionTableData.get(0), // Element names
+                            compositionTableData.get(1), // Metric values (% or range)
+                            compositionTableData.get(3) // Comments for average %
+                    );
                 }
             }
         } catch (Exception e) {
@@ -44,13 +44,19 @@ public class MatwebDataService {
         return new String[] { String.valueOf(HttpURLConnection.HTTP_NOT_FOUND) };
     }
 
+    /**
+     * Fetches the raw string data from the composition table on the Matweb page.
+     *
+     * @return A List of Lists, where each inner list represents a column (Element Name, Metric, English, Comments).
+     * Returns an empty list if the table is not found or parsing fails.
+     */
     private List<List<String>> fetchCompositionTableData() {
         List<List<String>> compositionTableData = new ArrayList<>();
 
         // Initialize lists for each column
         List<String> elementNames = new ArrayList<>();
         List<String> metricValues = new ArrayList<>();
-        List<String> englishValues = new ArrayList<>();
+        List<String> englishValues = new ArrayList<>(); // Keep for potential future use
         List<String> commentsValues = new ArrayList<>();
 
         // Find the main table by class name

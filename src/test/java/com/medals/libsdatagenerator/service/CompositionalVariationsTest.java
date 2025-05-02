@@ -20,9 +20,9 @@ class CompositionalVariationsTest {
     void testGaussianSampling_Basic() {
         // Arrange
         ArrayList<Element> baseComp = new ArrayList<>();
-        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3));
-        baseComp.add(new Element("Silicon", "Si", 1.0, 0.8, 1.2));
-        baseComp.add(new Element("Iron", "Fe", 98.8, 98.0, 99.5));
+        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3, null));
+        baseComp.add(new Element("Silicon", "Si", 1.0, 0.8, 1.2, null));
+        baseComp.add(new Element("Iron", "Fe", 98.8, 98.0, 99.5, null));
 
         double maxDelta = 0.1;
         int samples = 5;
@@ -47,8 +47,8 @@ class CompositionalVariationsTest {
     void testGaussianSampling_WithMinMax() {
         // Arrange
         ArrayList<Element> baseComp = new ArrayList<>();
-        Element carbon = new Element("Carbon", "C", 0.5, 0.1, 1.0);
-        Element iron = new Element("Iron", "Fe", 99.5, 99.0, 99.9);
+        Element carbon = new Element("Carbon", "C", 0.5, 0.1, 1.0, null);
+        Element iron = new Element("Iron", "Fe", 99.5, 99.0, 99.9, null);
 
         baseComp.add(carbon);
         baseComp.add(iron);
@@ -83,8 +83,8 @@ class CompositionalVariationsTest {
     void testGetUniformDistribution() {
         // Arrange
         ArrayList<Element> baseComp = new ArrayList<>();
-        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3));
-        baseComp.add(new Element("Iron", "Fe", 99.8, 99.5, 99.9));
+        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3, null));
+        baseComp.add(new Element("Iron", "Fe", 99.8, 99.5, 99.9, null));
 
         double varyBy = 0.05;
         double limit = 0.1;
@@ -120,8 +120,8 @@ class CompositionalVariationsTest {
     void testGaussianSampling_ZeroDelta() {
         // Arrange
         ArrayList<Element> baseComp = new ArrayList<>();
-        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3));
-        baseComp.add(new Element("Iron", "Fe", 99.8, 99.5, 99.9));
+        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3, null));
+        baseComp.add(new Element("Iron", "Fe", 99.8, 99.5, 99.9, null));
 
         double maxDelta = 0.0; // Zero delta should return compositions very close to original
         int samples = 3;

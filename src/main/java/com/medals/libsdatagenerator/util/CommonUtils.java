@@ -134,7 +134,8 @@ public class CommonUtils {
                     e.getSymbol(),
                     e.getPercentageComposition(),
                     e.getPercentageCompositionMin(),
-                    e.getPercentageCompositionMax()
+                    e.getPercentageCompositionMax(),
+                    e.getAverageComposition()
                     )
             );
         }
