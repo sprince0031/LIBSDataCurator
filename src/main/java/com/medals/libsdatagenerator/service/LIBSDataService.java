@@ -20,6 +20,7 @@ import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays; // Added import
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -253,7 +254,7 @@ public class LIBSDataService {
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
 
-        // all Element symbols across all comps:
+        // all Element symbols across all comps (can be kept if used elsewhere, or removed if only for header):
         Set<String> allElementSymbols = new TreeSet<>();
 
         // Store for each composition's *string ID* -> (wave -> intensity)
@@ -341,8 +342,9 @@ public class LIBSDataService {
         // Convert sets to sorted lists
         List<Double> sortedWaves = new ArrayList<>(allWavelengths);
         Collections.sort(sortedWaves); // TreeSet is already sorted, but okay to be explicit
-        List<String> sortedSymbols = new ArrayList<>(allElementSymbols);
-        Collections.sort(sortedSymbols);
+        // Use STD_ELEMENT_LIST for header and row structure for elements
+        List<String> sortedSymbols = new ArrayList<>(Arrays.asList(LIBSDataGenConstants.STD_ELEMENT_LIST));
+        Collections.sort(sortedSymbols); // Ensure canonical order
 
         // Build header
         List<String> header = new ArrayList<>();
@@ -352,7 +354,7 @@ public class LIBSDataService {
             header.add(String.valueOf(w));
         }
         // Add element columns
-        for (String sym : sortedSymbols) {
+        for (String sym : sortedSymbols) { // Now uses STD_ELEMENT_LIST
             header.add(sym);
         }
 
@@ -369,6 +371,7 @@ public class LIBSDataService {
             // Each composition => one row
             for (String compId : compWaveIntensity.keySet()) {
                 Map<Double, Double> waveMap = compWaveIntensity.get(compId);
+                // Get the specific element map for the row
                 Map<String, Double> elemMap = compElementPcts.get(compId);
 
                 List<String> row = new ArrayList<>();
@@ -380,8 +383,9 @@ public class LIBSDataService {
                     row.add(String.valueOf(intensity));
                 }
 
-                // For each element symbol, add the percentage (or 0.0 if missing)
-                for (String sym : sortedSymbols) {
+                // For each element symbol FROM STD_ELEMENT_LIST, add the percentage
+                for (String sym : sortedSymbols) { // Iterates using STD_ELEMENT_LIST
+                    // Correctly gets 0 if element not in this specific compId's map
                     Double pct = elemMap.getOrDefault(sym, 0.0);
                     row.add(String.valueOf(pct));
                 }
