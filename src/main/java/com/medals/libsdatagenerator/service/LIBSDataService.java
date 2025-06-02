@@ -4,6 +4,7 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
+import com.medals.libsdatagenerator.util.CSVUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
@@ -100,12 +101,14 @@ public class LIBSDataService {
             }
 
             // Save to a file with a unique name
-            String filename = "composition_" + queryParams.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION)
-                    + ".csv";
+            // Build the composition string ID using the same utility as in generateDataset
+            String compositionId = commonUtils.buildCompositionString(elements); // 'elements' is the parameter to fetchLIBSData
+            String filename = "composition_" + compositionId + ".csv";
             Path csvPath = Paths.get(String.valueOf(dataPath), filename);
+            logger.info("Saving fetched LIBS data to: " + csvPath.toAbsolutePath()); // New log
             Files.write(csvPath, csvData.getBytes());
             // System.out.println("Saved: " + filename);
-            logger.info("Saved: " + csvPath);
+            logger.info("Saved: " + csvPath); // Existing log, kept for consistency with potential existing log parsing
 
             // Close the CSV tab
             seleniumUtils.getDriver().close();
@@ -285,16 +288,16 @@ public class LIBSDataService {
             String compositionFileName = "composition_" + compositionId + ".csv";
             Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
                     compositionFileName);
+            logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath()); // New log
             boolean compositionFileExists = Files.exists(compositionFilePath);
             if (forceFetch || !compositionFileExists) {
+                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")"); // New/refined log
                 csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
-                logger.info(
-                        "Composition data for " + compositionId + "does not exist. Going to fetch from LIBS database.");
             } else {
+                // logger.info("Found existing LIBS data for " + compositionId + " at: " + compositionFilePath.toAbsolutePath() + ". Reading from file."); // This log is good.
+                logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath()); // Refined log for clarity
                 try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
-                    logger.info("Composition data for " + compositionId + "already downloaded!");
-                    csvData = csvReader.lines().collect(Collectors.joining()); // Read and collect all lines into csv
-                                                                               // string
+                    csvData = csvReader.lines().collect(Collectors.joining("\n")); // Ensure newlines are preserved
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -356,9 +359,14 @@ public class LIBSDataService {
 
         // Write out to "master.csv" inside savePath
         Path masterCsvPath = Paths.get(savePath, "master_dataset.csv");
-        try (CSVPrinter printer = new CSVPrinter(
-                Files.newBufferedWriter(masterCsvPath),
-                CSVFormat.DEFAULT.withHeader(header.toArray(new String[0])))) {
+        // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
+        String[] headerArray = header.toArray(new String[0]); 
+        try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, appendMode, headerArray)) {
+            // If appending, and the file might have already existed and had data (and thus headers),
+            // CSVUtils.getCsvPrinter when append=true opens without writing new headers.
+            // If not appending, or if appending and file is new, headers are written by CSVUtils.
+            
+            // The existing logic for iterating and printing rows can remain largely the same.
             // Each composition => one row
             for (String compId : compWaveIntensity.keySet()) {
                 Map<Double, Double> waveMap = compWaveIntensity.get(compId);
@@ -382,7 +390,7 @@ public class LIBSDataService {
                 printer.printRecord(row);
             }
 
-            logger.info("Master dataset saved to: " + masterCsvPath);
+            logger.info("Master dataset saved to: " + masterCsvPath.toAbsolutePath()); // Enhanced log
 
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error writing master dataset CSV", e);
