@@ -20,14 +20,18 @@ public class LIBSDataGenConstants {
      */
     public static final String CMD_OPT_COMPOSITION_SHORT = "c";
     public static final String CMD_OPT_COMPOSITION_LONG = "composition";
-    public static final String CMD_OPT_COMPOSITION_DESC = "Enter a matweb.com datasheet GUID or chemical composition. " +
-            "For matweb GUID, it can be found in the URL of a material's datasheet page." +
-            "If entering a compositions directly, input comma separated values in the format <Chemical symbol>-<Percentage>. " +
-            "Final element can be represented with a '*' and the remaining percentage will be calculated.";
-    public static final String CMD_OPT_MIN_WAVELENGTH_SHORT = "mi";
+    public static final String CMD_OPT_COMPOSITION_DESC = "Composition of the material in the format " +
+            "\"Element1-Percentage1,Element2-Percentage2,...\". " +
+            "Percentage can be a single value or a range in the format min:max. " +
+            "Use # for the last element to auto-calculate to 100%." +
+            "OR input a GUID from the URL of a material's datasheet from matweb.com";
+    public static final String CMD_OPT_NUM_VARS_SHORT = "n";
+    public static final String CMD_OPT_NUM_VARS_LONG = "num-vars";
+    public static final String CMD_OPT_NUM_VARS_DESC = "Number of variations to generate.";
+    public static final String CMD_OPT_MIN_WAVELENGTH_SHORT = "min";
     public static final String CMD_OPT_MIN_WAVELENGTH_LONG = "min-wavelength";
     public static final String CMD_OPT_MIN_WAVELENGTH_DESC = "Minimum wavelength (Nm)";
-    public static final String CMD_OPT_MAX_WAVELENGTH_SHORT = "ma";
+    public static final String CMD_OPT_MAX_WAVELENGTH_SHORT = "max";
     public static final String CMD_OPT_MAX_WAVELENGTH_LONG = "max-wavelength";
     public static final String CMD_OPT_MAX_WAVELENGTH_DESC = "Maximum wavelength (Nm)";
     public static final String CMD_OPT_OUTPUT_PATH_SHORT = "o";

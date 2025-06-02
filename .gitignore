@@ -24,7 +24,8 @@ hs_err_pid*
 replay_pid*
 
 # Misc/Project Specific
-Build/Data/
+Build/data/
 Build/logs/
 Build/lib/
-.idea
+.idea/
+target/

@@ -55,6 +55,12 @@ public class CommonUtils {
         composition.setRequired(true);
         options.addOption(composition);
 
+        // Number of variations
+        options.addOption(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT,
+                LIBSDataGenConstants.CMD_OPT_NUM_VARS_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_NUM_VARS_DESC);
+
         // Min Wavelength
         options.addOption(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_LONG,
