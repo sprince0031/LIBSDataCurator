@@ -20,7 +20,15 @@ import java.util.stream.Collectors;
  */
 public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
+    public static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+
+    public static MatwebDataService getInstance() {
+        if (instance == null) {
+            instance = new MatwebDataService();
+        }
+        return instance;
+    }
 
     public String[] getMaterialComposition(String guid) {
         try {

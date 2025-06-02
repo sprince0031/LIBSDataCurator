@@ -288,14 +288,13 @@ public class LIBSDataService {
             String compositionFileName = "composition_" + compositionId + ".csv";
             Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
                     compositionFileName);
-            logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath()); // New log
+            logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
             boolean compositionFileExists = Files.exists(compositionFilePath);
             if (forceFetch || !compositionFileExists) {
-                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")"); // New/refined log
+                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")");
                 csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
             } else {
-                // logger.info("Found existing LIBS data for " + compositionId + " at: " + compositionFilePath.toAbsolutePath() + ". Reading from file."); // This log is good.
-                logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath()); // Refined log for clarity
+                logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
                 try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
                     csvData = csvReader.lines().collect(Collectors.joining("\n")); // Ensure newlines are preserved
                 } catch (IOException e) {
@@ -360,13 +359,13 @@ public class LIBSDataService {
         // Write out to "master.csv" inside savePath
         Path masterCsvPath = Paths.get(savePath, "master_dataset.csv");
         // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
-        String[] headerArray = header.toArray(new String[0]); 
+
+        String[] headerArray = header.toArray(new String[0]);
         try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, appendMode, headerArray)) {
             // If appending, and the file might have already existed and had data (and thus headers),
-            // CSVUtils.getCsvPrinter when append=true opens without writing new headers.
+            // CSVUtils.getCsvPrinter when appendMode=true opens without writing new headers.
             // If not appending, or if appending and file is new, headers are written by CSVUtils.
-            
-            // The existing logic for iterating and printing rows can remain largely the same.
+
             // Each composition => one row
             for (String compId : compWaveIntensity.keySet()) {
                 Map<Double, Double> waveMap = compWaveIntensity.get(compId);
