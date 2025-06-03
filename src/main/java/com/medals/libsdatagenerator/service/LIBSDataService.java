@@ -227,22 +227,66 @@ public class LIBSDataService {
             double varyBy, double maxDelta, int variationMode,
             int samples) {
         ArrayList<ArrayList<Element>> compositions = new ArrayList<>();
+        if (originalComposition == null || originalComposition.isEmpty()) {
+            logger.warning("Original composition is null or empty. Cannot generate variations.");
+            return compositions; // Return empty list, or perhaps add the (empty) originalComposition if that's desired.
+        }
         compositions.add(originalComposition); // Adding the original composition
 
+        boolean allElementsAreFixed = true;
+        // No need to check originalComposition.isEmpty() again here as it's handled above.
+        for (Element el : originalComposition) {
+            Double minComp = el.getPercentageCompositionMin();
+            Double maxComp = el.getPercentageCompositionMax();
+            if (!(minComp != null && maxComp != null && minComp.equals(maxComp))) {
+                allElementsAreFixed = false;
+                break;
+            }
+        }
+
+        ArrayList<Element> effectiveComposition = originalComposition;
+        if (allElementsAreFixed) {
+            // originalComposition is not empty here due to the check at the beginning.
+            logger.info("All elements in the input composition are fixed. Applying fallback variation logic, ignoring X:X constraints for sampling.");
+            effectiveComposition = new ArrayList<>();
+            for (Element el : originalComposition) {
+                effectiveComposition.add(new Element(
+                    el.getName(),
+                    el.getSymbol(),
+                    el.getPercentageComposition(),
+                    null, // Effectively remove min/max for variation generation
+                    null,
+                    el.getAverageComposition()
+                ));
+            }
+        }
+
         // Generate all combinations by Uniform distribution
-        System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
+        // System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
+        logger.info("\nGenerating different combinations for the input composition (refer log for list)...");
+
 
         if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
-            CompositionalVariations.getInstance().gaussianSampling(originalComposition, maxDelta, samples,
-                    compositions);
+            CompositionalVariations.getInstance().gaussianSampling(
+                effectiveComposition,
+                maxDelta,
+                samples,
+                compositions);
 
         } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
-            // TODO: Call dirichlet sampling method
+            // TODO: Call dirichlet sampling method (with effectiveComposition)
+            logger.warning("Dirichlet distribution mode selected but not yet implemented.");
 
         } else { // For uniform distribution
             // Start backtracking with an empty "current combo" and a running sum of 0
-            CompositionalVariations.getInstance().getUniformDistribution(0, originalComposition, varyBy, maxDelta, 0.0,
-                    new ArrayList<Element>(), compositions);
+            CompositionalVariations.getInstance().getUniformDistribution(
+                0,
+                effectiveComposition,
+                varyBy,
+                maxDelta, // 'limit'
+                0.0,
+                new ArrayList<Element>(),
+                compositions);
         }
 
         return compositions;

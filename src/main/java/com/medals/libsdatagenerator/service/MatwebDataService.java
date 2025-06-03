@@ -149,23 +149,28 @@ public class MatwebDataService {
             String composition = compositionList.get(i);
             logger.info("Composition value: " + composition);
 
-            // Remove trailing '%' and any whitespace
+            String parsedCompositionValue;
+            // Remove trailing '%' and any whitespace first
             if (composition.endsWith("%")) {
                 composition = composition.substring(0, composition.length() - 1).trim();
             }
 
-            // Handle composition formats
-            if (composition.contains(" - ")) { // Percentage range
+            if (composition.contains(" - ")) { // Percentage range "A - B"
                 String[] compositionRange = composition.split(" - ");
-                composition = compositionRange[0] + ":" + compositionRange[1];
-            } else if (composition.contains("<=")) { // Max percentage
-                composition = composition.substring(2).trim();
-            } else if (composition.contains(">=") ||
-                    (i < comments.size() && comments.get(i).contains("remainder"))) { // Min or remainder
-                composition = "#";
+                parsedCompositionValue = compositionRange[0].trim() + ":" + compositionRange[1].trim();
+            } else if (composition.startsWith("<=")) { // Max percentage "<=X"
+                String val = composition.substring(2).trim();
+                parsedCompositionValue = "0:" + val; // Assumes min is 0
+            } else if (composition.startsWith(">=")) { // Min percentage ">=X"
+                String val = composition.substring(2).trim();
+                parsedCompositionValue = val + ":100"; // Assumes max is 100
+            } else if (i < comments.size() && comments.get(i).contains("remainder")) { // Remainder, check before single value
+                parsedCompositionValue = "#";
+            } else { // Single value "X" (e.g., "0.5", "12.3")
+                // Treat as a fixed point: min = X, max = X
+                parsedCompositionValue = composition.trim() + ":" + composition.trim();
             }
-
-            parsedElementString[i] = element + "-" + composition;
+            parsedElementString[i] = element + "-" + parsedCompositionValue;
         }
 
         return parsedElementString;
