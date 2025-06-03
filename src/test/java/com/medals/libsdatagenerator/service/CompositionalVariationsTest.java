@@ -1,4 +1,5 @@
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants; // Added for static block
+import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.Element; // Assuming this is the correct location
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
