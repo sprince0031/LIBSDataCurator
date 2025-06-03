@@ -35,8 +35,9 @@ public class CompositionalVariations {
     public void gaussianSampling(ArrayList<Element> baseComp, double maxDelta, int samples,
                                                           ArrayList<ArrayList<Element>> variations) {
         Random rand = new Random();
+        int initialSize = variations.size();
 
-        while (variations.size() < samples) {
+        while (variations.size() < initialSize + samples) {
             double sumFixedPercentages = 0.0;
             ArrayList<Element> tempVariableElements = new ArrayList<>();
             // currentRawVariantElements stores elements in original order, some fixed, some are initial variable samples
