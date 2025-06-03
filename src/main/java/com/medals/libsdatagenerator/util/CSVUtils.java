@@ -60,15 +60,25 @@ public class CSVUtils {
         if (!append && Files.exists(csvPath)) {
             backupCsv(csvPath);
         }
+
         BufferedWriter writer;
         if (append) {
+            boolean fileExists = Files.exists(csvPath);
+            long fileSize = fileExists ? Files.size(csvPath) : 0;
+            boolean fileExistsAndIsNotEmpty = fileExists && fileSize > 0;
+            
             writer = Files.newBufferedWriter(csvPath,
                     StandardOpenOption.APPEND,
                     StandardOpenOption.CREATE);
-            // Use DEFAULT format without writing headers again.
-            return new CSVPrinter(writer, CSVFormat.DEFAULT);
-        } else {
-            // Create new file (truncate if exists) and write header.
+
+            if (fileExistsAndIsNotEmpty) {
+                // File exists and has content, so append without writing a new header
+                return new CSVPrinter(writer, CSVFormat.DEFAULT);
+            } else {
+                // File is new or was empty, so write the header
+                return new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader(header));
+            }
+        } else { // !append
             writer = Files.newBufferedWriter(csvPath,
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING);

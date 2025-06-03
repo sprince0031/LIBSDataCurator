@@ -67,7 +67,8 @@ public class LIBSDataController {
                                 LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
                                 String.valueOf(LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST)
                         ));
-                        int numSamples = 50;
+                        int numSamples = Integer.parseInt(
+                                cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "50"));
                         ArrayList<ArrayList<Element>> compositions = libsDataService.generateCompositionalVariations(
                                 elements, varyBy, maxDelta, variationMode, numSamples);
 

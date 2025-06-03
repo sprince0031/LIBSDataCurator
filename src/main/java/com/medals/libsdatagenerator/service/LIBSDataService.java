@@ -4,6 +4,7 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
+import com.medals.libsdatagenerator.util.CSVUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
@@ -19,6 +20,7 @@ import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays; // Added import
 import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -100,12 +102,14 @@ public class LIBSDataService {
             }
 
             // Save to a file with a unique name
-            String filename = "composition_" + queryParams.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION)
-                    + ".csv";
+            // Build the composition string ID using the same utility as in generateDataset
+            String compositionId = commonUtils.buildCompositionString(elements); // 'elements' is the parameter to fetchLIBSData
+            String filename = "composition_" + compositionId + ".csv";
             Path csvPath = Paths.get(String.valueOf(dataPath), filename);
+            logger.info("Saving fetched LIBS data to: " + csvPath.toAbsolutePath()); // New log
             Files.write(csvPath, csvData.getBytes());
             // System.out.println("Saved: " + filename);
-            logger.info("Saved: " + csvPath);
+            logger.info("Saved: " + csvPath); // Existing log, kept for consistency with potential existing log parsing
 
             // Close the CSV tab
             seleniumUtils.getDriver().close();
@@ -250,7 +254,7 @@ public class LIBSDataService {
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
 
-        // all Element symbols across all comps:
+        // all Element symbols across all comps (can be kept if used elsewhere, or removed if only for header):
         Set<String> allElementSymbols = new TreeSet<>();
 
         // Store for each composition's *string ID* -> (wave -> intensity)
@@ -285,16 +289,15 @@ public class LIBSDataService {
             String compositionFileName = "composition_" + compositionId + ".csv";
             Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
                     compositionFileName);
+            logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
             boolean compositionFileExists = Files.exists(compositionFilePath);
             if (forceFetch || !compositionFileExists) {
+                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")");
                 csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
-                logger.info(
-                        "Composition data for " + compositionId + "does not exist. Going to fetch from LIBS database.");
             } else {
+                logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
                 try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
-                    logger.info("Composition data for " + compositionId + "already downloaded!");
-                    csvData = csvReader.lines().collect(Collectors.joining()); // Read and collect all lines into csv
-                                                                               // string
+                    csvData = csvReader.lines().collect(Collectors.joining("\n")); // Ensure newlines are preserved
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -339,8 +342,9 @@ public class LIBSDataService {
         // Convert sets to sorted lists
         List<Double> sortedWaves = new ArrayList<>(allWavelengths);
         Collections.sort(sortedWaves); // TreeSet is already sorted, but okay to be explicit
-        List<String> sortedSymbols = new ArrayList<>(allElementSymbols);
-        Collections.sort(sortedSymbols);
+        // Use STD_ELEMENT_LIST for header and row structure for elements
+        List<String> sortedSymbols = new ArrayList<>(Arrays.asList(LIBSDataGenConstants.STD_ELEMENT_LIST));
+        Collections.sort(sortedSymbols); // Ensure canonical order
 
         // Build header
         List<String> header = new ArrayList<>();
@@ -350,18 +354,24 @@ public class LIBSDataService {
             header.add(String.valueOf(w));
         }
         // Add element columns
-        for (String sym : sortedSymbols) {
+        for (String sym : sortedSymbols) { // Now uses STD_ELEMENT_LIST
             header.add(sym);
         }
 
         // Write out to "master.csv" inside savePath
         Path masterCsvPath = Paths.get(savePath, "master_dataset.csv");
-        try (CSVPrinter printer = new CSVPrinter(
-                Files.newBufferedWriter(masterCsvPath),
-                CSVFormat.DEFAULT.withHeader(header.toArray(new String[0])))) {
+        // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
+
+        String[] headerArray = header.toArray(new String[0]);
+        try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, appendMode, headerArray)) {
+            // If appending, and the file might have already existed and had data (and thus headers),
+            // CSVUtils.getCsvPrinter when appendMode=true opens without writing new headers.
+            // If not appending, or if appending and file is new, headers are written by CSVUtils.
+
             // Each composition => one row
             for (String compId : compWaveIntensity.keySet()) {
                 Map<Double, Double> waveMap = compWaveIntensity.get(compId);
+                // Get the specific element map for the row
                 Map<String, Double> elemMap = compElementPcts.get(compId);
 
                 List<String> row = new ArrayList<>();
@@ -373,8 +383,9 @@ public class LIBSDataService {
                     row.add(String.valueOf(intensity));
                 }
 
-                // For each element symbol, add the percentage (or 0.0 if missing)
-                for (String sym : sortedSymbols) {
+                // For each element symbol FROM STD_ELEMENT_LIST, add the percentage
+                for (String sym : sortedSymbols) { // Iterates using STD_ELEMENT_LIST
+                    // Correctly gets 0 if element not in this specific compId's map
                     Double pct = elemMap.getOrDefault(sym, 0.0);
                     row.add(String.valueOf(pct));
                 }
@@ -382,7 +393,7 @@ public class LIBSDataService {
                 printer.printRecord(row);
             }
 
-            logger.info("Master dataset saved to: " + masterCsvPath);
+            logger.info("Master dataset saved to: " + masterCsvPath.toAbsolutePath()); // Enhanced log
 
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error writing master dataset CSV", e);
