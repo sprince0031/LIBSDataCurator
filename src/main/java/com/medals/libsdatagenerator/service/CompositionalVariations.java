@@ -45,11 +45,17 @@ public class CompositionalVariations {
                 delta = Math.max(-maxDelta, Math.min(delta, maxDelta));
                 double newVal = baseVal + delta;
                 newVal = Math.max(0, newVal);
+                if (e.getPercentageCompositionMin() != null) {
+                    newVal = Math.max(newVal, e.getPercentageCompositionMin());
+                }
+                if (e.getPercentageCompositionMax() != null) {
+                    newVal = Math.min(newVal, e.getPercentageCompositionMax());
+                }
                 if (newVal == 0) {
                     logger.info("Element: " + e.getName() + " sampled with 0 percentage. Skipping.");
                     break; // Do not take any variant with any of the element percentages being 0.
                 }
-                variant.add(new Element(e.getName(), e.getSymbol(), newVal, null, null, null));
+                variant.add(new Element(e.getName(), e.getSymbol(), newVal, e.getPercentageCompositionMin(), e.getPercentageCompositionMax(), e.getAverageComposition()));
                 total += newVal;
             }
 
@@ -66,6 +72,24 @@ public class CompositionalVariations {
                         CommonUtils.roundToNDecimals(normalized, e.getNumberDecimalPlaces())
                 );
             }
+
+            boolean constraintsViolated = false;
+            for (Element elVar : variant) {
+                if (elVar.getPercentageCompositionMin() != null && elVar.getPercentageComposition() < elVar.getPercentageCompositionMin()) {
+                    constraintsViolated = true;
+                    logger.info("Sample discarded: Element " + elVar.getSymbol() + " (" + elVar.getPercentageComposition() + ") below min " + elVar.getPercentageCompositionMin());
+                    break;
+                }
+                if (elVar.getPercentageCompositionMax() != null && elVar.getPercentageComposition() > elVar.getPercentageCompositionMax()) {
+                    constraintsViolated = true;
+                    logger.info("Sample discarded: Element " + elVar.getSymbol() + " (" + elVar.getPercentageComposition() + ") above max " + elVar.getPercentageCompositionMax());
+                    break;
+                }
+            }
+
+            if (constraintsViolated) {
+                continue; // Skip adding this variant and try to generate another
+            }
             logger.info("New composition added: " + commonUtils.buildCompositionString(variant));
             variations.add(variant);
         }
@@ -77,24 +101,36 @@ public class CompositionalVariations {
 
         // If this is the last element, we must "fix" it so total = 100%
         if (index == original.size() - 1) {
-            double originalVal = original.get(index).getPercentageComposition();
+            Element lastElement = original.get(index);
+            double originalVal = lastElement.getPercentageComposition();
             // Allowed range for this element:
             double low = Math.max(0, originalVal - limit);
-            double high = Math.min(100, originalVal + limit);
+            if (lastElement.getPercentageCompositionMin() != null) {
+                low = Math.max(low, lastElement.getPercentageCompositionMin());
+            }
+            double high = Math.min(100, originalVal + limit); // Corrected from originalVal - limit
+            if (lastElement.getPercentageCompositionMax() != null) {
+                high = Math.min(high, lastElement.getPercentageCompositionMax());
+            }
+
+            if (low > high) {
+                return;
+            }
 
             // The only possible value (if valid) to keep sum at 100
             double lastVal = 100 - currentSum;
+            lastVal = CommonUtils.roundToNDecimals(lastVal, lastElement.getNumberDecimalPlaces());
 
             // Check if lastVal is within [low, high]
             if (lastVal >= low && lastVal <= high) {
                 // Accept this composition
                 currentCombo.add(new Element(
-                        original.get(index).getName(),
-                        original.get(index).getSymbol(),
+                        lastElement.getName(),
+                        lastElement.getSymbol(),
                         lastVal,
-                        null,
-                        null,
-                        null
+                        lastElement.getPercentageCompositionMin(),
+                        lastElement.getPercentageCompositionMax(),
+                        lastElement.getAverageComposition()
                 ));
                 ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
                 results.add(newComposition);
@@ -106,20 +142,31 @@ public class CompositionalVariations {
         }
 
         // Not the last element: try all valid values from (originalVal-limit) to (originalVal+limit)
-        double originalVal = original.get(index).getPercentageComposition();
+        Element elementAtIndex = original.get(index);
+        double originalVal = elementAtIndex.getPercentageComposition();
         double low = Math.max(0, originalVal - limit);
+        if (elementAtIndex.getPercentageCompositionMin() != null) {
+            low = Math.max(low, elementAtIndex.getPercentageCompositionMin());
+        }
         double high = Math.min(100, originalVal + limit);
+        if (elementAtIndex.getPercentageCompositionMax() != null) {
+            high = Math.min(high, elementAtIndex.getPercentageCompositionMax());
+        }
+
+        if (low > high) {
+            return;
+        }
 
         for (double val = low; val <= high; val += varyBy) {
             // Only proceed if we won't exceed 100% so far
             if (currentSum + val <= 100) {
                 currentCombo.add(new Element(
-                        original.get(index).getName(),
-                        original.get(index).getSymbol(),
+                        elementAtIndex.getName(),
+                        elementAtIndex.getSymbol(),
                         val,
-                        null,
-                        null,
-                        null
+                        elementAtIndex.getPercentageCompositionMin(),
+                        elementAtIndex.getPercentageCompositionMax(),
+                        elementAtIndex.getAverageComposition()
                 ));
                 // Recurse for the next element
                 getUniformDistribution(index + 1, original, varyBy, limit,
