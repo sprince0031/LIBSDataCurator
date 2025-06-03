@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - main # Also trigger on PRs targeting main (for checks)
-      - LIBS-Data-Curator # Trigger on PRs from the curator branch
+      - dev # Trigger on PRs from the dev branch
 
 jobs:
   build-and-test:
@@ -36,12 +36,23 @@ jobs:
       - name: Get Current Date for Tag
         id: date
         run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-        # Only run tagging/release steps if merging LIBS-Data-Curator into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from LIBS-Data-Curator')
+        # Only run tagging/release steps if merging dev into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
+
+      - name: Package Build Directory
+        id: package_zip
+        # Only run this step if merging dev into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
+        run: |
+          PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          ZIP_NAME="LIBSDataGenerator-v${PROJECT_VERSION}-${{ steps.date.outputs.date }}.zip"
+          echo "Creating zip archive: $ZIP_NAME"
+          zip -r $ZIP_NAME Build/
+          echo "zip_path=./$ZIP_NAME" >> $GITHUB_OUTPUT
 
       - name: Create Git Tag
-        # Only run tagging/release steps if merging LIBS-Data-Curator into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from LIBS-Data-Curator')
+        # Only run tagging/release steps if merging dev into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
         run: |
           TAG_NAME="v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}"
           echo "Creating tag: $TAG_NAME"
@@ -51,16 +62,15 @@ jobs:
           git push origin $TAG_NAME
 
       - name: Create GitHub Release
-        # Only run tagging/release steps if merging LIBS-Data-Curator into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from LIBS-Data-Curator')
+        # Only run tagging/release steps if merging dev into main
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}
           name: Release v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}
           body: |
-            Automated release based on merge from LIBS-Data-Curator branch.
+            Automated release based on merge from dev branch.
             See CHANGELOG.md for details.
-          files: |
-            target/libsdatagenerator-*.jar # Upload both the thin and fat JARs
+          files: ${{ steps.package_zip.outputs.zip_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions
