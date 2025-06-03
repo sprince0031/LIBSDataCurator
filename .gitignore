@@ -29,3 +29,4 @@ Build/logs/
 Build/lib/
 .idea/
 target/
+src/test/resources/test_elements.properties
