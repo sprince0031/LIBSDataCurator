@@ -225,7 +225,7 @@ public class LIBSDataService {
 
     public ArrayList<ArrayList<Element>> generateCompositionalVariations(ArrayList<Element> originalComposition,
             double varyBy, double maxDelta, int variationMode,
-            int samples) {
+            int samples, String overviewGuid) {
         ArrayList<ArrayList<Element>> compositions = new ArrayList<>();
         if (originalComposition == null || originalComposition.isEmpty()) {
             logger.warning("Original composition is null or empty. Cannot generate variations.");
@@ -274,8 +274,12 @@ public class LIBSDataService {
                 compositions);
 
         } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
-            // TODO: Call dirichlet sampling method (with effectiveComposition)
-            logger.warning("Dirichlet distribution mode selected but not yet implemented.");
+            CompositionalVariations.getInstance().dirichletSampling(
+                effectiveComposition,
+                overviewGuid,
+                samples,
+                compositions
+            );
 
         } else { // For uniform distribution
             // Start backtracking with an empty "current combo" and a running sum of 0

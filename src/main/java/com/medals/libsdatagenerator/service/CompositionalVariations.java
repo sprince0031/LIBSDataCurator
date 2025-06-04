@@ -1,10 +1,11 @@
 package com.medals.libsdatagenerator.service;
 
-
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.util.CommonUtils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.logging.Logger;
 
@@ -20,9 +21,14 @@ public class CompositionalVariations {
     private static final double POST_NORM_CHECK_DELTA = 0.0001;
     private static final double FINAL_SUM_TOLERANCE = 0.1;
 
+    // Enhanced services for Dirichlet sampling
+    private final MatwebDataService matwebService;
+    private final ConcentrationParameterEstimator parameterEstimator;
 
     public CompositionalVariations() {
         commonUtils = new CommonUtils();
+        matwebService = MatwebDataService.getInstance();
+        parameterEstimator = new ConcentrationParameterEstimator();
     }
 
     public static CompositionalVariations getInstance() {
@@ -32,8 +38,182 @@ public class CompositionalVariations {
         return instance;
     }
 
+    /**
+     * New Dirichlet sampling method for compositional variations
+     *
+     * @param baseComp Base composition elements
+     * @param overviewGuid GUID of the overview datasheet for series statistics
+     * @param samples Number of samples to generate
+     * @param variations List to store generated variations
+     */
+    public void dirichletSampling(ArrayList<Element> baseComp, String overviewGuid, int samples,
+                                  ArrayList<ArrayList<Element>> variations) {
+
+        logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
+
+        // Get series statistics from overview sheet
+        SeriesStatistics seriesStats = matwebService.getSeriesStatistics(overviewGuid);
+        if (seriesStats == null) {
+            logger.severe("Failed to extract series statistics from overview sheet. Falling back to Gaussian sampling.");
+            // Fallback to Gaussian sampling
+            gaussianSampling(baseComp, 5.0, samples, variations); // Use default maxDelta of 5.0
+            return;
+        }
+
+        logger.info("Successfully extracted series statistics: " + seriesStats);
+
+        // Create element order array from base composition
+        String[] elementOrder = new String[baseComp.size()];
+        double[] minConstraints = new double[baseComp.size()];
+        double[] maxConstraints = new double[baseComp.size()];
+
+        for (int i = 0; i < baseComp.size(); i++) {
+            Element element = baseComp.get(i);
+            elementOrder[i] = element.getSymbol();
+
+            // Set constraints from element min/max values
+            minConstraints[i] = element.getPercentageCompositionMin() != null ?
+                    element.getPercentageCompositionMin() : 0.0;
+            maxConstraints[i] = element.getPercentageCompositionMax() != null ?
+                    element.getPercentageCompositionMax() : 100.0;
+        }
+
+        // Estimate Dirichlet concentration parameters for the base composition elements only
+        double[] concentrationParams = parameterEstimator.estimateParametersForElements(seriesStats, elementOrder);
+        if (concentrationParams == null || !parameterEstimator.validateParameters(concentrationParams)) {
+            logger.severe("Failed to estimate valid Dirichlet parameters. Falling back to Gaussian sampling.");
+            gaussianSampling(baseComp, 5.0, samples, variations);
+            return;
+        }
+
+        // Verify arrays have same length
+        if (concentrationParams.length != elementOrder.length) {
+            logger.severe("Mismatch between concentration parameters (" + concentrationParams.length +
+                    ") and element order (" + elementOrder.length + "). Falling back to Gaussian sampling.");
+            gaussianSampling(baseComp, 5.0, samples, variations);
+            return;
+        }
+
+        // Create Dirichlet sampler
+        DirichletSampler sampler = new DirichletSampler(concentrationParams, elementOrder,
+                minConstraints, maxConstraints);
+
+        logger.info("Created Dirichlet sampler with parameters: " + Arrays.toString(concentrationParams));
+        logger.info("Expected means: " + Arrays.toString(sampler.getExpectedMeans()));
+
+        // Generate samples
+        int initialSize = variations.size();
+        int successfulSamples = 0;
+        int attempts = 0;
+        int maxAttempts = samples * 10; // Allow up to 10x attempts to account for constraint violations
+
+        while (successfulSamples < samples && attempts < maxAttempts) {
+            attempts++;
+
+            try {
+                double[] sample = sampler.generateSample();
+                ArrayList<Element> variation = createElementVariation(baseComp, sample, elementOrder);
+
+                if (validateVariation(variation)) {
+                    variations.add(variation);
+                    successfulSamples++;
+
+                    if (successfulSamples % 100 == 0) {
+                        logger.info("Generated " + successfulSamples + " valid Dirichlet samples");
+                    }
+                } else {
+                    logger.fine("Sample failed validation, attempting another");
+                }
+
+            } catch (Exception e) {
+                logger.warning("Error generating Dirichlet sample: " + e.getMessage());
+            }
+        }
+
+        logger.info("Dirichlet sampling completed: " + successfulSamples + " successful samples out of " +
+                attempts + " attempts");
+
+        if (successfulSamples < samples) {
+            logger.warning("Could not generate all requested samples. Generated " + successfulSamples +
+                    " out of " + samples + " requested samples.");
+        }
+    }
+
+    /**
+     * Creates an Element variation from a Dirichlet sample
+     */
+    private ArrayList<Element> createElementVariation(ArrayList<Element> baseComp, double[] sample,
+                                                      String[] elementOrder) {
+        ArrayList<Element> variation = new ArrayList<>();
+
+        for (int i = 0; i < baseComp.size(); i++) {
+            Element baseElement = baseComp.get(i);
+
+            // Find the corresponding sample value for this element
+            double sampleValue = 0.0;
+            for (int j = 0; j < elementOrder.length; j++) {
+                if (elementOrder[j].equals(baseElement.getSymbol())) {
+                    sampleValue = sample[j];
+                    break;
+                }
+            }
+
+            // Round to appropriate decimal places
+            double roundedValue = CommonUtils.roundToNDecimals(sampleValue, baseElement.getNumberDecimalPlaces());
+
+            Element variationElement = new Element(
+                    baseElement.getName(),
+                    baseElement.getSymbol(),
+                    roundedValue,
+                    baseElement.getPercentageCompositionMin(),
+                    baseElement.getPercentageCompositionMax(),
+                    baseElement.getAverageComposition()
+            );
+
+            variation.add(variationElement);
+        }
+
+        return variation;
+    }
+
+    /**
+     * Validates that a variation meets all constraints
+     */
+    private boolean validateVariation(ArrayList<Element> variation) {
+        double totalPercentage = 0.0;
+
+        for (Element element : variation) {
+            double percentage = element.getPercentageComposition();
+
+            // Check individual element constraints
+            if (element.getPercentageCompositionMin() != null &&
+                    percentage < element.getPercentageCompositionMin() - POST_NORM_CHECK_DELTA) {
+                return false;
+            }
+
+            if (element.getPercentageCompositionMax() != null &&
+                    percentage > element.getPercentageCompositionMax() + POST_NORM_CHECK_DELTA) {
+                return false;
+            }
+
+            // Check for negative values
+            if (percentage < 0) {
+                return false;
+            }
+
+            totalPercentage += percentage;
+        }
+
+        // Check that total percentage is close to 100%
+        if (Math.abs(totalPercentage - 100.0) > FINAL_SUM_TOLERANCE) {
+            return false;
+        }
+
+        return true;
+    }
+
     public void gaussianSampling(ArrayList<Element> baseComp, double maxDelta, int samples,
-                                                          ArrayList<ArrayList<Element>> variations) {
+                                 ArrayList<ArrayList<Element>> variations) {
         Random rand = new Random();
         int initialSize = variations.size();
 
@@ -131,9 +311,9 @@ public class CompositionalVariations {
                 continue;
             }
             if (currentSumVariableRaw <= 0 && targetSumVariable > 0 && !tempVariableElements.isEmpty()) {
-                 logger.info("Sum of raw variable percentages is " + currentSumVariableRaw +
-                             " but target is " + targetSumVariable + ". Cannot normalize. Discarding sample.");
-                 continue;
+                logger.info("Sum of raw variable percentages is " + currentSumVariableRaw +
+                        " but target is " + targetSumVariable + ". Cannot normalize. Discarding sample.");
+                continue;
             }
 
 
@@ -141,7 +321,7 @@ public class CompositionalVariations {
             if (currentSumVariableRaw > 0) {
                 variableScalingFactor = targetSumVariable / currentSumVariableRaw;
             } else if (targetSumVariable == 0 && currentSumVariableRaw == 0) { // All variable elements are zero, and target is zero
-                 variableScalingFactor = 0; // Effectively keeps them zero
+                variableScalingFactor = 0; // Effectively keeps them zero
             }
 
 
@@ -182,16 +362,16 @@ public class CompositionalVariations {
 
                         // Final min/max check for this variable element
                         if (processedVarElement.getPercentageCompositionMin() != null &&
-                            processedVarElement.getPercentageComposition() < (processedVarElement.getPercentageCompositionMin() - POST_NORM_CHECK_DELTA)) {
+                                processedVarElement.getPercentageComposition() < (processedVarElement.getPercentageCompositionMin() - POST_NORM_CHECK_DELTA)) {
                             logger.info("Sample discarded post-norm: Element " + processedVarElement.getSymbol() +
-                                        " (" + processedVarElement.getPercentageComposition() + ") below min " + processedVarElement.getPercentageCompositionMin());
+                                    " (" + processedVarElement.getPercentageComposition() + ") below min " + processedVarElement.getPercentageCompositionMin());
                             constraintViolatedAfterNormalization = true;
                             break;
                         }
                         if (processedVarElement.getPercentageCompositionMax() != null &&
-                            processedVarElement.getPercentageComposition() > (processedVarElement.getPercentageCompositionMax() + POST_NORM_CHECK_DELTA)) {
+                                processedVarElement.getPercentageComposition() > (processedVarElement.getPercentageCompositionMax() + POST_NORM_CHECK_DELTA)) {
                             logger.info("Sample discarded post-norm: Element " + processedVarElement.getSymbol() +
-                                        " (" + processedVarElement.getPercentageComposition() + ") above max " + processedVarElement.getPercentageCompositionMax());
+                                    " (" + processedVarElement.getPercentageComposition() + ") above max " + processedVarElement.getPercentageCompositionMax());
                             constraintViolatedAfterNormalization = true;
                             break;
                         }
@@ -222,8 +402,8 @@ public class CompositionalVariations {
     }
 
     public void getUniformDistribution(int index, ArrayList<Element> original, double varyBy, double limit,
-                                     double currentSum, ArrayList<Element> currentCombo,
-                                     ArrayList<ArrayList<Element>> results) {
+                                       double currentSum, ArrayList<Element> currentCombo,
+                                       ArrayList<ArrayList<Element>> results) {
 
         Element elementAtIndex = original.get(index);
         double originalVal = elementAtIndex.getPercentageComposition();
@@ -231,8 +411,8 @@ public class CompositionalVariations {
         Double maxComp = elementAtIndex.getPercentageCompositionMax();
         // Use .doubleValue() for comparison if not null, to avoid object comparison issues with ==
         boolean isFixed = (minComp != null && maxComp != null &&
-                           Math.abs(minComp.doubleValue() - maxComp.doubleValue()) < POST_NORM_CHECK_DELTA &&
-                           Math.abs(minComp.doubleValue() - originalVal) < POST_NORM_CHECK_DELTA);
+                Math.abs(minComp.doubleValue() - maxComp.doubleValue()) < POST_NORM_CHECK_DELTA &&
+                Math.abs(minComp.doubleValue() - originalVal) < POST_NORM_CHECK_DELTA);
 
 
         // Handle Last Element
@@ -252,7 +432,7 @@ public class CompositionalVariations {
                     ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
                     results.add(newComposition);
                     logger.info("New composition (fixed last element): " + commonUtils.buildCompositionString(newComposition));
-                    currentCombo.removeLast();
+                    currentCombo.remove(currentCombo.size() - 1);
                 }
                 // If not, this path is invalid because the fixed last element cannot satisfy sum to 100
             } else { // Variable last element
@@ -268,8 +448,8 @@ public class CompositionalVariations {
                 // Check if low is not greater than high (valid range)
                 // And if roundedLastVal is within this dynamic range [low, high]
                 if (low <= high + POST_NORM_CHECK_DELTA &&
-                    roundedLastVal >= low - POST_NORM_CHECK_DELTA &&
-                    roundedLastVal <= high + POST_NORM_CHECK_DELTA) {
+                        roundedLastVal >= low - POST_NORM_CHECK_DELTA &&
+                        roundedLastVal <= high + POST_NORM_CHECK_DELTA) {
                     currentCombo.add(new Element(
                             elementAtIndex.getName(), elementAtIndex.getSymbol(), roundedLastVal,
                             minComp, maxComp, elementAtIndex.getAverageComposition()
@@ -277,7 +457,7 @@ public class CompositionalVariations {
                     ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
                     results.add(newComposition);
                     logger.info("New composition (variable last element): " + commonUtils.buildCompositionString(newComposition));
-                    currentCombo.removeLast();
+                    currentCombo.remove(currentCombo.size() - 1);
                 }
             }
             return; // End of processing for the last element
@@ -294,7 +474,7 @@ public class CompositionalVariations {
                 ));
                 getUniformDistribution(index + 1, original, varyBy, limit,
                         currentSum + fixedVal, currentCombo, results);
-                currentCombo.removeLast(); // Backtrack
+                currentCombo.remove(currentCombo.size() - 1); // Backtrack
             }
             // If it exceeds 100, this path is invalid.
             // Return because this element is fixed and cannot be changed.
@@ -315,7 +495,7 @@ public class CompositionalVariations {
             // Iterate through possible values for the current variable element
             // Ensure 'val' does not step over 'high' due to varyBy precision.
             for (double val = low; val <= high + POST_NORM_CHECK_DELTA; val += varyBy) {
-                 // Clamp val to be no more than high to handle floating point overshoot
+                // Clamp val to be no more than high to handle floating point overshoot
                 double currentVal = Math.min(val, high);
 
                 // Only proceed if currentSum + currentVal won't significantly exceed 100
@@ -326,7 +506,7 @@ public class CompositionalVariations {
                     ));
                     getUniformDistribution(index + 1, original, varyBy, limit,
                             currentSum + currentVal, currentCombo, results);
-                    currentCombo.removeLast(); // Backtrack
+                    currentCombo.remove(currentCombo.size() - 1); // Backtrack
                 } else if (currentSum + currentVal > 100.0 + POST_NORM_CHECK_DELTA && currentVal == low) {
                     // If even the lowest possible value for this element makes the sum exceed 100,
                     // then no further values in this loop will work.

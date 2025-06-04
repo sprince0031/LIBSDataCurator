@@ -60,7 +60,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
     public static final String CMD_OPT_VAR_MODE_DESC = "Chooses the variation mode: " +
             "0 - uniform dist, 1 - Gaussian sampling (default), 2 - Dirichlet sampling";
-    static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
+    public static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
     public static final String CMD_OPT_OVERVIEW_GUID_LONG = "overview-guid";
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
             "Required for Dirichlet sampling mode (mode 2) to get series average compositions.";

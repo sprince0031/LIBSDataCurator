@@ -115,6 +115,12 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_VAR_MODE_DESC);
 
+        // Overview GUID
+        options.addOption(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT,
+                LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 

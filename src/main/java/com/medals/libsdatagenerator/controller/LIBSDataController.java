@@ -67,10 +67,20 @@ public class LIBSDataController {
                                 LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
                                 String.valueOf(LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST)
                         ));
+                        String overGuid = "";
+                        if (variationMode == 2) {
+                            // require an overview GUID for dirichlet sampling
+                            if (!cmd.hasOption(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT)) {
+                                logger.info("Overview GUID not present for Dirichlet sampling of compositional variations. Aborting!");
+                                System.out.println("Overview GUID not present. Please try again by entering input for the -og flag.");
+                                return;
+                            }
+                            overGuid = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT);
+                        }
                         int numSamples = Integer.parseInt(
                                 cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "50"));
                         ArrayList<ArrayList<Element>> compositions = libsDataService.generateCompositionalVariations(
-                                elements, varyBy, maxDelta, variationMode, numSamples);
+                                elements, varyBy, maxDelta, variationMode, numSamples, overGuid);
 
                         libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath,
                                 appendMode, forceFetch);

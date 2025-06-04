@@ -1,9 +1,9 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.openqa.selenium.By;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
 
 import java.net.HttpURLConnection;
@@ -12,7 +12,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Fetches data from matweb.com
@@ -22,6 +21,7 @@ public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
     public static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+    private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
 
     public static MatwebDataService getInstance() {
         if (instance == null) {
@@ -50,6 +50,109 @@ public class MatwebDataService {
             seleniumUtils.quitSelenium();
         }
         return new String[] { String.valueOf(HttpURLConnection.HTTP_NOT_FOUND) };
+    }
+
+    /**
+     * Gets series statistics from overview datasheet for Dirichlet sampling
+     *
+     * @param overviewGuid GUID of the overview datasheet (e.g., AISI 4000 series)
+     * @return SeriesStatistics object containing statistical information for Dirichlet parameter estimation
+     */
+    public SeriesStatistics getSeriesStatistics(String overviewGuid) {
+        try {
+            HashMap<String, String> queryParams = new HashMap<>();
+            queryParams.put(LIBSDataGenConstants.MATWEB_DATASHEET_PARAM_GUID, overviewGuid);
+
+            logger.info("Fetching series statistics from overview sheet: " + overviewGuid);
+
+            if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE, queryParams)) {
+                // Check if this is an overview sheet
+                if (!isOverviewSheet()) {
+                    logger.warning("The provided GUID does not appear to be an overview sheet");
+                    return null;
+                }
+
+                String seriesName = extractSeriesName();
+                List<List<String>> compositionTableData = fetchCompositionTableData();
+
+                if (!compositionTableData.isEmpty()) {
+                    SeriesStatistics statistics = statisticsExtractor.extractStatistics(
+                            compositionTableData.get(0), // Element names
+                            compositionTableData.get(1), // Metric values (ranges)
+                            compositionTableData.get(3), // Comments with averages and grade counts
+                            seriesName,
+                            overviewGuid
+                    );
+
+                    if (statisticsExtractor.validateStatistics(statistics)) {
+                        logger.info("Successfully extracted series statistics: " + statistics);
+                        return statistics;
+                    } else {
+                        logger.warning("Extracted statistics failed validation");
+                        return null;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unable to fetch series statistics from matweb.com", e);
+        } finally {
+            seleniumUtils.quitSelenium();
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if the current page is an overview sheet by looking for characteristic text
+     */
+    private boolean isOverviewSheet() {
+        try {
+            // Look for "Overview of materials for" in the page title or content
+            String pageTitle = seleniumUtils.getDriver().getTitle();
+            if (pageTitle.toLowerCase().contains("overview of materials")) {
+                return true;
+            }
+
+            // Also check for the characteristic text in the material notes
+            List<WebElement> elements = seleniumUtils.getDriver().findElements(
+                    By.xpath("//*[contains(text(), 'This property data is a summary of similar materials')]"));
+
+            return !elements.isEmpty();
+
+        } catch (Exception e) {
+            logger.warning("Error checking if page is overview sheet: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Extracts the series name from the overview sheet title
+     */
+    private String extractSeriesName() {
+        try {
+            String pageTitle = seleniumUtils.getDriver().getTitle();
+
+            // Extract series name from title like "Overview of materials for AISI 4000 Series Steel"
+            if (pageTitle.contains("Overview of materials for ")) {
+                String seriesName = pageTitle.substring(pageTitle.indexOf("Overview of materials for ") + 26);
+                return seriesName.trim();
+            }
+
+            // Fallback: look for series name in page content
+            List<WebElement> headings = seleniumUtils.getDriver().findElements(By.tagName("h1"));
+            for (WebElement heading : headings) {
+                String text = heading.getText();
+                if (text.contains("Overview of materials for ")) {
+                    return text.substring(text.indexOf("Overview of materials for ") + 26).trim();
+                }
+            }
+
+            return "Unknown Series";
+
+        } catch (Exception e) {
+            logger.warning("Error extracting series name: " + e.getMessage());
+            return "Unknown Series";
+        }
     }
 
     /**
@@ -128,7 +231,7 @@ public class MatwebDataService {
     }
 
     private String[] parseCompositionData(List<String> elementList, List<String> compositionList,
-            List<String> comments) {
+                                          List<String> comments) {
         String[] parsedElementString = new String[elementList.size()];
         for (int i = 0; i < elementList.size(); i++) {
             String elementString = elementList.get(i);
