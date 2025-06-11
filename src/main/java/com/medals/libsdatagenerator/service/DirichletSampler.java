@@ -6,7 +6,7 @@ import java.util.logging.Logger;
 
 /**
  * Generates compositional samples using Dirichlet distribution
- * @author Manus AI | Enhanced LIBSDataCurator Phase 1
+ * @author Siddharth Prince | 02/06/25 15:00
  */
 public class DirichletSampler {
     private static final Logger logger = Logger.getLogger(DirichletSampler.class.getName());

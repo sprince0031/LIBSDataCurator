@@ -6,7 +6,7 @@ import java.util.Set;
 
 /**
  * Represents statistical information for a steel series from overview datasheet
- * @author Manus AI | Enhanced LIBSDataCurator Phase 1
+ * @author Siddharth Prince | 02/06/25 15:00
  */
 public class SeriesStatistics {
     private final Map<String, ElementStatistics> elementStatistics;

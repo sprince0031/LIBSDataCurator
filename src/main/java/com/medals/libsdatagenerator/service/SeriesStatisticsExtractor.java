@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 /**
  * Extracts statistical information from Matweb overview sheet comments
- * @author Manus AI | Enhanced LIBSDataCurator Phase 1
+ * @author Siddharth Prince | 02/06/25 15:00
  */
 public class SeriesStatisticsExtractor {
     private static final Logger logger = Logger.getLogger(SeriesStatisticsExtractor.class.getName());

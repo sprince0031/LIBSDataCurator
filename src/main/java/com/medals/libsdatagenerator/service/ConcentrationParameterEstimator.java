@@ -9,7 +9,7 @@ import java.util.logging.Logger;
 
 /**
  * Estimates Dirichlet concentration parameters from series statistics
- * @author Manus AI | Enhanced LIBSDataCurator Phase 1
+ * @author Siddharth Prince | 02/06/25 15:00
  */
 public class ConcentrationParameterEstimator {
     private static final Logger logger = Logger.getLogger(ConcentrationParameterEstimator.class.getName());

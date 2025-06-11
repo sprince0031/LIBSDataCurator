@@ -2,7 +2,7 @@ package com.medals.libsdatagenerator.model;
 
 /**
  * Represents statistical information for a single element from series overview data
- * @author Manus AI | Enhanced LIBSDataCurator Phase 1
+ * @author Siddharth Prince | 02/06/25 15:00
  */
 public class ElementStatistics {
     private final String elementSymbol;
