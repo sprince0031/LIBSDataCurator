@@ -87,28 +87,28 @@ The steel grades documented in this analysis represent the most significant cont
 
 ## Complete Reference List
 
-[5] American Iron and Steel Institute. (2024). "Steel Recycling Rates and Statistics." Washington, DC: AISI.
-[6] ASM International. (2023). "Properties and Selection of Carbon and Alloy Steels." Materials Park, OH: ASM International.
-[7] Appliance Recycling Centers of America. (2024). "White Goods Recycling and Material Recovery." Minneapolis, MN: ARCA.
-[9] Society of Automotive Engineers. (2024). "Automotive Steel Specifications and Applications." Warrendale, PA: SAE International.
-[10] American Institute of Steel Construction. (2023). "Steel Construction Manual." Chicago, IL: AISC.
-[11] Machinery Dealers National Association. (2024). "Industrial Equipment Lifecycle and Replacement Patterns." Alexandria, VA: MDNA.
-[12] Automotive Steel Partnership. (2023). "High-Strength Steel Applications in Automotive Manufacturing." Southfield, MI: ASP.
-[14] ASM International. (2023). "Heat Treater's Guide: Practices and Procedures for Alloy Steels." Materials Park, OH: ASM International.
-[15] Aerospace Industries Association. (2024). "Materials and Manufacturing in Aerospace Applications." Arlington, VA: AIA.
-[16] American Gear Manufacturers Association. (2023). "Gear Materials and Heat Treatment." Alexandria, VA: AGMA.
-[19] Aircraft Owners and Pilots Association. (2024). "Aircraft Materials and Maintenance Practices." Frederick, MD: AOPA.
-[21] International Stainless Steel Forum. (2023). "Global Stainless Steel Statistics." Brussels: ISSF.
-[22] American Institute of Architects. (2024). "Stainless Steel in Architectural Applications." Washington, DC: AIA.
-[23] Stainless Steel World. (2023). "Automotive Applications of Stainless Steel." Zutphen, Netherlands: KCI Publishing.
-[25] NACE International. (2023). "Corrosion-Resistant Alloys in Marine Environments." Houston, TX: NACE.
-[26] Marine Technology Society. (2024). "Materials Selection for Marine Applications." Columbia, MD: MTS.
-[27] American Institute of Chemical Engineers. (2023). "Materials of Construction for Chemical Processing." New York, NY: AIChE.
-[28] Association for the Advancement of Medical Instrumentation. (2024). "Medical Device Materials and Sterilization." Arlington, VA: AAMI.
-[31] American Institute of Steel Construction. (2024). "Structural Steel Recycling and Reuse." Chicago, IL: AISC.
-[32] Construction and Demolition Recycling Association. (2023). "Steel Recovery from Building Demolition." Eola, IL: CDRA.
-[33] Federal Highway Administration. (2024). "Bridge Materials and Lifecycle Management." Washington, DC: FHWA.
-[48] U.S. Environmental Protection Agency. (2023). "Steel Manufacturing Point Source Category." Washington, DC: EPA.
-[49] Institute of Scrap Recycling Industries. (2024). "Ferrous Scrap Market Analysis and Pricing." Washington, DC: ISRI.
-[50] Minor Metals Trade Association. (2023). "Alloying Elements Recovery from Steel Scrap." London, UK: MMTA.
+[5] American Iron and Steel Institute. (2024). "Steel Recycling Rates and Statistics." Washington, DC: AISI.  
+[6] ASM International. (2023). "Properties and Selection of Carbon and Alloy Steels." Materials Park, OH: ASM International.  
+[7] Appliance Recycling Centers of America. (2024). "White Goods Recycling and Material Recovery." Minneapolis, MN: ARCA.  
+[9] Society of Automotive Engineers. (2024). "Automotive Steel Specifications and Applications." Warrendale, PA: SAE International.  
+[10] American Institute of Steel Construction. (2023). "Steel Construction Manual." Chicago, IL: AISC.  
+[11] Machinery Dealers National Association. (2024). "Industrial Equipment Lifecycle and Replacement Patterns." Alexandria, VA: MDNA.  
+[12] Automotive Steel Partnership. (2023). "High-Strength Steel Applications in Automotive Manufacturing." Southfield, MI: ASP.  
+[14] ASM International. (2023). "Heat Treater's Guide: Practices and Procedures for Alloy Steels." Materials Park, OH: ASM International.  
+[15] Aerospace Industries Association. (2024). "Materials and Manufacturing in Aerospace Applications." Arlington, VA: AIA.  
+[16] American Gear Manufacturers Association. (2023). "Gear Materials and Heat Treatment." Alexandria, VA: AGMA.  
+[19] Aircraft Owners and Pilots Association. (2024). "Aircraft Materials and Maintenance Practices." Frederick, MD: AOPA.  
+[21] International Stainless Steel Forum. (2023). "Global Stainless Steel Statistics." Brussels: ISSF.  
+[22] American Institute of Architects. (2024). "Stainless Steel in Architectural Applications." Washington, DC: AIA.  
+[23] Stainless Steel World. (2023). "Automotive Applications of Stainless Steel." Zutphen, Netherlands: KCI Publishing.  
+[25] NACE International. (2023). "Corrosion-Resistant Alloys in Marine Environments." Houston, TX: NACE.  
+[26] Marine Technology Society. (2024). "Materials Selection for Marine Applications." Columbia, MD: MTS.  
+[27] American Institute of Chemical Engineers. (2023). "Materials of Construction for Chemical Processing." New York, NY: AIChE.  
+[28] Association for the Advancement of Medical Instrumentation. (2024). "Medical Device Materials and Sterilization." Arlington, VA: AAMI.  
+[31] American Institute of Steel Construction. (2024). "Structural Steel Recycling and Reuse." Chicago, IL: AISC.  
+[32] Construction and Demolition Recycling Association. (2023). "Steel Recovery from Building Demolition." Eola, IL: CDRA.  
+[33] Federal Highway Administration. (2024). "Bridge Materials and Lifecycle Management." Washington, DC: FHWA.  
+[48] U.S. Environmental Protection Agency. (2023). "Steel Manufacturing Point Source Category." Washington, DC: EPA.  
+[49] Institute of Scrap Recycling Industries. (2024). "Ferrous Scrap Market Analysis and Pricing." Washington, DC: ISRI.  
+[50] Minor Metals Trade Association. (2023). "Alloying Elements Recovery from Steel Scrap." London, UK: MMTA.  
 
