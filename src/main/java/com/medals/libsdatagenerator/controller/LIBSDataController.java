@@ -80,16 +80,14 @@ public class LIBSDataController {
             }
         }
 
-        // Only return a SeriesData object if there's at least one valid GUID (overview or individual)
-        // and an overview GUID is present, as per current logic focusing on overview GUIDs for processing.
-        // This condition might be adjusted if individualMaterialGuids become primary.
-        if (overviewGuid != null) { // Modified this condition to primarily care about overviewGuid for now
+        // Return a SeriesData object if there's at least one valid GUID (overview or individual).
+        // Handle missing overviewGuid only when variations are explicitly requested.
+        if (overviewGuid != null) {
             return new SeriesData(key, individualGuids, overviewGuid);
-        } else if (hasValidGuid) { // Entry has individual guids but no overview_guid
-            logger.warning("Series entry for key '" + key + "' has individual GUIDs but no valid overview GUID. Skipping processing for this series as overview GUID is currently required.");
-            return null;
-        }
-        else {
+        } else if (!individualGuids.isEmpty()) { // Entry has individual GUIDs but no overview GUID
+            logger.info("Series entry for key '" + key + "' has individual GUIDs but no overview GUID. Returning SeriesData for processing.");
+            return new SeriesData(key, individualGuids, null);
+        } else {
             logger.warning("No valid GUIDs (overview or individual) found for series key: " + key + " in entry: '" + entryString + "'. Skipping.");
             return null;
         }
