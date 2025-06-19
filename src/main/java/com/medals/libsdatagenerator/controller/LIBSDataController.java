@@ -13,8 +13,6 @@ import java.net.HttpURLConnection; // Added for HTTP status codes
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import com.medals.libsdatagenerator.service.SeriesStatistics;
-
 /**
  * @author Siddharth Prince | 16/12/24 18:22
  */
