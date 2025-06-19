@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 public class CommonUtils {
 
     private static Logger logger = Logger.getLogger(CommonUtils.class.getName());
+
     public static final String HOME_PATH = System.getProperty("user.dir");
     public static final String CONF_PATH = CommonUtils.HOME_PATH + File.separator + "conf";
     public static final String DATA_PATH = CommonUtils.HOME_PATH + File.separator + "data";
@@ -52,8 +53,17 @@ public class CommonUtils {
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,
                 true,
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_DESC);
-        composition.setRequired(true);
+        composition.setRequired(false);
         options.addOption(composition);
+
+        // Series flag
+        Option series = new Option(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT,
+                LIBSDataGenConstants.CMD_OPT_SERIES_LONG,
+                true, // This enables the optional argument value
+                LIBSDataGenConstants.CMD_OPT_SERIES_DESC);
+        series.setOptionalArg(true); // Actually make the argument value optional
+        series.setRequired(false); // The option itself is not required initially, validation logic will handle it
+        options.addOption(series);
 
         // Number of variations
         options.addOption(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT,
@@ -125,7 +135,24 @@ public class CommonUtils {
         HelpFormatter helpFormatter = new HelpFormatter();
 
         try {
-            return parser.parse(options, args);
+            CommandLine cmd = parser.parse(options, args);
+
+            boolean hasComposition = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
+            boolean hasSeries = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT);
+
+            if (hasComposition && hasSeries) {
+                System.err.println("Error: Cannot use both -c and -s options simultaneously. Please choose one.");
+                helpFormatter.printHelp("java LIBSDataGenerator", options);
+                return null;
+            }
+
+            if (!hasComposition && !hasSeries) {
+                System.err.println("Error: Either -c (composition) or -s (series) option must be provided.");
+                helpFormatter.printHelp("java LIBSDataGenerator", options);
+                return null;
+            }
+
+            return cmd;
         } catch (ParseException e) {
             logger.log(Level.SEVERE, "Commandline arg parse error", e);
             helpFormatter.printHelp("java LIBSDataGenerator", options);
