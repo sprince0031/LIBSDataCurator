@@ -141,13 +141,13 @@ public class CommonUtils {
             boolean hasSeries = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT);
 
             if (hasComposition && hasSeries) {
-                System.err.println("Error: Cannot use both -c and -s options simultaneously. Please choose one.");
+                logger.log(Level.SEVERE, "Error: Cannot use both -c and -s options simultaneously. Please choose one.");
                 helpFormatter.printHelp("java LIBSDataGenerator", options);
                 return null;
             }
 
             if (!hasComposition && !hasSeries) {
-                System.err.println("Error: Either -c (composition) or -s (series) option must be provided.");
+                logger.log(Level.SEVERE, "Error: Either -c (composition) or -s (series) option must be provided.");
                 helpFormatter.printHelp("java LIBSDataGenerator", options);
                 return null;
             }
