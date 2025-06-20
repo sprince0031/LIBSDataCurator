@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -123,7 +124,8 @@ public class LIBSDataController {
                     logger.info("Processing with -s (series) option.");
 
                     // Load series properties only if -s option is used
-                    Properties seriesProperties = commonUtils.readProperties(LIBSDataGenConstants.STEEL_SERIES_CATALOG_PATH);
+                    Properties seriesProperties = commonUtils.readProperties(CommonUtils.CONF_PATH + File.separator
+                            + LIBSDataGenConstants.STEEL_SERIES_CATALOG_PATH);
                     if (seriesProperties.isEmpty()) {
                         logger.warning("steel_series_catalog.properties file is empty or not found. Cannot process series option.");
                         // Subsequent checks for processedSeriesList.isEmpty() or its contents will handle the abort if no valid series are found.
@@ -251,10 +253,11 @@ public class LIBSDataController {
                                 }
 
                                 logger.info("Generating dataset for " + compositions.size() + " varied compositions of " + individualGuid + "...");
+                                System.out.println("\nFetching samples for " + individualGuid + ":");
                                 libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath, appendMode, forceFetch);
                             } else {
                                 logger.info("Fetching base LIBS data for material: " + individualGuid + " (no variations requested).");
-                                libsDataService.fetchLIBSData(baseElements, minWavelength, maxWavelength, csvDirPath, appendMode, forceFetch);
+                                libsDataService.fetchLIBSData(baseElements, minWavelength, maxWavelength, csvDirPath);
                             }
                         } // End loop over individualMaterialGuids
                     } // End loop over processedSeriesList
