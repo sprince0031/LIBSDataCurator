@@ -1,8 +1,13 @@
+package com.medals.libsdatagenerator.controller;
+
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
+import org.junit.jupiter.api.Test;
 
 public class TestCLI {
-    public static void main(String[] args) {
+
+    @Test
+    void cliTest() {
         CommonUtils commonUtils = new CommonUtils();
         String[][] testCases = {
             {"-c", "some_guid"}, // should pass
