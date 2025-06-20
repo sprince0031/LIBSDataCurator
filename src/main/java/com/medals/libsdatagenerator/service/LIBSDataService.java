@@ -315,7 +315,6 @@ public class LIBSDataService {
         PrintStream out = System.out;
 
         int progressBarWidth = 50; // Width of the progress bar
-        out.println("Fetching samples...");
 
         // For each composition, fetch the CSV, parse it, store data
         for (ArrayList<Element> composition : compositions) {

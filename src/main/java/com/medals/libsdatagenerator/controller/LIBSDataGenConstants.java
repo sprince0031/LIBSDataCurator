@@ -65,6 +65,12 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
             "Required for Dirichlet sampling mode (mode 2) to get series average compositions.";
 
+    public static final String CMD_OPT_SERIES_SHORT = "s";
+    public static final String CMD_OPT_SERIES_LONG = "series";
+    public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
+
+    public static final String STEEL_SERIES_CATALOG_PATH = "steel_series_catalog.properties";
+
     /**
      * #### NIST LIBS Constants ####
      */
@@ -97,13 +103,13 @@ public class LIBSDataGenConstants {
      */
     public static final String MATWEB_DATASHEET_URL_BASE = "https://www.matweb.com/search/DataSheet.aspx";
     public static final String MATWEB_DATASHEET_PARAM_GUID = "MatGUID";
+    public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";
 
     /**
      * #### Miscellaneous Constants ####
      */
-    public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     public static final int STAT_VAR_MODE_UNIFORM_DIST = 0; // Uniform distribution mode (longest and unnecessary)
     public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 1; // Gaussian sampling mode
     public static final int STAT_VAR_MODE_DIRICHLET_DIST = 2; // Dirichlet sampling mode
