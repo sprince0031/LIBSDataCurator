@@ -1,8 +1,6 @@
 package com.medals.libsdatagenerator.service;
 
-import com.medals.libsdatagenerator.controller.LIBSDataGenConstants; // Added for static block
-import com.medals.libsdatagenerator.service.CompositionalVariations;
-import com.medals.libsdatagenerator.service.Element; // Assuming this is the correct location
+import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;

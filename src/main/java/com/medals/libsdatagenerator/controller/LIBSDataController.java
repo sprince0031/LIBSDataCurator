@@ -1,6 +1,6 @@
 package com.medals.libsdatagenerator.controller;
 
-import com.medals.libsdatagenerator.service.Element;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;

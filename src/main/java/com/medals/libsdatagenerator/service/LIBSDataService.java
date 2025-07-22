@@ -1,17 +1,16 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
-import com.medals.libsdatagenerator.util.CSVUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.PrintStream;
@@ -72,7 +71,7 @@ public class LIBSDataService {
 
     // Fetching data from NIST LIBS database
     public String fetchLIBSData(ArrayList<Element> elements, String minWavelength, String maxWavelength,
-            String savePath) {
+                                String savePath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {

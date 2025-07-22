@@ -1,8 +1,12 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.util.CommonUtils;
+import org.apache.commons.rng.UniformRandomProvider;
+import org.apache.commons.rng.simple.RandomSource;
+import org.apache.commons.rng.sampling.distribution.DirichletSampler;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,12 +98,12 @@ public class CompositionalVariations {
             return;
         }
 
-        // Create Dirichlet sampler
-        DirichletSampler sampler = new DirichletSampler(concentrationParams, elementOrder,
-                minConstraints, maxConstraints);
+        UniformRandomProvider rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+        DirichletSampler sampler = DirichletSampler.of(rng, concentrationParams);
 
         logger.info("Created Dirichlet sampler with parameters: " + Arrays.toString(concentrationParams));
-        logger.info("Expected means: " + Arrays.toString(sampler.getExpectedMeans()));
+
 
         // Generate samples
         int initialSize = variations.size();
@@ -111,7 +115,7 @@ public class CompositionalVariations {
             attempts++;
 
             try {
-                double[] sample = sampler.generateSample();
+                double[] sample = sampler.sample();
                 ArrayList<Element> variation = createElementVariation(baseComp, sample, elementOrder);
 
                 if (validateVariation(variation)) {

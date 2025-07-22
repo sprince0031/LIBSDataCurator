@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.Element;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assumptions; // For Gaussian test constant checks
 import static org.junit.jupiter.api.Assertions.*;

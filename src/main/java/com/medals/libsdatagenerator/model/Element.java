@@ -1,4 +1,4 @@
-package com.medals.libsdatagenerator.service;
+package com.medals.libsdatagenerator.model;
 
 
 import com.medals.libsdatagenerator.util.CommonUtils;

@@ -54,6 +54,19 @@
             <version>3.6.1</version>
         </dependency>
 
+        <!-- Apache Commons RNG (for stat sampling methods) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-rng-sampling</artifactId>
+            <version>1.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-rng-simple</artifactId>
+            <version>1.6</version>
+        </dependency>
+
         <!-- Selenium Java -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>

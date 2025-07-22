@@ -1,7 +1,7 @@
 package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
-import com.medals.libsdatagenerator.service.Element;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
