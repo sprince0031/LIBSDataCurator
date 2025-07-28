@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -83,7 +84,7 @@ class CompositionParserTest {
         elements.add(new Element("Carbon", "C", 0.2, null, null, null));
         elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 
-        HashMap<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
+        Map<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
 
         // Verify composition string contains both elements in correct format
         String composition = params.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION);

@@ -3,15 +3,24 @@ package com.medals.libsdatagenerator.util;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import org.apache.commons.cli.*;
+import org.apache.http.client.utils.URIBuilder;
+import org.json.JSONArray;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -220,22 +229,95 @@ public class CommonUtils {
      *
      * @return boolean - True if website live, false otherwise
      */
-    public boolean isWebsiteReachable(String url) {
-        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-
+    public boolean isWebsiteReachable(String urlString) {
+        HttpURLConnection connection = null;
         try {
-            if (seleniumUtils.connectToWebsite(url, null)) {
-                logger.info(seleniumUtils.getDriver().getTitle() + " is reachable.");
+            URL url = new URL(urlString);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                logger.info(urlString + " is reachable.");
                 return true;
             } else {
-                logger.log(Level.SEVERE, url + " not reachable.");
+                logger.log(Level.SEVERE, url + " not reachable. Status code: " + connection.getResponseCode());
                 return false;
             }
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Exception occurred while trying to connect to " + url, e);
+            logger.log(Level.SEVERE, "Exception occurred while trying to connect to " + urlString, e);
             return false;
         } finally {
-            seleniumUtils.quitSelenium();
+            assert connection != null;
+            connection.disconnect();
+        }
+    }
+
+    public String getUrl(String url, Map<String, String> queryParams) throws URISyntaxException {
+        URIBuilder uriBuilder = new URIBuilder(url);
+
+        if (queryParams != null) {
+            for (Map.Entry<String, String> entry: queryParams.entrySet()) {
+                if (entry.getKey().equals(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION)) {
+                    logger.info("Query param composition:- " + entry.getValue());
+                    for (String element: entry.getValue().split(";")) {
+                        logger.info("Component element:- " + element);
+                        String[] temp = element.split(":");
+                        uriBuilder.addParameter(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MYTEXT, temp[0]);
+                        uriBuilder.addParameter(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MYPERC, temp[1]);
+                    }
+                }
+                uriBuilder.addParameter(entry.getKey(), entry.getValue()); // Automatically encodes parameters!
+            }
+        }
+
+        return uriBuilder.toString();
+    }
+
+    public String getArchivedWebpageUrl(String urlString) throws RuntimeException {
+        try {
+            Map<String, String> queryParams = new HashMap<>();
+            queryParams.put("url", urlString);
+            queryParams.put("output", "json");
+            queryParams.put("fl", "timestamp,original,mimetype,statuscode,digest");
+            queryParams.put("filter", "statuscode:200");
+            queryParams.put("limit", "-1");
+
+            String apiUrl = CommonUtils.getInstance().getUrl(LIBSDataGenConstants.ARCHIVE_API_BASE_URL, queryParams);
+            URL url = new URL(apiUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            if (conn.getResponseCode() != 200) {
+                logger.severe("Failed to query archive.org CDX API. Status code: " + conn.getResponseCode());
+                throw new RuntimeException("Failed to query archive.org CDX API. Status code: " + conn.getResponseCode());
+            }
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            String inputLine;
+            StringBuilder content = new StringBuilder();
+            while ((inputLine = in.readLine()) != null) {
+                content.append(inputLine);
+            }
+            in.close();
+            conn.disconnect();
+
+            JSONArray snapshots = new JSONArray(content.toString());
+            if (snapshots.length() <= 1) { // The first entry is the header
+                logger.severe("No successful (200 OK) snapshots found on archive.org for GUID: " + url);
+                throw new RuntimeException("No successful (200 OK) snapshots found on archive.org for GUID: " + url);
+            }
+
+            // The last entry in the list is the most recent one
+            JSONArray latestSnapshot = snapshots.getJSONArray(snapshots.length() - 1);
+            String timestamp = latestSnapshot.getString(0);
+            String archivedUrl = LIBSDataGenConstants.ARCHIVE_BASE_URL + timestamp + "/" + latestSnapshot.getString(1);
+
+            logger.info("Found most recent snapshot from " + timestamp + ". Using URL: " + archivedUrl);
+            return archivedUrl;
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "An error occurred while trying to fetch data from archive.org.", e);
+            throw new RuntimeException(e);
         }
     }
 

@@ -51,8 +51,10 @@ public class LIBSDataService {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
-            HashMap<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
-            seleniumUtils.connectToWebsite(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams);
+            Map<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
+            seleniumUtils.connectToWebsite(
+                    commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
+        );
 
             WebElement csvButton = seleniumUtils.getDriver()
                     .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
@@ -99,14 +101,14 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    public HashMap<String, String> processLIBSQueryParams(List<Element> elements, String minWavelength,
+    public Map<String, String> processLIBSQueryParams(List<Element> elements, String minWavelength,
             String maxWavelength) {
         // Processing the information for each element and adding to the query params
         // hashmap
         // Sample query params:
         // composition=C:0.26;Mn:0.65;Si:0.22;Fe:98.87&mytext[]=C&myperc[]=0.26&spectra=C0-2,Mn0-2,Si0-2,Fe0-2&mytext[]=Mn&myperc[]=0.65&mytext[]=Si&myperc[]=0.22&mytext[]=Fe&myperc[]=98.87&low_w=200&limits_type=0&upp_w=600&show_av=2&unit=1&resolution=1000&temp=1&eden=1e17&maxcharge=2&min_rel_int=0.01&int_scale=1&libs=1
         // https://physics.nist.gov/cgi-bin/ASD/lines1.pl?composition=C%3A0.26%3BMn%3A0.65%3BSi%3A0.22%3BFe%3A98.87&mytext%5B%5D=C&myperc%5B%5D=0.26&spectra=C0-2%2CMn0-2%2CSi0-2%2CFe0-2&mytext%5B%5D=Mn&myperc%5B%5D=0.65&mytext%5B%5D=Si&myperc%5B%5D=0.22&mytext%5B%5D=Fe&myperc%5B%5D=98.87&low_w=200&limits_type=0&upp_w=600&show_av=2&unit=1&resolution=1000&temp=1&eden=1e17&maxcharge=2&min_rel_int=0.01&int_scale=1&libs=1
-        HashMap<String, String> queryParams = new HashMap<>();
+        Map<String, String> queryParams = new HashMap<>();
 
         // Creating composition string
         String composition = "";

@@ -1,12 +1,15 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
+import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 // import java.util.HashMap; // Not directly used if LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK is already a map
 
 class CompositionalVariationsTest {
@@ -42,7 +45,9 @@ class CompositionalVariationsTest {
         baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
 
         List<List<Element>> variations = new ArrayList<>();
-        cv.gaussianSampling(baseComp, 5.0, 100, variations);
+        Map<String, Object> metadata =  new HashMap<>();
+        metadata.put("maxDelta", 5.0);
+        GaussianSampler.getInstance().sample(baseComp, 100, variations, metadata);
 
         assertEquals(100, variations.size(), "Should generate the requested number of samples");
 
@@ -84,7 +89,9 @@ class CompositionalVariationsTest {
         baseComp.add(new Element("B", "B", 50.0, 40.0, 60.0, 50.0));
 
         List<List<Element>> variations = new ArrayList<>();
-        cv.gaussianSampling(baseComp, 2.0, 50, variations);
+        Map<String, Object> metadata =  new HashMap<>();
+        metadata.put("maxDelta", 2.0);
+        GaussianSampler.getInstance().sample(baseComp, 50, variations, metadata);
 
         assertEquals(50, variations.size());
         for (List<Element> variant : variations) {
@@ -109,7 +116,7 @@ class CompositionalVariationsTest {
 //        baseComp.add(new Element("Cr", "Cr", 30.0, 20.0, 40.0, 30.0));
 //
 //        List<List<Element>> variations = new ArrayList<>();
-//        cv.gaussianSampling(baseComp, 5.0, 50, variations);
+//        cv.gaussianSampler(baseComp, 5.0, 50, variations);
 //
 //        assertEquals(50, variations.size());
 //        for (List<Element> variant : variations) {

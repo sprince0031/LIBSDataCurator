@@ -2,14 +2,20 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
+import org.json.JSONArray;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,11 +37,25 @@ public class MatwebDataService {
         return instance;
     }
 
+    private String matwebSanityChecker(String datasheetUrl) throws RuntimeException {
+
+        // Check if matweb.com is reachable
+        if (CommonUtils.getInstance().isWebsiteReachable(LIBSDataGenConstants.MATWEB_HOME_URL)) {
+            return datasheetUrl;
+        }
+        logger.warning("Matweb.com is not online. Attempting to find a snapshot on archive.org...");
+        return CommonUtils.getInstance().getArchivedWebpageUrl(datasheetUrl);
+    }
+
     public String[] getMaterialComposition(String guid) {
         try {
             HashMap<String, String> queryParams = new HashMap<>();
             queryParams.put(LIBSDataGenConstants.MATWEB_DATASHEET_PARAM_GUID, guid);
-            if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE, queryParams)) {
+
+            String datasheetUrl = CommonUtils.getInstance()
+                    .getUrl(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE,  queryParams);
+
+            if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
                 List<List<String>> compositionTableData = fetchCompositionTableData();
                 if (!compositionTableData.isEmpty()) {
                     return parseCompositionData(
@@ -67,7 +87,10 @@ public class MatwebDataService {
 
             logger.info("Fetching series statistics from overview sheet: " + overviewGuid);
 
-            if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE, queryParams)) {
+            String datasheetUrl = CommonUtils.getInstance()
+                    .getUrl(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE,  queryParams);
+
+            if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
                 // Check if this is an overview sheet
                 if (!isOverviewSheet()) {
                     logger.warning("The provided GUID does not appear to be an overview sheet");
