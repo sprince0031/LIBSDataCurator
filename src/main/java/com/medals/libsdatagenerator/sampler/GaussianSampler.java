@@ -27,7 +27,6 @@ public class GaussianSampler implements Sampler {
     public void sample(List<Element> baseComp, int numSamples,
                        List<List<Element>> variations, Map<String, Object> metadata) {
 
-        double maxDelta = (Double) metadata.get("maxDelta");
         Random rand = new Random();
 
         // A map to store the standard deviations
@@ -40,18 +39,30 @@ public class GaussianSampler implements Sampler {
 
             // First pass: Generate new values for all elements
             for (Element baseElement : baseComp) {
+                double mu = baseElement.getPercentageComposition();
+                Double min = baseElement.getMin();
+                Double max = baseElement.getMax();
+
+                // Calculating the max delta based on min-max range of element
+                double maxDelta;
+                if (min != null && max != null) { // The maximum possible change is half the range
+                    maxDelta = (max - min) / 2.0;
+                } else { // Fallback for elements without a defined range
+                    maxDelta = mu * 0.1; // e.g., 10% of the base value
+                }
                 double stdDev = stdDevs.getOrDefault(baseElement.getSymbol(), 0.1); // Default to 0.1 if not in map
                 double delta = rand.nextGaussian() * stdDev;
-                delta = Math.max(-maxDelta, Math.min(delta, maxDelta));
 
-                double newPercentage = baseElement.getPercentageComposition() + delta;
+                // Clamping delta within allowed ranges
+                delta = Math.max(-maxDelta, Math.min(delta, maxDelta));
+                double newPercentage = mu + delta;
 
                 // Clamp the new percentage to the element's min/max range
-                if (baseElement.getMin() != null) {
-                    newPercentage = Math.max(newPercentage, baseElement.getMin());
+                if (min != null) {
+                    newPercentage = Math.max(newPercentage, min);
                 }
-                if (baseElement.getMax() != null) {
-                    newPercentage = Math.min(newPercentage, baseElement.getMax());
+                if (max != null) {
+                    newPercentage = Math.min(newPercentage, max);
                 }
                 newPercentage = Math.max(0, newPercentage); // Ensure non-negative
 
