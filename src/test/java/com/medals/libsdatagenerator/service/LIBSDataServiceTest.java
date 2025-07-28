@@ -53,12 +53,12 @@ class LIBSDataServiceTest {
     void testGenerateVariations_allFixed_gaussianFallback() {
         assumeGaussianConstantsPresent("A", "B"); // Gaussian tests need these symbols in constants
 
-        ArrayList<Element> originalComposition = new ArrayList<>();
+        List<Element> originalComposition = new ArrayList<>();
         originalComposition.add(new Element("A", "A", 50.0, 50.0, 50.0, 50.0));
         originalComposition.add(new Element("B", "B", 50.0, 50.0, 50.0, 50.0));
 
         // samples = 10, so 1 original + 10 variations expected if fallback works
-        ArrayList<ArrayList<Element>> compositions = libsService.generateCompositionalVariations(
+        List<List<Element>> compositions = libsService.generateCompositionalVariations(
             originalComposition, 0.1, 5.0,
             LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST, 10, null
         );
@@ -68,7 +68,7 @@ class LIBSDataServiceTest {
 
         boolean foundDifferent = false;
         for (int i = 1; i < compositions.size(); i++) { // Start from 1 to skip original
-            ArrayList<Element> variedComp = compositions.get(i);
+            List<Element> variedComp = compositions.get(i);
             assertEquals(originalComposition.size(), variedComp.size(), "Varied composition should have same number of elements.");
             assertEquals(100.0, sumComposition(variedComp), DELTA, "Sum of varied composition should be ~100.");
             if (compositionsDiffer(originalComposition, variedComp)) {
@@ -80,12 +80,12 @@ class LIBSDataServiceTest {
 
     @Test
     void testGenerateVariations_allFixed_uniformFallback() {
-        ArrayList<Element> originalComposition = new ArrayList<>();
+        List<Element> originalComposition = new ArrayList<>();
         originalComposition.add(new Element("A", "A", 60.0, 60.0, 60.0, 60.0));
         originalComposition.add(new Element("B", "B", 40.0, 40.0, 40.0, 40.0));
 
         // varyBy=1, limit=5 (maxDelta)
-        ArrayList<ArrayList<Element>> compositions = libsService.generateCompositionalVariations(
+        List<List<Element>> compositions = libsService.generateCompositionalVariations(
             originalComposition, 1.0, 5.0,
             LIBSDataGenConstants.STAT_VAR_MODE_UNIFORM_DIST, 0, null // samples not used by uniform
         );
@@ -93,7 +93,7 @@ class LIBSDataServiceTest {
         assertTrue(compositions.size() > 1, "Should generate more than just the original composition due to fallback.");
         boolean foundDifferent = false;
         for (int i = 1; i < compositions.size(); i++) { // Start from 1 to skip original
-             ArrayList<Element> variedComp = compositions.get(i);
+             List<Element> variedComp = compositions.get(i);
              assertEquals(originalComposition.size(), variedComp.size());
              assertEquals(100.0, sumComposition(variedComp), DELTA);
              if (compositionsDiffer(originalComposition, variedComp)) {
@@ -107,11 +107,11 @@ class LIBSDataServiceTest {
 //    void testGenerateVariations_mixedFixedAndVariable_gaussian() {
 //        assumeGaussianConstantsPresent("Fe", "Cr");
 //
-//        ArrayList<Element> originalComposition = new ArrayList<>();
+//        List<Element> originalComposition = new ArrayList<>();
 //        originalComposition.add(new Element("Fe", "Fe", 70.0, 70.0, 70.0, 70.0)); // Fixed
 //        originalComposition.add(new Element("Cr", "Cr", 30.0, 25.0, 35.0, 30.0)); // Variable
 //
-//        ArrayList<ArrayList<Element>> compositions = libsService.generateCompositionalVariations(
+//        List<List<Element>> compositions = libsService.generateCompositionalVariations(
 //            originalComposition, 0.1, 5.0,
 //            LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST, 10
 //        );
@@ -119,7 +119,7 @@ class LIBSDataServiceTest {
 //        // Expected size is samples + 1 (original)
 //        assertEquals(11, compositions.size(), "Should generate original + requested number of samples.");
 //        for (int i = 1; i < compositions.size(); i++) { // Skip original
-//            ArrayList<Element> variedComp = compositions.get(i);
+//            List<Element> variedComp = compositions.get(i);
 //            assertEquals(2, variedComp.size());
 //            Element fe = variedComp.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElse(null);
 //            Element cr = variedComp.stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElse(null);
@@ -136,18 +136,18 @@ class LIBSDataServiceTest {
 
     @Test
     void testGenerateVariations_mixedFixedAndVariable_uniform() {
-        ArrayList<Element> originalComposition = new ArrayList<>();
+        List<Element> originalComposition = new ArrayList<>();
         originalComposition.add(new Element("Fe", "Fe", 70.0, 70.0, 70.0, 70.0)); // Fixed
         originalComposition.add(new Element("Cr", "Cr", 30.0, 25.0, 35.0, 30.0)); // Variable
 
-        ArrayList<ArrayList<Element>> compositions = libsService.generateCompositionalVariations(
+        List<List<Element>> compositions = libsService.generateCompositionalVariations(
             originalComposition, 0.5, 2.0, // varyBy=0.5, limit=2 for Cr
             LIBSDataGenConstants.STAT_VAR_MODE_UNIFORM_DIST, 0, null
         );
 
         assertTrue(compositions.size() > 1, "Should generate variations.");
         for (int i = 1; i < compositions.size(); i++) { // Skip original
-            ArrayList<Element> variedComp = compositions.get(i);
+            List<Element> variedComp = compositions.get(i);
             assertEquals(2, variedComp.size());
             Element fe = variedComp.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElse(null);
             Element cr = variedComp.stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElse(null);

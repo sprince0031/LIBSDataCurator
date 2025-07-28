@@ -10,6 +10,7 @@ import org.apache.commons.rng.sampling.distribution.DirichletSampler;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Random;
 import java.util.logging.Logger;
 
@@ -50,8 +51,8 @@ public class CompositionalVariations {
      * @param samples Number of samples to generate
      * @param variations List to store generated variations
      */
-    public void dirichletSampling(ArrayList<Element> baseComp, String overviewGuid, int samples,
-                                  ArrayList<ArrayList<Element>> variations) {
+    public void dirichletSampling(List<Element> baseComp, String overviewGuid, int samples,
+                                  List<List<Element>> variations) {
 
         logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
 
@@ -116,7 +117,7 @@ public class CompositionalVariations {
 
             try {
                 double[] sample = sampler.sample();
-                ArrayList<Element> variation = createElementVariation(baseComp, sample, elementOrder);
+                List<Element> variation = createElementVariation(baseComp, sample, elementOrder);
 
                 if (validateVariation(variation)) {
                     variations.add(variation);
@@ -146,9 +147,9 @@ public class CompositionalVariations {
     /**
      * Creates an Element variation from a Dirichlet sample
      */
-    private ArrayList<Element> createElementVariation(ArrayList<Element> baseComp, double[] sample,
+    private List<Element> createElementVariation(List<Element> baseComp, double[] sample,
                                                       String[] elementOrder) {
-        ArrayList<Element> variation = new ArrayList<>();
+        List<Element> variation = new ArrayList<>();
 
         for (int i = 0; i < baseComp.size(); i++) {
             Element baseElement = baseComp.get(i);
@@ -183,7 +184,7 @@ public class CompositionalVariations {
     /**
      * Validates that a variation meets all constraints
      */
-    private boolean validateVariation(ArrayList<Element> variation) {
+    private boolean validateVariation(List<Element> variation) {
         double totalPercentage = 0.0;
 
         for (Element element : variation) {
@@ -216,8 +217,8 @@ public class CompositionalVariations {
         return true;
     }
 
-    public void gaussianSampling(ArrayList<Element> baseComp, double maxDelta, int samples,
-                                 ArrayList<ArrayList<Element>> variations) {
+    public void gaussianSampling(List<Element> baseComp, double maxDelta, int samples,
+                                 List<List<Element>> variations) {
         Random rand = new Random();
         int initialSize = variations.size();
 
@@ -405,9 +406,9 @@ public class CompositionalVariations {
         }
     }
 
-    public void getUniformDistribution(int index, ArrayList<Element> original, double varyBy, double limit,
-                                       double currentSum, ArrayList<Element> currentCombo,
-                                       ArrayList<ArrayList<Element>> results) {
+    public void getUniformDistribution(int index, List<Element> original, double varyBy, double limit,
+                                       double currentSum, List<Element> currentCombo,
+                                       List<List<Element>> results) {
 
         Element elementAtIndex = original.get(index);
         double originalVal = elementAtIndex.getPercentageComposition();
@@ -433,7 +434,7 @@ public class CompositionalVariations {
                             elementAtIndex.getName(), elementAtIndex.getSymbol(), roundedLastVal, // or originalVal
                             minComp, maxComp, elementAtIndex.getAverageComposition()
                     ));
-                    ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
+                    List<Element> newComposition = commonUtils.deepCopy(currentCombo);
                     results.add(newComposition);
                     logger.info("New composition (fixed last element): " + commonUtils.buildCompositionString(newComposition));
                     currentCombo.remove(currentCombo.size() - 1);
@@ -458,7 +459,7 @@ public class CompositionalVariations {
                             elementAtIndex.getName(), elementAtIndex.getSymbol(), roundedLastVal,
                             minComp, maxComp, elementAtIndex.getAverageComposition()
                     ));
-                    ArrayList<Element> newComposition = commonUtils.deepCopy(currentCombo);
+                    List<Element> newComposition = commonUtils.deepCopy(currentCombo);
                     results.add(newComposition);
                     logger.info("New composition (variable last element): " + commonUtils.buildCompositionString(newComposition));
                     currentCombo.remove(currentCombo.size() - 1);

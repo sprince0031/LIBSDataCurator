@@ -69,7 +69,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
 
-    public static final String STEEL_SERIES_CATALOG_PATH = "steel_series_catalog.properties";
+    public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
 
     /**
      * #### NIST LIBS Constants ####
@@ -110,6 +110,8 @@ public class LIBSDataGenConstants {
     /**
      * #### Miscellaneous Constants ####
      */
+    public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
+    public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
     public static final int STAT_VAR_MODE_UNIFORM_DIST = 0; // Uniform distribution mode (longest and unnecessary)
     public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 1; // Gaussian sampling mode
     public static final int STAT_VAR_MODE_DIRICHLET_DIST = 2; // Dirichlet sampling mode

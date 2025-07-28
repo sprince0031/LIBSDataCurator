@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,7 +30,7 @@ class CompositionParserTest {
     void testParseValidComposition() throws Exception {
         // Test parsing a simple composition string
         String[] compositionArray = { "C-0.2", "Fe-99.8" };
-        ArrayList<Element> elements = libsDataService.generateElementsList(compositionArray);
+        List<Element> elements = libsDataService.generateElementsList(compositionArray);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -46,7 +47,7 @@ class CompositionParserTest {
     void testParseCompositionWithRanges() throws Exception {
         // Test parsing composition with ranges (min:max)
         String[] compositionArray = { "C-0.1:0.3", "Fe-99.7:99.9" };
-        ArrayList<Element> elements = libsDataService.generateElementsList(compositionArray);
+        List<Element> elements = libsDataService.generateElementsList(compositionArray);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -67,7 +68,7 @@ class CompositionParserTest {
     void testParseRemainingPercentage() throws Exception {
         // Test that "#" symbol is handled correctly for remaining percentage
         String[] compositionArray = { "C-0.2", "Fe-#" };
-        ArrayList<Element> elements = libsDataService.generateElementsList(compositionArray);
+        List<Element> elements = libsDataService.generateElementsList(compositionArray);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -78,7 +79,7 @@ class CompositionParserTest {
     @Test
     void testQueryParamGeneration() {
         // Test that elements are properly converted to query parameters
-        ArrayList<Element> elements = new ArrayList<>();
+        List<Element> elements = new ArrayList<>();
         elements.add(new Element("Carbon", "C", 0.2, null, null, null));
         elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 

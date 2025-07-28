@@ -70,7 +70,7 @@ public class LIBSDataService {
     }
 
     // Fetching data from NIST LIBS database
-    public String fetchLIBSData(ArrayList<Element> elements, String minWavelength, String maxWavelength,
+    public String fetchLIBSData(List<Element> elements, String minWavelength, String maxWavelength,
                                 String savePath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
@@ -114,7 +114,7 @@ public class LIBSDataService {
             seleniumUtils.getDriver().close();
             // Switch back to the original window
             seleniumUtils.getDriver().switchTo().window(originalWindow);
-            return csvData;
+            return String.valueOf(csvPath);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
         } finally {
@@ -123,7 +123,7 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    public HashMap<String, String> processLIBSQueryParams(ArrayList<Element> elements, String minWavelength,
+    public HashMap<String, String> processLIBSQueryParams(List<Element> elements, String minWavelength,
             String maxWavelength) {
         // Processing the information for each element and adding to the query params
         // hashmap
@@ -176,8 +176,8 @@ public class LIBSDataService {
         return queryParams;
     }
 
-    public ArrayList<Element> generateElementsList(String[] composition) throws IOException {
-        ArrayList<Element> elementsList = new ArrayList<>();
+    public List<Element> generateElementsList(String[] composition) throws IOException {
+        List<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;
         for (String elementString : composition) {
             // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
@@ -222,10 +222,11 @@ public class LIBSDataService {
         return elementsList;
     }
 
-    public ArrayList<ArrayList<Element>> generateCompositionalVariations(ArrayList<Element> originalComposition,
+    public List<List<Element>> generateCompositionalVariations(List<Element> originalComposition,
             double varyBy, double maxDelta, int variationMode,
             int samples, String overviewGuid) {
-        ArrayList<ArrayList<Element>> compositions = new ArrayList<>();
+
+        List<List<Element>> compositions = new ArrayList<>();
         if (originalComposition == null || originalComposition.isEmpty()) {
             logger.warning("Original composition is null or empty. Cannot generate variations.");
             return compositions; // Return empty list, or perhaps add the (empty) originalComposition if that's desired.
@@ -233,7 +234,6 @@ public class LIBSDataService {
         compositions.add(originalComposition); // Adding the original composition
 
         boolean allElementsAreFixed = true;
-        // No need to check originalComposition.isEmpty() again here as it's handled above.
         for (Element el : originalComposition) {
             Double minComp = el.getPercentageCompositionMin();
             Double maxComp = el.getPercentageCompositionMax();
@@ -243,7 +243,7 @@ public class LIBSDataService {
             }
         }
 
-        ArrayList<Element> effectiveComposition = originalComposition;
+        List<Element> effectiveComposition = originalComposition;
         if (allElementsAreFixed) {
             // originalComposition is not empty here due to the check at the beginning.
             logger.info("All elements in the input composition are fixed. Applying fallback variation logic, ignoring X:X constraints for sampling.");
@@ -295,7 +295,7 @@ public class LIBSDataService {
         return compositions;
     }
 
-    public void generateDataset(ArrayList<ArrayList<Element>> compositions, String minWavelength, String maxWavelength,
+    public void generateDataset(List<List<Element>> compositions, String minWavelength, String maxWavelength,
             String savePath, boolean appendMode, boolean forceFetch) {
 
         // Keeping track of all wavelength across all comps:
@@ -316,7 +316,7 @@ public class LIBSDataService {
         int progressBarWidth = 50; // Width of the progress bar
 
         // For each composition, fetch the CSV, parse it, store data
-        for (ArrayList<Element> composition : compositions) {
+        for (List<Element> composition : compositions) {
 
             // Build a string like "Cu:50;Fe:50" for identifying this composition
             String compositionId = commonUtils.buildCompositionString(composition);

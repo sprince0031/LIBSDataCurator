@@ -22,6 +22,7 @@ public class MatwebDataService {
     public static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
     private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
+    private static String datasheetName = "Unknown name";
 
     public static MatwebDataService getInstance() {
         if (instance == null) {
@@ -44,6 +45,7 @@ public class MatwebDataService {
                     );
                 }
             }
+            datasheetName = extractDatasheetName(false);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from matweb.com", e);
         } finally {
@@ -72,7 +74,7 @@ public class MatwebDataService {
                     return null;
                 }
 
-                String seriesName = extractSeriesName();
+                String seriesName = extractDatasheetName(true);
                 List<List<String>> compositionTableData = fetchCompositionTableData();
 
                 if (!compositionTableData.isEmpty()) {
@@ -128,30 +130,25 @@ public class MatwebDataService {
     /**
      * Extracts the series name from the overview sheet title
      */
-    private String extractSeriesName() {
+    private String extractDatasheetName(boolean isOverviewSheet) {
         try {
             String pageTitle = seleniumUtils.getDriver().getTitle();
 
+            if (pageTitle == null) {
+                return "Unknown name";
+            }
+
             // Extract series name from title like "Overview of materials for AISI 4000 Series Steel"
-            if (pageTitle.contains("Overview of materials for ")) {
+            if (isOverviewSheet && pageTitle.contains("Overview of materials for ")) {
                 String seriesName = pageTitle.substring(pageTitle.indexOf("Overview of materials for ") + 26);
                 return seriesName.trim();
             }
 
-            // Fallback: look for series name in page content
-            List<WebElement> headings = seleniumUtils.getDriver().findElements(By.tagName("h1"));
-            for (WebElement heading : headings) {
-                String text = heading.getText();
-                if (text.contains("Overview of materials for ")) {
-                    return text.substring(text.indexOf("Overview of materials for ") + 26).trim();
-                }
-            }
-
-            return "Unknown Series";
+            return pageTitle.trim();
 
         } catch (Exception e) {
-            logger.warning("Error extracting series name: " + e.getMessage());
-            return "Unknown Series";
+            logger.warning("Error extracting datasheet name: " + e.getMessage());
+            return "Unknown name";
         }
     }
 
@@ -278,4 +275,30 @@ public class MatwebDataService {
 
         return parsedElementString;
     }
+
+    /**
+     * Utility method to check for validity of matweb service output
+     */
+    public boolean validateMatwebServiceOutput(String[] compositionArray, String guid) {
+        if (compositionArray == null || compositionArray.length == 0) {
+            logger.warning("Failed to fetch composition (null or empty array) for material GUID: " + guid + ". Skipping this material.");
+            return false;
+        }
+        if (compositionArray.length == 1) {
+            if (compositionArray[0].equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+                logger.warning("Material GUID: " + guid + " not found (404) on MatWeb. Skipping this material.");
+                return false;
+            }
+            if (compositionArray[0].equals(String.valueOf(HttpURLConnection.HTTP_INTERNAL_ERROR))) {
+                logger.warning("MatWeb internal server error (500) for material GUID: " + guid + ". Skipping this material.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public String getDatasheetName() {
+        return datasheetName;
+    }
+
 }

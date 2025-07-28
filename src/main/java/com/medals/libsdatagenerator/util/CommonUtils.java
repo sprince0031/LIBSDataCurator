@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -27,6 +28,16 @@ public class CommonUtils {
     public static final String HOME_PATH = System.getProperty("user.dir");
     public static final String CONF_PATH = CommonUtils.HOME_PATH + File.separator + "conf";
     public static final String DATA_PATH = CommonUtils.HOME_PATH + File.separator + "data";
+    public static final String MATERIALS_CATALOGUE_PATH = CommonUtils.CONF_PATH + File.separator + LIBSDataGenConstants.MATERIALS_CATALOGUE_FILE_NAME;
+
+    public static CommonUtils instance = null;
+
+    public static CommonUtils getInstance() {
+        if (instance == null) {
+            instance = new CommonUtils();
+        }
+        return instance;
+    }
 
     /**
      * Reads data from a properties file
@@ -62,7 +73,7 @@ public class CommonUtils {
                 true, // This enables the optional argument value
                 LIBSDataGenConstants.CMD_OPT_SERIES_DESC);
         series.setOptionalArg(true); // Actually make the argument value optional
-        series.setRequired(false); // The option itself is not required initially, validation logic will handle it
+        series.setRequired(false);
         options.addOption(series);
 
         // Number of variations
@@ -162,11 +173,11 @@ public class CommonUtils {
 
     /**
      * Utility to deep-copy a composition list.
-     * @param composition ArrayList of Element objects that make up a composition
+     * @param composition List of Element objects that make up a composition
      * @return A deep copy of the composition
      */
-    public ArrayList<Element> deepCopy(ArrayList<Element> composition) {
-        ArrayList<Element> copy = new ArrayList<>();
+    public List<Element> deepCopy(List<Element> composition) {
+        List<Element> copy = new ArrayList<>(composition.size());
         for (Element e : composition) {
             copy.add(new Element(
                     e.getName(),
@@ -193,7 +204,7 @@ public class CommonUtils {
         return bd.doubleValue();
     }
 
-    public String buildCompositionString(ArrayList<Element> composition) {
+    public String buildCompositionString(List<Element> composition) {
         StringBuilder compositionString = new StringBuilder();
         for(int i = 0; i < composition.size(); i++) {
             compositionString.append(composition.get(i).toString());
