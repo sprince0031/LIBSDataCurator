@@ -154,6 +154,11 @@ public class InputCompositonProcessor {
             MaterialGrade materialGrade = new MaterialGrade(baseComposition, null, null);
             materialGrades.add(materialGrade);
         } else {
+            // Check if matweb.com is reachable
+            if (!CommonUtils.getInstance().isWebsiteReachable(LIBSDataGenConstants.MATWEB_HOME_URL)) {
+                throw new IOException("Matweb.com is not online.");
+            }
+
             List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
             for (SeriesInput series : processedSeriesData) {
                 if (series.getIndividualMaterialGuids().isEmpty()) {

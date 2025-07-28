@@ -55,13 +55,13 @@ class CompositionParserTest {
         // Verify ranges are handled correctly (midpoint value set as composition)
         assertEquals("C", elements.get(0).getSymbol());
         assertEquals(0.2, elements.get(0).getPercentageComposition());
-        assertEquals(0.1, elements.get(0).getPercentageCompositionMin());
-        assertEquals(0.3, elements.get(0).getPercentageCompositionMax());
+        assertEquals(0.1, elements.get(0).getMin());
+        assertEquals(0.3, elements.get(0).getMax());
 
         assertEquals("Fe", elements.get(1).getSymbol());
         assertEquals(99.8, elements.get(1).getPercentageComposition());
-        assertEquals(99.7, elements.get(1).getPercentageCompositionMin());
-        assertEquals(99.9, elements.get(1).getPercentageCompositionMax());
+        assertEquals(99.7, elements.get(1).getMin());
+        assertEquals(99.9, elements.get(1).getMax());
     }
 
     @Test

@@ -101,6 +101,7 @@ public class LIBSDataGenConstants {
     /**
      * #### Matweb Constants ####
      */
+    public static final String MATWEB_HOME_URL = "https://www.matweb.com";
     public static final String MATWEB_DATASHEET_URL_BASE = "https://www.matweb.com/search/DataSheet.aspx";
     public static final String MATWEB_DATASHEET_PARAM_GUID = "MatGUID";
     public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string

@@ -45,30 +45,6 @@ public class LIBSDataService {
         return instance;
     }
 
-    /**
-     * Testing if the NIST LIBS website is reachable
-     * 
-     * @return boolean - True if website live, false otherwise
-     */
-    public boolean isNISTLIBSReachable() {
-        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-
-        try {
-            if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.NIST_LIBS_FORM_URL, null)) {
-                logger.info(seleniumUtils.getDriver().getTitle() + " is reachable.");
-                return true;
-            } else {
-                logger.log(Level.SEVERE, "NIST LIBS website not reachable.");
-                return false;
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Exception occurred while trying to connect to NIST LIBS website.", e);
-            return false;
-        } finally {
-            seleniumUtils.quitSelenium();
-        }
-    }
-
     // Fetching data from NIST LIBS database
     public String fetchLIBSData(List<Element> elements, String minWavelength, String maxWavelength,
                                 String savePath) {
@@ -235,8 +211,8 @@ public class LIBSDataService {
 
         boolean allElementsAreFixed = true;
         for (Element el : originalComposition) {
-            Double minComp = el.getPercentageCompositionMin();
-            Double maxComp = el.getPercentageCompositionMax();
+            Double minComp = el.getMin();
+            Double maxComp = el.getMax();
             if (!(minComp != null && maxComp != null && minComp.equals(maxComp))) {
                 allElementsAreFixed = false;
                 break;

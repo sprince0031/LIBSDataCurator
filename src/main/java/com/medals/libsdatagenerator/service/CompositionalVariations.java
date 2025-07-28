@@ -69,18 +69,10 @@ public class CompositionalVariations {
 
         // Create element order array from base composition
         String[] elementOrder = new String[baseComp.size()];
-        double[] minConstraints = new double[baseComp.size()];
-        double[] maxConstraints = new double[baseComp.size()];
 
         for (int i = 0; i < baseComp.size(); i++) {
             Element element = baseComp.get(i);
             elementOrder[i] = element.getSymbol();
-
-            // Set constraints from element min/max values
-            minConstraints[i] = element.getPercentageCompositionMin() != null ?
-                    element.getPercentageCompositionMin() : 0.0;
-            maxConstraints[i] = element.getPercentageCompositionMax() != null ?
-                    element.getPercentageCompositionMax() : 100.0;
         }
 
         // Estimate Dirichlet concentration parameters for the base composition elements only
@@ -107,7 +99,6 @@ public class CompositionalVariations {
 
 
         // Generate samples
-        int initialSize = variations.size();
         int successfulSamples = 0;
         int attempts = 0;
         int maxAttempts = samples * 10; // Allow up to 10x attempts to account for constraint violations
@@ -117,7 +108,8 @@ public class CompositionalVariations {
 
             try {
                 double[] sample = sampler.sample();
-                List<Element> variation = createElementVariation(baseComp, sample, elementOrder);
+                logger.info("Sample: " + Arrays.toString(sample));
+                List<Element> variation = createElementVariation(baseComp, sample);
 
                 if (validateVariation(variation)) {
                     variations.add(variation);
@@ -147,37 +139,38 @@ public class CompositionalVariations {
     /**
      * Creates an Element variation from a Dirichlet sample
      */
-    private List<Element> createElementVariation(List<Element> baseComp, double[] sample,
-                                                      String[] elementOrder) {
+    private List<Element> createElementVariation(List<Element> baseComp, double[] sample) {
         List<Element> variation = new ArrayList<>();
-
+        double totalPercentage = 0;
         for (int i = 0; i < baseComp.size(); i++) {
             Element baseElement = baseComp.get(i);
+            double min = baseElement.getMin();
+            double max = baseElement.getMax();
 
-            // Find the corresponding sample value for this element
-            double sampleValue = 0.0;
-            for (int j = 0; j < elementOrder.length; j++) {
-                if (elementOrder[j].equals(baseElement.getSymbol())) {
-                    sampleValue = sample[j];
-                    break;
-                }
-            }
+            // Scale the sample to the element's allowed range
+            double newPercentage = min + (sample[i] * (max - min));
+            totalPercentage += newPercentage;
 
             // Round to appropriate decimal places
-            double roundedValue = CommonUtils.roundToNDecimals(sampleValue, baseElement.getNumberDecimalPlaces());
+            double roundedValue = CommonUtils.roundToNDecimals(newPercentage, baseElement.getNumberDecimalPlaces());
 
             Element variationElement = new Element(
                     baseElement.getName(),
                     baseElement.getSymbol(),
                     roundedValue,
-                    baseElement.getPercentageCompositionMin(),
-                    baseElement.getPercentageCompositionMax(),
+                    baseElement.getMin(),
+                    baseElement.getMax(),
                     baseElement.getAverageComposition()
             );
-
             variation.add(variationElement);
         }
 
+        // Normalize the composition to sum to 100%
+        if (totalPercentage > 0) {
+            for (Element element : variation) {
+                element.setPercentageComposition((element.getPercentageComposition() / totalPercentage) * 100.0);
+            }
+        }
         return variation;
     }
 
@@ -191,13 +184,13 @@ public class CompositionalVariations {
             double percentage = element.getPercentageComposition();
 
             // Check individual element constraints
-            if (element.getPercentageCompositionMin() != null &&
-                    percentage < element.getPercentageCompositionMin() - POST_NORM_CHECK_DELTA) {
+            if (element.getMin() != null &&
+                    percentage < element.getMin() - POST_NORM_CHECK_DELTA) {
                 return false;
             }
 
-            if (element.getPercentageCompositionMax() != null &&
-                    percentage > element.getPercentageCompositionMax() + POST_NORM_CHECK_DELTA) {
+            if (element.getMax() != null &&
+                    percentage > element.getMax() + POST_NORM_CHECK_DELTA) {
                 return false;
             }
 
@@ -230,8 +223,8 @@ public class CompositionalVariations {
 
             // First Pass: Identify fixed/variable, apply initial sampling to variables
             for (Element baseElement : baseComp) {
-                Double minComp = baseElement.getPercentageCompositionMin();
-                Double maxComp = baseElement.getPercentageCompositionMax();
+                Double minComp = baseElement.getMin();
+                Double maxComp = baseElement.getMax();
                 boolean isFixed = minComp != null && maxComp != null && minComp.doubleValue() == maxComp.doubleValue();
 
                 if (isFixed) {
@@ -283,7 +276,7 @@ public class CompositionalVariations {
                 Element originalBaseForVar = null;
                 int varCounter = 0;
                 for(Element baseElem : baseComp) {
-                    boolean isBaseFixed = baseElem.getPercentageCompositionMin() != null && baseElem.getPercentageCompositionMax() != null && baseElem.getPercentageCompositionMin().doubleValue() == baseElem.getPercentageCompositionMax().doubleValue();
+                    boolean isBaseFixed = baseElem.getMin() != null && baseElem.getMax() != null && baseElem.getMin().doubleValue() == baseElem.getMax().doubleValue();
                     if (!isBaseFixed) {
                         if (varCounter == i) {
                             originalBaseForVar = baseElem;
@@ -335,11 +328,11 @@ public class CompositionalVariations {
 
                 // Re-clamp against min/max and ensure >= 0
                 scaledVal = Math.max(0, scaledVal);
-                if (varElement.getPercentageCompositionMin() != null) {
-                    scaledVal = Math.max(scaledVal, varElement.getPercentageCompositionMin());
+                if (varElement.getMin() != null) {
+                    scaledVal = Math.max(scaledVal, varElement.getMin());
                 }
-                if (varElement.getPercentageCompositionMax() != null) {
-                    scaledVal = Math.min(scaledVal, varElement.getPercentageCompositionMax());
+                if (varElement.getMax() != null) {
+                    scaledVal = Math.min(scaledVal, varElement.getMax());
                 }
                 varElement.setPercentageComposition(CommonUtils.roundToNDecimals(scaledVal, varElement.getNumberDecimalPlaces()));
             }
@@ -351,8 +344,8 @@ public class CompositionalVariations {
 
             int varElemIdx = 0; // To iterate through tempVariableElements
             for(Element rawElementFromFirstPass : currentRawVariantElements) {
-                Double minComp = rawElementFromFirstPass.getPercentageCompositionMin();
-                Double maxComp = rawElementFromFirstPass.getPercentageCompositionMax();
+                Double minComp = rawElementFromFirstPass.getMin();
+                Double maxComp = rawElementFromFirstPass.getMax();
                 boolean isFixed = minComp != null && maxComp != null && minComp.doubleValue() == maxComp.doubleValue();
 
                 if (isFixed) {
@@ -366,17 +359,17 @@ public class CompositionalVariations {
                         finalSum += processedVarElement.getPercentageComposition();
 
                         // Final min/max check for this variable element
-                        if (processedVarElement.getPercentageCompositionMin() != null &&
-                                processedVarElement.getPercentageComposition() < (processedVarElement.getPercentageCompositionMin() - POST_NORM_CHECK_DELTA)) {
+                        if (processedVarElement.getMin() != null &&
+                                processedVarElement.getPercentageComposition() < (processedVarElement.getMin() - POST_NORM_CHECK_DELTA)) {
                             logger.info("Sample discarded post-norm: Element " + processedVarElement.getSymbol() +
-                                    " (" + processedVarElement.getPercentageComposition() + ") below min " + processedVarElement.getPercentageCompositionMin());
+                                    " (" + processedVarElement.getPercentageComposition() + ") below min " + processedVarElement.getMin());
                             constraintViolatedAfterNormalization = true;
                             break;
                         }
-                        if (processedVarElement.getPercentageCompositionMax() != null &&
-                                processedVarElement.getPercentageComposition() > (processedVarElement.getPercentageCompositionMax() + POST_NORM_CHECK_DELTA)) {
+                        if (processedVarElement.getMax() != null &&
+                                processedVarElement.getPercentageComposition() > (processedVarElement.getMax() + POST_NORM_CHECK_DELTA)) {
                             logger.info("Sample discarded post-norm: Element " + processedVarElement.getSymbol() +
-                                    " (" + processedVarElement.getPercentageComposition() + ") above max " + processedVarElement.getPercentageCompositionMax());
+                                    " (" + processedVarElement.getPercentageComposition() + ") above max " + processedVarElement.getMax());
                             constraintViolatedAfterNormalization = true;
                             break;
                         }
@@ -412,8 +405,8 @@ public class CompositionalVariations {
 
         Element elementAtIndex = original.get(index);
         double originalVal = elementAtIndex.getPercentageComposition();
-        Double minComp = elementAtIndex.getPercentageCompositionMin();
-        Double maxComp = elementAtIndex.getPercentageCompositionMax();
+        Double minComp = elementAtIndex.getMin();
+        Double maxComp = elementAtIndex.getMax();
         // Use .doubleValue() for comparison if not null, to avoid object comparison issues with ==
         boolean isFixed = (minComp != null && maxComp != null &&
                 Math.abs(minComp.doubleValue() - maxComp.doubleValue()) < POST_NORM_CHECK_DELTA &&

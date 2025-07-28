@@ -183,8 +183,8 @@ public class CommonUtils {
                     e.getName(),
                     e.getSymbol(),
                     e.getPercentageComposition(),
-                    e.getPercentageCompositionMin(),
-                    e.getPercentageCompositionMax(),
+                    e.getMin(),
+                    e.getMax(),
                     e.getAverageComposition()
                     )
             );
@@ -213,6 +213,30 @@ public class CommonUtils {
             }
         }
         return compositionString.toString();
+    }
+
+    /**
+     * Testing if the target website is reachable
+     *
+     * @return boolean - True if website live, false otherwise
+     */
+    public boolean isWebsiteReachable(String url) {
+        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+
+        try {
+            if (seleniumUtils.connectToWebsite(url, null)) {
+                logger.info(seleniumUtils.getDriver().getTitle() + " is reachable.");
+                return true;
+            } else {
+                logger.log(Level.SEVERE, url + " not reachable.");
+                return false;
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Exception occurred while trying to connect to " + url, e);
+            return false;
+        } finally {
+            seleniumUtils.quitSelenium();
+        }
     }
 
 }

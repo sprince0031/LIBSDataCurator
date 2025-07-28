@@ -31,7 +31,7 @@ public class LIBSDataController {
             logger.info("Initialising LIBS Data extraction...");
 
             // Check if the NIST LIBS portal is reachable
-            if (!libsDataService.isNISTLIBSReachable()) {
+            if (!commonUtils.isWebsiteReachable(LIBSDataGenConstants.NIST_LIBS_FORM_URL)) {
                 logger.log(Level.WARNING, "NIST LIBS reachable is not available");
             }
 

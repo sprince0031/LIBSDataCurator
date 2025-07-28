@@ -55,13 +55,13 @@ class CompositionalVariationsTest {
 
                 assertNotNull(elVar.getPercentageComposition(), "Percentage should not be null for " + elVar.getSymbol());
                 assertTrue(elVar.getPercentageComposition() >= 0, "Percentage should be non-negative for " + elVar.getSymbol());
-                if (elBase.getPercentageCompositionMin() != null) {
-                    assertTrue(elVar.getPercentageComposition() >= elBase.getPercentageCompositionMin() - DELTA,
-                            elVar.getSymbol() + " value " + elVar.getPercentageComposition() + " below min " + elBase.getPercentageCompositionMin());
+                if (elBase.getMin() != null) {
+                    assertTrue(elVar.getPercentageComposition() >= elBase.getMin() - DELTA,
+                            elVar.getSymbol() + " value " + elVar.getPercentageComposition() + " below min " + elBase.getMin());
                 }
-                if (elBase.getPercentageCompositionMax() != null) {
-                    assertTrue(elVar.getPercentageComposition() <= elBase.getPercentageCompositionMax() + DELTA,
-                            elVar.getSymbol() + " value " + elVar.getPercentageComposition() + " above max " + elBase.getPercentageCompositionMax());
+                if (elBase.getMax() != null) {
+                    assertTrue(elVar.getPercentageComposition() <= elBase.getMax() + DELTA,
+                            elVar.getSymbol() + " value " + elVar.getPercentageComposition() + " above max " + elBase.getMax());
                 }
                 totalPercentage += elVar.getPercentageComposition();
             }
@@ -142,13 +142,13 @@ class CompositionalVariationsTest {
 
                 assertNotNull(elRes.getPercentageComposition(), "Percentage should not be null for " + elRes.getSymbol());
                 assertTrue(elRes.getPercentageComposition() >= 0, "Percentage should be non-negative for " + elRes.getSymbol());
-                if (elOrig.getPercentageCompositionMin() != null) {
-                    assertTrue(elRes.getPercentageComposition() >= elOrig.getPercentageCompositionMin() - DELTA,
-                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " below min " + elOrig.getPercentageCompositionMin());
+                if (elOrig.getMin() != null) {
+                    assertTrue(elRes.getPercentageComposition() >= elOrig.getMin() - DELTA,
+                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " below min " + elOrig.getMin());
                 }
-                if (elOrig.getPercentageCompositionMax() != null) {
-                    assertTrue(elRes.getPercentageComposition() <= elOrig.getPercentageCompositionMax() + DELTA,
-                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " above max " + elOrig.getPercentageCompositionMax());
+                if (elOrig.getMax() != null) {
+                    assertTrue(elRes.getPercentageComposition() <= elOrig.getMax() + DELTA,
+                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " above max " + elOrig.getMax());
                 }
                 totalPercentage += elRes.getPercentageComposition();
             }
