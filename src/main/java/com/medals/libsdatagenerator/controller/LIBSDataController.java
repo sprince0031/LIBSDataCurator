@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.MaterialGrade;
+import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositonProcessor;
@@ -98,9 +99,11 @@ public class LIBSDataController {
                     int numSamples = Integer.parseInt(
                             cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "50"));
 
-                    List<List<Element>> compositions = libsDataService.generateCompositionalVariations(
-                            materialGrade.getComposition(), varyBy, maxDelta, variationMode, numSamples,
-                            materialGrade.getOverviewGUID());
+                    List<List<Element>> compositions = CompositionalVariations.getInstance()
+                            .generateCompositionalVariations(
+                                materialGrade.getComposition(), varyBy, maxDelta, variationMode, numSamples,
+                                materialGrade.getOverviewGUID()
+                            );
 
                     if (compositions != null && !compositions.isEmpty()) {
                         libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath,

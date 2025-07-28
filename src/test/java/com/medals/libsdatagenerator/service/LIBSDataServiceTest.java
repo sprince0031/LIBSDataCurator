@@ -12,7 +12,7 @@ import java.util.Map;
 
 class LIBSDataServiceTest {
 
-    private final LIBSDataService libsService = LIBSDataService.getInstance();
+    private final CompositionalVariations compVariations = CompositionalVariations.getInstance();
     private static final double DELTA = 0.01; // Increased tolerance slightly for sums after variation
 
     private boolean compositionsDiffer(List<Element> comp1, List<Element> comp2) {
@@ -58,7 +58,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("B", "B", 50.0, 50.0, 50.0, 50.0));
 
         // samples = 10, so 1 original + 10 variations expected if fallback works
-        List<List<Element>> compositions = libsService.generateCompositionalVariations(
+        List<List<Element>> compositions = compVariations.generateCompositionalVariations(
             originalComposition, 0.1, 5.0,
             LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST, 10, null
         );
@@ -85,7 +85,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("B", "B", 40.0, 40.0, 40.0, 40.0));
 
         // varyBy=1, limit=5 (maxDelta)
-        List<List<Element>> compositions = libsService.generateCompositionalVariations(
+        List<List<Element>> compositions = compVariations.generateCompositionalVariations(
             originalComposition, 1.0, 5.0,
             LIBSDataGenConstants.STAT_VAR_MODE_UNIFORM_DIST, 0, null // samples not used by uniform
         );
@@ -140,7 +140,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("Fe", "Fe", 70.0, 70.0, 70.0, 70.0)); // Fixed
         originalComposition.add(new Element("Cr", "Cr", 30.0, 25.0, 35.0, 30.0)); // Variable
 
-        List<List<Element>> compositions = libsService.generateCompositionalVariations(
+        List<List<Element>> compositions = compVariations.generateCompositionalVariations(
             originalComposition, 0.5, 2.0, // varyBy=0.5, limit=2 for Cr
             LIBSDataGenConstants.STAT_VAR_MODE_UNIFORM_DIST, 0, null
         );

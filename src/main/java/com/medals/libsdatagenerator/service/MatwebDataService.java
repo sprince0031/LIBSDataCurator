@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  */
 public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
-    public static MatwebDataService instance = null;
+    private static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
     private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
     private static String datasheetName = "Unknown name";
