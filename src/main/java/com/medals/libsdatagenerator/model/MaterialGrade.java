@@ -54,7 +54,7 @@ public class MaterialGrade {
 
     @Override
     public String toString() {
-        return !materialName.isEmpty() ? materialName : CommonUtils.getInstance().buildCompositionString(composition);
+        return materialName != null && !materialName.isEmpty() ? materialName : CommonUtils.getInstance().buildCompositionString(composition);
     }
 
 }
