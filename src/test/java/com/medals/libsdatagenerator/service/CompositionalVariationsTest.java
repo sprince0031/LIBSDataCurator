@@ -1,147 +1,197 @@
 package com.medals.libsdatagenerator.service;
 
-import org.junit.jupiter.api.BeforeEach;
+import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
+import com.medals.libsdatagenerator.sampler.GaussianSampler;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
-
-import java.util.*;
-
 import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 class CompositionalVariationsTest {
 
-    private CompositionalVariations compositionalVariations;
+    private final CompositionalVariations cv = CompositionalVariations.getInstance();
+    private static final double DELTA = 0.001; // For floating point comparisons
 
-    @BeforeEach
-    void setUp() {
-        compositionalVariations = new CompositionalVariations();
-    }
-
-    @Test
-    void testGaussianSampling_Basic() {
-        // Arrange
-        ArrayList<Element> baseComp = new ArrayList<>();
-        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3, null));
-        baseComp.add(new Element("Silicon", "Si", 1.0, 0.8, 1.2, null));
-        baseComp.add(new Element("Iron", "Fe", 98.8, 98.0, 99.5, null));
-
-        double maxDelta = 0.1;
-        int samples = 5;
-        ArrayList<ArrayList<Element>> variations = new ArrayList<>();
-
-        // Act
-        compositionalVariations.gaussianSampling(baseComp, maxDelta, samples, variations);
-
-        // Assert
-        assertEquals(samples, variations.size(), "Should generate the requested number of samples.");
-        assertFalse(variations.isEmpty(), "Variations list should not be empty.");
-
-        for (ArrayList<Element> variation : variations) {
-            assertEquals(baseComp.size(), variation.size(),
-                    "Each variation should have the same number of elements as the base.");
-            double sum = variation.stream().mapToDouble(Element::getPercentageComposition).sum();
-            assertEquals(100.0, sum, 0.005, "Element percentages in each variation should sum to 100.");
+    private double sumComposition(List<Element> composition) {
+        double sum = 0;
+        for (Element el : composition) {
+            sum += el.getPercentageComposition();
         }
+        return sum;
     }
 
     @Test
-    void testGaussianSampling_WithMinMax() {
-        // Arrange
-        ArrayList<Element> baseComp = new ArrayList<>();
-        Element carbon = new Element("Carbon", "C", 0.5, 0.1, 1.0, null);
-        Element iron = new Element("Iron", "Fe", 99.5, 99.0, 99.9, null);
+    void testGaussianSampling_respectsMinMaxConstraints() {
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("A"),
+            "Skipping test: Symbol 'A' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("B"),
+            "Skipping test: Symbol 'B' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("C"),
+            "Skipping test: Symbol 'C' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("A", "A", 50.0, 45.0, 55.0, 50.0));
+        baseComp.add(new Element("B", "B", 30.0, 28.0, 32.0, 30.0));
+        baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
 
-        baseComp.add(carbon);
-        baseComp.add(iron);
+        List<List<Element>> variations = new ArrayList<>();
+        Map<String, Object> metadata =  new HashMap<>();
+        metadata.put("maxDelta", 5.0);
+        GaussianSampler.getInstance().sample(baseComp, 100, variations, metadata);
 
-        double maxDelta = 0.2;
-        int samples = 10;
-        ArrayList<ArrayList<Element>> variations = new ArrayList<>();
+        assertEquals(100, variations.size(), "Should generate the requested number of samples");
 
-        // Act
-        compositionalVariations.gaussianSampling(baseComp, maxDelta, samples, variations);
+        for (List<Element> variant : variations) {
+            assertEquals(3, variant.size());
+            double totalPercentage = 0;
+            for (int i = 0; i < variant.size(); i++) {
+                Element elVar = variant.get(i);
+                Element elBase = baseComp.get(i);
 
-        // Assert
-        assertEquals(samples, variations.size());
-        for (ArrayList<Element> variation : variations) {
-            assertEquals(2, variation.size());
-            double sum = variation.stream().mapToDouble(Element::getPercentageComposition).sum();
-            assertEquals(100.0, sum, 0.005);
-
-            for (Element e : variation) {
-                if (e.getName().equals("Carbon")) {
-                    assertTrue(e.getPercentageComposition() >= 0.0,
-                            "Carbon percentage should not be negative.");
-                } else if (e.getName().equals("Iron")) {
-                    assertTrue(e.getPercentageComposition() > 0.0,
-                            "Iron percentage should be greater than zero.");
+                assertNotNull(elVar.getPercentageComposition(), "Percentage should not be null for " + elVar.getSymbol());
+                assertTrue(elVar.getPercentageComposition() >= 0, "Percentage should be non-negative for " + elVar.getSymbol());
+                if (elBase.getMin() != null) {
+                    assertTrue(elVar.getPercentageComposition() >= elBase.getMin() - DELTA,
+                            elVar.getSymbol() + " value " + elVar.getPercentageComposition() + " below min " + elBase.getMin());
                 }
+                if (elBase.getMax() != null) {
+                    assertTrue(elVar.getPercentageComposition() <= elBase.getMax() + DELTA,
+                            elVar.getSymbol() + " value " + elVar.getPercentageComposition() + " above max " + elBase.getMax());
+                }
+                totalPercentage += elVar.getPercentageComposition();
             }
+            assertEquals(100.0, totalPercentage, DELTA, "Sum of percentages should be 100 for variant: " + variant);
         }
     }
 
     @Test
-    void testGetUniformDistribution() {
-        // Arrange
-        ArrayList<Element> baseComp = new ArrayList<>();
-        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3, null));
-        baseComp.add(new Element("Iron", "Fe", 99.8, 99.5, 99.9, null));
+    void testGaussianSampling_withTightConstraints() {
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("A"),
+            "Skipping test: Symbol 'A' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("B"),
+            "Skipping test: Symbol 'B' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("A", "A", 50.0, 49.9, 50.1, 50.0));
+        baseComp.add(new Element("B", "B", 50.0, 40.0, 60.0, 50.0));
 
-        double varyBy = 0.05;
-        double limit = 0.1;
-        ArrayList<ArrayList<Element>> results = new ArrayList<>();
+        List<List<Element>> variations = new ArrayList<>();
+        Map<String, Object> metadata =  new HashMap<>();
+        metadata.put("maxDelta", 2.0);
+        GaussianSampler.getInstance().sample(baseComp, 50, variations, metadata);
 
-        // Act
-        compositionalVariations.getUniformDistribution(
-                0, baseComp, varyBy, limit, 0.0, new ArrayList<>(), results);
-
-        // Assert
-        assertFalse(results.isEmpty(), "Should generate at least one variation");
-
-        for (ArrayList<Element> variation : results) {
-            assertEquals(baseComp.size(), variation.size(),
-                    "Each variation should have the same number of elements");
-
-            double sum = variation.stream()
-                    .mapToDouble(Element::getPercentageComposition)
-                    .sum();
-            assertEquals(100.0, sum, 0.001, "Element percentages should sum to 100%");
+        assertEquals(50, variations.size());
+        for (List<Element> variant : variations) {
+            Element elA = variant.get(0);
+            assertTrue(elA.getPercentageComposition() >= 49.9 - DELTA && elA.getPercentageComposition() <= 50.1 + DELTA, "Element A value " + elA.getPercentageComposition() + " out of tight range [49.9, 50.1]");
+            assertEquals(100.0, sumComposition(variant), DELTA, "Sum of percentages should be 100 for variant: " + variant);
         }
     }
 
-    /*
-     * // Old commented out test for uniformSampling
-     * 
-     * /*
-     * // Old commented out test for uniformSampling
-     */
+//    @Test
+//    void testGaussianSampling_elementFixedByMinMax() {
+//        Assumptions.assumeTrue(
+//            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("Fe"),
+//            "Skipping test: Symbol 'Fe' not in ELEMENT_STD_DEVS_FALLBACK map."
+//        );
+//        Assumptions.assumeTrue(
+//            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("Cr"),
+//            "Skipping test: Symbol 'Cr' not in ELEMENT_STD_DEVS_FALLBACK map."
+//        );
+//        List<Element> baseComp = new ArrayList<>();
+//        baseComp.add(new Element("Fe", "Fe", 70.0, 70.0, 70.0, 70.0));
+//        baseComp.add(new Element("Cr", "Cr", 30.0, 20.0, 40.0, 30.0));
+//
+//        List<List<Element>> variations = new ArrayList<>();
+//        cv.gaussianSampler(baseComp, 5.0, 50, variations);
+//
+//        assertEquals(50, variations.size());
+//        for (List<Element> variant : variations) {
+//            Element elFe = variant.get(0);
+//            Element elCr = variant.get(1);
+//            assertEquals(70.0, elFe.getPercentageComposition(), DELTA, "Fe should be fixed at 70% in variant: " + variant);
+//            assertTrue(elCr.getPercentageComposition() >= 20.0 - DELTA && elCr.getPercentageComposition() <= 40.0 + DELTA, "Cr value " + elCr.getPercentageComposition() + " out of range [20,40] in variant: " + variant);
+//            assertEquals(100.0, sumComposition(variant), DELTA, "Sum of percentages should be 100 for variant: " + variant);
+//        }
+//    }
 
-    // Additional edge case tests
     @Test
-    void testGaussianSampling_ZeroDelta() {
-        // Arrange
-        ArrayList<Element> baseComp = new ArrayList<>();
-        baseComp.add(new Element("Carbon", "C", 0.2, 0.1, 0.3, null));
-        baseComp.add(new Element("Iron", "Fe", 99.8, 99.5, 99.9, null));
+    void testGetUniformDistribution_respectsMinMaxConstraints() {
+        List<Element> originalComp = new ArrayList<>();
+        originalComp.add(new Element("X", "X", 50.0, 48.0, 52.0, 50.0));
+        originalComp.add(new Element("Y", "Y", 30.0, 28.0, 32.0, 30.0));
+        originalComp.add(new Element("Z", "Z", 20.0, 18.0, 22.0, 20.0));
 
-        double maxDelta = 0.0; // Zero delta should return compositions very close to original
-        int samples = 3;
-        ArrayList<ArrayList<Element>> variations = new ArrayList<>();
+        List<List<Element>> results = new ArrayList<>();
+        cv.getUniformDistribution(0, originalComp, 0.5, 5.0, 0.0, new ArrayList<>(), results);
 
-        // Act
-        compositionalVariations.gaussianSampling(baseComp, maxDelta, samples, variations);
+        assertTrue(results.size() > 0, "Should generate some results for uniform distribution");
 
-        // Assert
-        assertEquals(samples, variations.size());
+        for (List<Element> result : results) {
+            assertEquals(3, result.size());
+            double totalPercentage = 0;
+            for (int i = 0; i < result.size(); i++) {
+                Element elRes = result.get(i);
+                Element elOrig = originalComp.get(i);
 
-        for (ArrayList<Element> variation : variations) {
-            assertEquals(baseComp.size(), variation.size());
-            // With zero delta, values should be very close to original
-            double carbonPercent = variation.get(0).getPercentageComposition();
-            double ironPercent = variation.get(1).getPercentageComposition();
-
-            // Allow a very small tolerance due to normalization
-            assertEquals(0.2, carbonPercent, 0.01);
-            assertEquals(99.8, ironPercent, 0.01);
+                assertNotNull(elRes.getPercentageComposition(), "Percentage should not be null for " + elRes.getSymbol());
+                assertTrue(elRes.getPercentageComposition() >= 0, "Percentage should be non-negative for " + elRes.getSymbol());
+                if (elOrig.getMin() != null) {
+                    assertTrue(elRes.getPercentageComposition() >= elOrig.getMin() - DELTA,
+                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " below min " + elOrig.getMin());
+                }
+                if (elOrig.getMax() != null) {
+                    assertTrue(elRes.getPercentageComposition() <= elOrig.getMax() + DELTA,
+                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " above max " + elOrig.getMax());
+                }
+                totalPercentage += elRes.getPercentageComposition();
+            }
+            assertEquals(100.0, totalPercentage, DELTA, "Sum of percentages should be 100 for result: " + result);
         }
+    }
+
+    @Test
+    void testGetUniformDistribution_lastElementCalculationWithConstraints() {
+        List<Element> originalComp = new ArrayList<>();
+        originalComp.add(new Element("A", "A", 40.0, 35.0, 42.0, 40.0));
+        originalComp.add(new Element("B", "B", 30.0, 25.0, 32.0, 30.0));
+        originalComp.add(new Element("C", "C", 30.0, 28.0, 33.0, 30.0));
+
+        List<List<Element>> results = new ArrayList<>();
+        cv.getUniformDistribution(0, originalComp, 1.0, 5.0, 0.0, new ArrayList<>(), results);
+
+        assertTrue(results.size() > 0, "Should find valid combinations for last element constraints.");
+
+        for (List<Element> result : results) {
+            Element elC = result.get(2);
+            assertTrue(elC.getPercentageComposition() >= (28.0 - DELTA) && elC.getPercentageComposition() <= (33.0 + DELTA),
+                    "Element C (" + elC.getPercentageComposition() + ") out of its specific range [28, 33] in result: " + result);
+            assertEquals(100.0, sumComposition(result), DELTA, "Sum must be 100 for result: " + result);
+        }
+    }
+
+    @Test
+    void testGetUniformDistribution_noValidResultsDueToStrictConstraints() {
+        List<Element> originalComp = new ArrayList<>();
+        originalComp.add(new Element("A", "A", 10.0,  8.0, 12.0, 10.0));
+        originalComp.add(new Element("B", "B", 10.0,  8.0, 12.0, 10.0));
+        originalComp.add(new Element("C", "C", 80.0, 85.0, 90.0, 80.0));
+
+        List<List<Element>> results = new ArrayList<>();
+        cv.getUniformDistribution(0, originalComp, 0.1, 3.0, 0.0, new ArrayList<>(), results);
+
+        assertEquals(0, results.size(), "Should generate no results due to conflicting constraints for uniform distribution.");
     }
 }

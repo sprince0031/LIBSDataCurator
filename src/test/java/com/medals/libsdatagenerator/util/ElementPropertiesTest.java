@@ -1,10 +1,9 @@
 package com.medals.libsdatagenerator.util;
 
-import com.medals.libsdatagenerator.service.Element;
+import com.medals.libsdatagenerator.model.Element;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,8 +61,8 @@ class ElementPropertiesTest {
         assertEquals("Iron", iron.getName());
         assertEquals("Fe", iron.getSymbol());
         assertEquals(98.5, iron.getPercentageComposition());
-        assertEquals(98.0, iron.getPercentageCompositionMin());
-        assertEquals(99.0, iron.getPercentageCompositionMax());
+        assertEquals(98.0, iron.getMin());
+        assertEquals(99.0, iron.getMax());
         assertEquals("Fe:98.5", iron.toString());
     }
 

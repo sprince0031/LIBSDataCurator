@@ -62,36 +62,18 @@ public class SeleniumUtils {
      * @return True if connection established, false otherwise
      * @throws URISyntaxException
      */
-    public boolean connectToWebsite(String url, HashMap<String, String> queryParams) throws URISyntaxException {
+    public boolean connectToWebsite(String url) {
         if (!isDriverOnline) {
             initDriver();
         }
 
-        URIBuilder uriBuilder = new URIBuilder(url);
-
-        if (queryParams != null) {
-            for (Map.Entry<String, String> entry: queryParams.entrySet()) {
-                if (entry.getKey().equals(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION)) {
-                    logger.info("Query param composition:- " + entry.getValue());
-                    for (String element: entry.getValue().split(";")) {
-                        logger.info("Component element:- " + element);
-                        String[] temp = element.split(":");
-                        uriBuilder.addParameter(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MYTEXT, temp[0]);
-                        uriBuilder.addParameter(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MYPERC, temp[1]);
-                    }
-                }
-                uriBuilder.addParameter(entry.getKey(), entry.getValue()); // Automatically encodes parameters!
-            }
-        }
-
         try {
-            logger.info("Connecting to " + uriBuilder);
-            driver.get(uriBuilder.toString());
+            logger.info("Connecting to " + url);
+            driver.get(url);
             return true;
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Failed to connect to " + uriBuilder, e);
+            logger.log(Level.SEVERE, "Failed to connect to " + url, e);
         }
-
         return false;
 
     }

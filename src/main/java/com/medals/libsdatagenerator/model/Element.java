@@ -1,4 +1,4 @@
-package com.medals.libsdatagenerator.service;
+package com.medals.libsdatagenerator.model;
 
 
 import com.medals.libsdatagenerator.util.CommonUtils;
@@ -18,8 +18,8 @@ public class Element {
     private final String name;
     private final String symbol;
     private Double percentageComposition;
-    private Double percentageCompositionMin;
-    private Double percentageCompositionMax;
+    private Double min;
+    private Double max;
     private Double averageComposition; // Average value from series overview (if available)
     public int numberDecimalPlaces = 3;
 
@@ -39,15 +39,15 @@ public class Element {
 
         // Round values if they are not null
         this.percentageComposition = roundIfNotNull(percentageComposition);
-        this.percentageCompositionMin = roundIfNotNull(min);
-        this.percentageCompositionMax = roundIfNotNull(max);
+        this.min = roundIfNotNull(min);
+        this.max = roundIfNotNull(max);
         this.averageComposition = roundIfNotNull(average);
 
         // If percentageComposition is still null, maybe default based on min/max or average?
         if (this.percentageComposition == null) {
-            if (this.percentageCompositionMin != null && this.percentageCompositionMax != null) {
+            if (this.min != null && this.max != null) {
                 // Default to midpoint of specific range if available
-                this.percentageComposition = roundIfNotNull((this.percentageCompositionMin + this.percentageCompositionMax) / 2.0);
+                this.percentageComposition = roundIfNotNull((this.min + this.max) / 2.0);
             } else if (this.averageComposition != null) {
                 // Default to series average if specific range/value is missing
                 this.percentageComposition = this.averageComposition;
@@ -84,20 +84,20 @@ public class Element {
         this.percentageComposition = CommonUtils.roundToNDecimals(percentageComposition, numberDecimalPlaces);
     }
 
-    public Double getPercentageCompositionMin() {
-        return this.percentageCompositionMin;
+    public Double getMin() {
+        return this.min;
     }
 
-    public void setPercentageCompositionMin(Double percentageCompositionMin) {
-        this.percentageCompositionMin = percentageCompositionMin;
+    public void setMin(Double min) {
+        this.min = min;
     }
 
-    public Double getPercentageCompositionMax() {
-        return this.percentageCompositionMax;
+    public Double getMax() {
+        return this.max;
     }
 
-    public void setPercentageCompositionMax(Double percentageCompositionMax) {
-        this.percentageCompositionMax = percentageCompositionMax;
+    public void setMax(Double max) {
+        this.max = max;
     }
 
     public Double getAverageComposition() {
@@ -118,8 +118,8 @@ public class Element {
         this.numberDecimalPlaces = numberDecimalPlaces;
         if (oldDecimalPlaces != numberDecimalPlaces) {
             this.percentageComposition = roundIfNotNull(this.percentageComposition);
-            this.percentageCompositionMin = roundIfNotNull(this.percentageCompositionMin);
-            this.percentageCompositionMax = roundIfNotNull(this.percentageCompositionMax);
+            this.min = roundIfNotNull(this.min);
+            this.max = roundIfNotNull(this.max);
             this.averageComposition = roundIfNotNull(this.averageComposition);
         }
     }
