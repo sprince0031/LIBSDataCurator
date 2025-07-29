@@ -15,17 +15,17 @@ import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 
-public class InputCompositonProcessor {
+public class InputCompositionProcessor {
 
-    private static final Logger logger = Logger.getLogger(InputCompositonProcessor.class.getName());
+    private static final Logger logger = Logger.getLogger(InputCompositionProcessor.class.getName());
     private static final Pattern MATWEB_GUID_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_GUID_REGEX);
     private static boolean hasIndividualGuidsToProcess = false;
 
-    private static InputCompositonProcessor instance = null;
+    private static InputCompositionProcessor instance = null;
 
-    public static InputCompositonProcessor getInstance() {
+    public static InputCompositionProcessor getInstance() {
         if (instance == null) {
-            instance = new InputCompositonProcessor();
+            instance = new InputCompositionProcessor();
         }
         return instance;
     }
@@ -48,7 +48,7 @@ public class InputCompositonProcessor {
 
             // Handling individual data sheet GUIDs
             if (!trimmedPart.startsWith("og-")) {
-                if (InputCompositonProcessor.MATWEB_GUID_PATTERN.matcher(trimmedPart).matches()) {
+                if (InputCompositionProcessor.MATWEB_GUID_PATTERN.matcher(trimmedPart).matches()) {
                     individualGuids.add(trimmedPart);
                     hasIndividualGuidsToProcess = true;
                 } else {
@@ -65,7 +65,7 @@ public class InputCompositonProcessor {
                 continue;
             }
 
-            if (!InputCompositonProcessor.MATWEB_GUID_PATTERN.matcher(potentialOgGuid).matches()) { // Handling invalid GUID string
+            if (!InputCompositionProcessor.MATWEB_GUID_PATTERN.matcher(potentialOgGuid).matches()) { // Handling invalid GUID string
                 logger.warning("Invalid overview GUID format in series: " + key +
                         ". Value: '" + potentialOgGuid + "'. Skipping.");
                 continue;

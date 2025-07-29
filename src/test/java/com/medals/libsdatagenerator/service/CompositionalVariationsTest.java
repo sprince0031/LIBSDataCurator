@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-// import java.util.HashMap; // Not directly used if LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK is already a map
 
 class CompositionalVariationsTest {
 

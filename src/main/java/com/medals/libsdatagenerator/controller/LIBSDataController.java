@@ -5,7 +5,7 @@ import com.medals.libsdatagenerator.model.MaterialGrade;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
-import com.medals.libsdatagenerator.util.InputCompositonProcessor;
+import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
 import java.util.List;
@@ -26,7 +26,7 @@ public class LIBSDataController {
 
         LIBSDataService libsDataService = LIBSDataService.getInstance(); // Data interfacing class for NIST LIBS
         CommonUtils commonUtils = CommonUtils.getInstance(); // Instance for various utility functions
-        InputCompositonProcessor compositonProcessor = InputCompositonProcessor.getInstance();
+        InputCompositionProcessor compositionProcessor = InputCompositionProcessor.getInstance();
 
         try {
             logger.info("Initialising LIBS Data extraction...");
@@ -57,7 +57,7 @@ public class LIBSDataController {
                 logger.info("Processing with -s (series) option.");
 
                 String seriesKeyValueInput = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT);
-                materialGrades = compositonProcessor.getMaterialsList(seriesKeyValueInput, false);
+                materialGrades = compositionProcessor.getMaterialsList(seriesKeyValueInput, false);
             } else if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT)) {
                 // Process input for -c (composition) option
                 logger.info("Processing with -c (composition) option.");
@@ -66,9 +66,9 @@ public class LIBSDataController {
                 String overviewGUID = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT)?
                         cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT) : null;
                 if (COMPOSITION_STRING_PATTERN.matcher(compositionInput).matches()) {
-                    materialGrades = compositonProcessor.getMaterialsList(compositionInput, true, overviewGUID);
+                    materialGrades = compositionProcessor.getMaterialsList(compositionInput, true, overviewGUID);
                 } else {
-                    materialGrades = compositonProcessor.getMaterialsList(compositionInput, false, overviewGUID);
+                    materialGrades = compositionProcessor.getMaterialsList(compositionInput, false, overviewGUID);
                 }
             } else {
                 // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler

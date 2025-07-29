@@ -64,8 +64,8 @@ public class MatwebDataService {
                             compositionTableData.get(3) // Comments for average %
                     );
                 }
+                datasheetName = extractDatasheetName(false);
             }
-            datasheetName = extractDatasheetName(false);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from matweb.com", e);
         } finally {
