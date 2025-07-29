@@ -247,8 +247,9 @@ public class CommonUtils {
             logger.log(Level.SEVERE, "Exception occurred while trying to connect to " + urlString, e);
             return false;
         } finally {
-            assert connection != null;
-            connection.disconnect();
+            if (connection != null) {
+                connection.disconnect();
+            }
         }
     }
 
