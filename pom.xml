@@ -6,7 +6,7 @@
 
     <groupId>com.medals</groupId>
     <artifactId>libsdatagenerator</artifactId>
-    <version>1.0.0</version>
+    <version>0.7</version>
 
     <properties>
         <!-- Use Java 21 -->
@@ -52,6 +52,26 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-math3</artifactId>
             <version>3.6.1</version>
+        </dependency>
+
+        <!-- Apache Commons RNG (for stat sampling methods) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-rng-sampling</artifactId>
+            <version>1.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-rng-simple</artifactId>
+            <version>1.6</version>
+        </dependency>
+
+        <!-- JSON library -->
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20231013</version>
         </dependency>
 
         <!-- Selenium Java -->

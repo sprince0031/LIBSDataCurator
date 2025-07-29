@@ -1,18 +1,23 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
+import org.json.JSONArray;
 import org.openqa.selenium.By;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebElement;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 /**
  * Fetches data from matweb.com
@@ -20,8 +25,10 @@ import java.util.stream.Collectors;
  */
 public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
-    public static MatwebDataService instance = null;
+    private static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+    private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
+    private static String datasheetName = "Unknown name";
 
     public static MatwebDataService getInstance() {
         if (instance == null) {
@@ -30,11 +37,25 @@ public class MatwebDataService {
         return instance;
     }
 
+    private String matwebSanityChecker(String datasheetUrl) throws RuntimeException {
+
+        // Check if matweb.com is reachable
+        if (CommonUtils.getInstance().isWebsiteReachable(LIBSDataGenConstants.MATWEB_HOME_URL)) {
+            return datasheetUrl;
+        }
+        logger.warning("Matweb.com is not online. Attempting to find a snapshot on archive.org...");
+        return CommonUtils.getInstance().getArchivedWebpageUrl(datasheetUrl);
+    }
+
     public String[] getMaterialComposition(String guid) {
         try {
             HashMap<String, String> queryParams = new HashMap<>();
             queryParams.put(LIBSDataGenConstants.MATWEB_DATASHEET_PARAM_GUID, guid);
-            if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE, queryParams)) {
+
+            String datasheetUrl = CommonUtils.getInstance()
+                    .getUrl(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE,  queryParams);
+
+            if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
                 List<List<String>> compositionTableData = fetchCompositionTableData();
                 if (!compositionTableData.isEmpty()) {
                     return parseCompositionData(
@@ -43,6 +64,7 @@ public class MatwebDataService {
                             compositionTableData.get(3) // Comments for average %
                     );
                 }
+                datasheetName = extractDatasheetName(false);
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from matweb.com", e);
@@ -50,6 +72,107 @@ public class MatwebDataService {
             seleniumUtils.quitSelenium();
         }
         return new String[] { String.valueOf(HttpURLConnection.HTTP_NOT_FOUND) };
+    }
+
+    /**
+     * Gets series statistics from overview datasheet for Dirichlet sampling
+     *
+     * @param overviewGuid GUID of the overview datasheet (e.g., AISI 4000 series)
+     * @return SeriesStatistics object containing statistical information for Dirichlet parameter estimation
+     */
+    public SeriesStatistics getSeriesStatistics(String overviewGuid) {
+        try {
+            HashMap<String, String> queryParams = new HashMap<>();
+            queryParams.put(LIBSDataGenConstants.MATWEB_DATASHEET_PARAM_GUID, overviewGuid);
+
+            logger.info("Fetching series statistics from overview sheet: " + overviewGuid);
+
+            String datasheetUrl = CommonUtils.getInstance()
+                    .getUrl(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE,  queryParams);
+
+            if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
+                // Check if this is an overview sheet
+                if (!isOverviewSheet()) {
+                    logger.warning("The provided GUID does not appear to be an overview sheet");
+                    return null;
+                }
+
+                String seriesName = extractDatasheetName(true);
+                List<List<String>> compositionTableData = fetchCompositionTableData();
+
+                if (!compositionTableData.isEmpty()) {
+                    SeriesStatistics statistics = statisticsExtractor.extractStatistics(
+                            compositionTableData.get(0), // Element names
+                            compositionTableData.get(1), // Metric values (ranges)
+                            compositionTableData.get(3), // Comments with averages and grade counts
+                            seriesName,
+                            overviewGuid
+                    );
+
+                    if (statisticsExtractor.validateStatistics(statistics)) {
+                        logger.info("Successfully extracted series statistics: " + statistics);
+                        return statistics;
+                    } else {
+                        logger.warning("Extracted statistics failed validation");
+                        return null;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unable to fetch series statistics from matweb.com", e);
+        } finally {
+            seleniumUtils.quitSelenium();
+        }
+
+        return null;
+    }
+
+    /**
+     * Checks if the current page is an overview sheet by looking for characteristic text
+     */
+    private boolean isOverviewSheet() {
+        try {
+            // Look for "Overview of materials for" in the page title or content
+            String pageTitle = seleniumUtils.getDriver().getTitle();
+            if (pageTitle.toLowerCase().contains("overview of materials")) {
+                return true;
+            }
+
+            // Also check for the characteristic text in the material notes
+            List<WebElement> elements = seleniumUtils.getDriver().findElements(
+                    By.xpath("//*[contains(text(), 'This property data is a summary of similar materials')]"));
+
+            return !elements.isEmpty();
+
+        } catch (Exception e) {
+            logger.warning("Error checking if page is overview sheet: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Extracts the series name from the overview sheet title
+     */
+    private String extractDatasheetName(boolean isOverviewSheet) {
+        try {
+            String pageTitle = seleniumUtils.getDriver().getTitle();
+
+            if (pageTitle == null) {
+                return "Unknown name";
+            }
+
+            // Extract series name from title like "Overview of materials for AISI 4000 Series Steel"
+            if (isOverviewSheet && pageTitle.contains("Overview of materials for ")) {
+                String seriesName = pageTitle.substring(pageTitle.indexOf("Overview of materials for ") + 26);
+                return seriesName.trim();
+            }
+
+            return pageTitle.trim();
+
+        } catch (Exception e) {
+            logger.warning("Error extracting datasheet name: " + e.getMessage());
+            return "Unknown name";
+        }
     }
 
     /**
@@ -128,7 +251,7 @@ public class MatwebDataService {
     }
 
     private String[] parseCompositionData(List<String> elementList, List<String> compositionList,
-            List<String> comments) {
+                                          List<String> comments) {
         String[] parsedElementString = new String[elementList.size()];
         for (int i = 0; i < elementList.size(); i++) {
             String elementString = elementList.get(i);
@@ -175,4 +298,30 @@ public class MatwebDataService {
 
         return parsedElementString;
     }
+
+    /**
+     * Utility method to check for validity of matweb service output
+     */
+    public boolean validateMatwebServiceOutput(String[] compositionArray, String guid) {
+        if (compositionArray == null || compositionArray.length == 0) {
+            logger.warning("Failed to fetch composition (null or empty array) for material GUID: " + guid + ". Skipping this material.");
+            return false;
+        }
+        if (compositionArray.length == 1) {
+            if (compositionArray[0].equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+                logger.warning("Material GUID: " + guid + " not found (404) on MatWeb. Skipping this material.");
+                return false;
+            }
+            if (compositionArray[0].equals(String.valueOf(HttpURLConnection.HTTP_INTERNAL_ERROR))) {
+                logger.warning("MatWeb internal server error (500) for material GUID: " + guid + ". Skipping this material.");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public String getDatasheetName() {
+        return datasheetName;
+    }
+
 }

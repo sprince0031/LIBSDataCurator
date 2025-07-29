@@ -1,17 +1,16 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
-import com.medals.libsdatagenerator.util.CSVUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.PrintStream;
@@ -46,38 +45,16 @@ public class LIBSDataService {
         return instance;
     }
 
-    /**
-     * Testing if the NIST LIBS website is reachable
-     * 
-     * @return boolean - True if website live, false otherwise
-     */
-    public boolean isNISTLIBSReachable() {
-        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-
-        try {
-            if (seleniumUtils.connectToWebsite(LIBSDataGenConstants.NIST_LIBS_FORM_URL, null)) {
-                logger.info(seleniumUtils.getDriver().getTitle() + " is reachable.");
-                return true;
-            } else {
-                logger.log(Level.SEVERE, "NIST LIBS website not reachable.");
-                return false;
-            }
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Exception occurred while trying to connect to NIST LIBS website.", e);
-            return false;
-        } finally {
-            seleniumUtils.quitSelenium();
-        }
-    }
-
     // Fetching data from NIST LIBS database
-    public String fetchLIBSData(ArrayList<Element> elements, String minWavelength, String maxWavelength,
-            String savePath) {
+    public String fetchLIBSData(List<Element> elements, String minWavelength, String maxWavelength,
+                                String savePath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
-            HashMap<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
-            seleniumUtils.connectToWebsite(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams);
+            Map<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
+            seleniumUtils.connectToWebsite(
+                    commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
+        );
 
             WebElement csvButton = seleniumUtils.getDriver()
                     .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
@@ -115,7 +92,7 @@ public class LIBSDataService {
             seleniumUtils.getDriver().close();
             // Switch back to the original window
             seleniumUtils.getDriver().switchTo().window(originalWindow);
-            return csvData;
+            return String.valueOf(csvPath);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
         } finally {
@@ -124,14 +101,14 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    public HashMap<String, String> processLIBSQueryParams(ArrayList<Element> elements, String minWavelength,
+    public Map<String, String> processLIBSQueryParams(List<Element> elements, String minWavelength,
             String maxWavelength) {
         // Processing the information for each element and adding to the query params
         // hashmap
         // Sample query params:
         // composition=C:0.26;Mn:0.65;Si:0.22;Fe:98.87&mytext[]=C&myperc[]=0.26&spectra=C0-2,Mn0-2,Si0-2,Fe0-2&mytext[]=Mn&myperc[]=0.65&mytext[]=Si&myperc[]=0.22&mytext[]=Fe&myperc[]=98.87&low_w=200&limits_type=0&upp_w=600&show_av=2&unit=1&resolution=1000&temp=1&eden=1e17&maxcharge=2&min_rel_int=0.01&int_scale=1&libs=1
         // https://physics.nist.gov/cgi-bin/ASD/lines1.pl?composition=C%3A0.26%3BMn%3A0.65%3BSi%3A0.22%3BFe%3A98.87&mytext%5B%5D=C&myperc%5B%5D=0.26&spectra=C0-2%2CMn0-2%2CSi0-2%2CFe0-2&mytext%5B%5D=Mn&myperc%5B%5D=0.65&mytext%5B%5D=Si&myperc%5B%5D=0.22&mytext%5B%5D=Fe&myperc%5B%5D=98.87&low_w=200&limits_type=0&upp_w=600&show_av=2&unit=1&resolution=1000&temp=1&eden=1e17&maxcharge=2&min_rel_int=0.01&int_scale=1&libs=1
-        HashMap<String, String> queryParams = new HashMap<>();
+        Map<String, String> queryParams = new HashMap<>();
 
         // Creating composition string
         String composition = "";
@@ -177,8 +154,8 @@ public class LIBSDataService {
         return queryParams;
     }
 
-    public ArrayList<Element> generateElementsList(String[] composition) throws IOException {
-        ArrayList<Element> elementsList = new ArrayList<>();
+    public List<Element> generateElementsList(String[] composition) throws IOException {
+        List<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;
         for (String elementString : composition) {
             // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
@@ -223,76 +200,7 @@ public class LIBSDataService {
         return elementsList;
     }
 
-    public ArrayList<ArrayList<Element>> generateCompositionalVariations(ArrayList<Element> originalComposition,
-            double varyBy, double maxDelta, int variationMode,
-            int samples) {
-        ArrayList<ArrayList<Element>> compositions = new ArrayList<>();
-        if (originalComposition == null || originalComposition.isEmpty()) {
-            logger.warning("Original composition is null or empty. Cannot generate variations.");
-            return compositions; // Return empty list, or perhaps add the (empty) originalComposition if that's desired.
-        }
-        compositions.add(originalComposition); // Adding the original composition
-
-        boolean allElementsAreFixed = true;
-        // No need to check originalComposition.isEmpty() again here as it's handled above.
-        for (Element el : originalComposition) {
-            Double minComp = el.getPercentageCompositionMin();
-            Double maxComp = el.getPercentageCompositionMax();
-            if (!(minComp != null && maxComp != null && minComp.equals(maxComp))) {
-                allElementsAreFixed = false;
-                break;
-            }
-        }
-
-        ArrayList<Element> effectiveComposition = originalComposition;
-        if (allElementsAreFixed) {
-            // originalComposition is not empty here due to the check at the beginning.
-            logger.info("All elements in the input composition are fixed. Applying fallback variation logic, ignoring X:X constraints for sampling.");
-            effectiveComposition = new ArrayList<>();
-            for (Element el : originalComposition) {
-                effectiveComposition.add(new Element(
-                    el.getName(),
-                    el.getSymbol(),
-                    el.getPercentageComposition(),
-                    null, // Effectively remove min/max for variation generation
-                    null,
-                    el.getAverageComposition()
-                ));
-            }
-        }
-
-        // Generate all combinations by Uniform distribution
-        // System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
-        logger.info("\nGenerating different combinations for the input composition (refer log for list)...");
-
-
-        if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
-            CompositionalVariations.getInstance().gaussianSampling(
-                effectiveComposition,
-                maxDelta,
-                samples,
-                compositions);
-
-        } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
-            // TODO: Call dirichlet sampling method (with effectiveComposition)
-            logger.warning("Dirichlet distribution mode selected but not yet implemented.");
-
-        } else { // For uniform distribution
-            // Start backtracking with an empty "current combo" and a running sum of 0
-            CompositionalVariations.getInstance().getUniformDistribution(
-                0,
-                effectiveComposition,
-                varyBy,
-                maxDelta, // 'limit'
-                0.0,
-                new ArrayList<Element>(),
-                compositions);
-        }
-
-        return compositions;
-    }
-
-    public void generateDataset(ArrayList<ArrayList<Element>> compositions, String minWavelength, String maxWavelength,
+    public void generateDataset(List<List<Element>> compositions, String minWavelength, String maxWavelength,
             String savePath, boolean appendMode, boolean forceFetch) {
 
         // Keeping track of all wavelength across all comps:
@@ -311,10 +219,9 @@ public class LIBSDataService {
         PrintStream out = System.out;
 
         int progressBarWidth = 50; // Width of the progress bar
-        out.println("Fetching samples...");
 
         // For each composition, fetch the CSV, parse it, store data
-        for (ArrayList<Element> composition : compositions) {
+        for (List<Element> composition : compositions) {
 
             // Build a string like "Cu:50;Fe:50" for identifying this composition
             String compositionId = commonUtils.buildCompositionString(composition);

@@ -60,10 +60,16 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
     public static final String CMD_OPT_VAR_MODE_DESC = "Chooses the variation mode: " +
             "0 - uniform dist, 1 - Gaussian sampling (default), 2 - Dirichlet sampling";
-    static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
+    public static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
     public static final String CMD_OPT_OVERVIEW_GUID_LONG = "overview-guid";
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
             "Required for Dirichlet sampling mode (mode 2) to get series average compositions.";
+
+    public static final String CMD_OPT_SERIES_SHORT = "s";
+    public static final String CMD_OPT_SERIES_LONG = "series";
+    public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
+
+    public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
 
     /**
      * #### NIST LIBS Constants ####
@@ -95,15 +101,25 @@ public class LIBSDataGenConstants {
     /**
      * #### Matweb Constants ####
      */
+    public static final String MATWEB_HOME_URL = "https://www.matweb.com";
     public static final String MATWEB_DATASHEET_URL_BASE = "https://www.matweb.com/search/DataSheet.aspx";
+    public static final String MATWEB_BACKUP_ARCHIVE_URL = "https://web.archive.org/web/20240907071945/";
     public static final String MATWEB_DATASHEET_PARAM_GUID = "MatGUID";
+    public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";
 
     /**
+     * #### Archive.org Constants ####
+     */
+    public static final String ARCHIVE_API_BASE_URL = "https://web.archive.org/cdx/search/cdx";
+    public static final String ARCHIVE_BASE_URL = "https://web.archive.org/web/";
+
+    /**
      * #### Miscellaneous Constants ####
      */
-    public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
+    public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
+    public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
     public static final int STAT_VAR_MODE_UNIFORM_DIST = 0; // Uniform distribution mode (longest and unnecessary)
     public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 1; // Gaussian sampling mode
     public static final int STAT_VAR_MODE_DIRICHLET_DIST = 2; // Dirichlet sampling mode

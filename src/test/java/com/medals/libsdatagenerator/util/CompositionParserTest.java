@@ -1,7 +1,7 @@
 package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
-import com.medals.libsdatagenerator.service.Element;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,7 +31,7 @@ class CompositionParserTest {
     void testParseValidComposition() throws Exception {
         // Test parsing a simple composition string
         String[] compositionArray = { "C-0.2", "Fe-99.8" };
-        ArrayList<Element> elements = libsDataService.generateElementsList(compositionArray);
+        List<Element> elements = libsDataService.generateElementsList(compositionArray);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -46,7 +48,7 @@ class CompositionParserTest {
     void testParseCompositionWithRanges() throws Exception {
         // Test parsing composition with ranges (min:max)
         String[] compositionArray = { "C-0.1:0.3", "Fe-99.7:99.9" };
-        ArrayList<Element> elements = libsDataService.generateElementsList(compositionArray);
+        List<Element> elements = libsDataService.generateElementsList(compositionArray);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -54,20 +56,20 @@ class CompositionParserTest {
         // Verify ranges are handled correctly (midpoint value set as composition)
         assertEquals("C", elements.get(0).getSymbol());
         assertEquals(0.2, elements.get(0).getPercentageComposition());
-        assertEquals(0.1, elements.get(0).getPercentageCompositionMin());
-        assertEquals(0.3, elements.get(0).getPercentageCompositionMax());
+        assertEquals(0.1, elements.get(0).getMin());
+        assertEquals(0.3, elements.get(0).getMax());
 
         assertEquals("Fe", elements.get(1).getSymbol());
         assertEquals(99.8, elements.get(1).getPercentageComposition());
-        assertEquals(99.7, elements.get(1).getPercentageCompositionMin());
-        assertEquals(99.9, elements.get(1).getPercentageCompositionMax());
+        assertEquals(99.7, elements.get(1).getMin());
+        assertEquals(99.9, elements.get(1).getMax());
     }
 
     @Test
     void testParseRemainingPercentage() throws Exception {
         // Test that "#" symbol is handled correctly for remaining percentage
         String[] compositionArray = { "C-0.2", "Fe-#" };
-        ArrayList<Element> elements = libsDataService.generateElementsList(compositionArray);
+        List<Element> elements = libsDataService.generateElementsList(compositionArray);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -78,11 +80,11 @@ class CompositionParserTest {
     @Test
     void testQueryParamGeneration() {
         // Test that elements are properly converted to query parameters
-        ArrayList<Element> elements = new ArrayList<>();
+        List<Element> elements = new ArrayList<>();
         elements.add(new Element("Carbon", "C", 0.2, null, null, null));
         elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 
-        HashMap<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
+        Map<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
 
         // Verify composition string contains both elements in correct format
         String composition = params.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION);
