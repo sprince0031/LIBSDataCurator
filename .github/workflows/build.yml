@@ -1,76 +1,28 @@
-name: Java CI Build and Release
+name: CI - Build and Test
 
 on:
   push:
-    branches:
-      - main # Trigger only on pushes to main (after merge)
+    branches: [ main, dev ]
   pull_request:
-    branches:
-      - main # Also trigger on PRs targeting main (for checks)
-      - dev # Trigger on PRs from the dev branch
+    branches: [ main, dev ]
 
 jobs:
-  build-and-test:
-    # Only run this job fully on merge to main from LIBS-Data-Curator
-    # For direct pushes to main or PRs, it runs tests but doesn't release.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
-
+  test:
     runs-on: ubuntu-latest
-
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # Fetch all history for version tagging
 
-      - name: Set up JDK 21
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: "21"
-          distribution: "temurin" # Popular distribution
-          cache: "maven" # Cache Maven dependencies
+          java-version: "17"
+          distribution: "temurin"
+          cache: "maven"
 
-      - name: Build with Maven and Run Tests
-        run: mvn -B package --file pom.xml # -B for batch mode, package runs tests
+      - name: Run tests
+        run: mvn -B test --file pom.xml
 
-      - name: Get Current Date for Tag
-        id: date
-        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
-        # Only run tagging/release steps if merging dev into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
-
-      - name: Package Build Directory
-        id: package_zip
-        # Only run this step if merging dev into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
-        run: |
-          PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          ZIP_NAME="LIBSDataGenerator-v${PROJECT_VERSION}-${{ steps.date.outputs.date }}.zip"
-          echo "Creating zip archive: $ZIP_NAME"
-          zip -r $ZIP_NAME Build/
-          echo "zip_path=./$ZIP_NAME" >> $GITHUB_OUTPUT
-
-      - name: Create Git Tag
-        # Only run tagging/release steps if merging dev into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
-        run: |
-          TAG_NAME="v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}"
-          echo "Creating tag: $TAG_NAME"
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git tag $TAG_NAME
-          git push origin $TAG_NAME
-
-      - name: Create GitHub Release
-        # Only run tagging/release steps if merging dev into main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, 'Merge pull request') && contains(github.event.head_commit.message, 'from dev')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}
-          name: Release v$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)-${{ steps.date.outputs.date }}
-          body: |
-            Automated release based on merge from dev branch.
-            See CHANGELOG.md for details.
-          files: ${{ steps.package_zip.outputs.zip_path }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provided by GitHub Actions
+      - name: Build application
+        run: mvn -B package -DskipTests --file pom.xml
