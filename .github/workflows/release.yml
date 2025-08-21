@@ -45,19 +45,40 @@ jobs:
       - name: Create custom JRE with jlink (Linux/macOS)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          # Create custom JRE with only required modules
-          jlink --add-modules java.base,java.logging,java.desktop,java.naming,java.xml,java.net.http \
+          # Create custom JRE with only required modules including security modules for SSL/TLS
+          jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss \
                 --strip-debug \
                 --no-man-pages \
                 --no-header-files \
                 --compress=2 \
                 --output ./jre-custom
+          
+          # Update cacerts with system certificate store to fix SSL issues
+          if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
+            cp /etc/ssl/certs/adoptium/cacerts ./jre-custom/lib/security/cacerts
+            echo "Updated cacerts from system store"
+          elif [ -f "/etc/ssl/certs/java/cacerts" ]; then
+            cp /etc/ssl/certs/java/cacerts ./jre-custom/lib/security/cacerts
+            echo "Updated cacerts from system Java store"
+          else
+            echo "Warning: System cacerts not found, using default"
+          fi
 
       - name: Create custom JRE with jlink (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          # Create custom JRE with only required modules
-          jlink --add-modules java.base,java.logging,java.desktop,java.naming,java.xml,java.net.http --strip-debug --no-man-pages --no-header-files --compress=2 --output ./jre-custom
+          # Create custom JRE with only required modules including security modules for SSL/TLS
+          jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./jre-custom
+          
+          # Update cacerts - Windows may have different paths
+          Write-Host "Checking for system cacerts..."
+          if (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-21.*\lib\security\cacerts") {
+            $systemCacerts = Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-21.*\lib\security\cacerts" | Select-Object -First 1
+            Copy-Item $systemCacerts.FullName ./jre-custom/lib/security/cacerts -Force
+            Write-Host "Updated cacerts from system store"
+          } else {
+            Write-Host "Warning: System cacerts not found, using default"
+          }
 
       - name: Prepare release package (Linux/macOS)
         if: matrix.os == 'ubuntu-latest'

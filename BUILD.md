@@ -59,10 +59,15 @@ mvn test
 # Build application
 mvn package -DskipTests
 
-# Create custom JRE
-jlink --add-modules java.base,java.logging,java.desktop,java.naming,java.xml,java.net.http \
+# Create custom JRE (includes SSL/TLS and security modules)
+jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss \
       --strip-debug --no-man-pages --no-header-files --compress=2 \
       --output ./jre-custom
+
+# Update certificate store for SSL connections
+if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
+    cp /etc/ssl/certs/adoptium/cacerts ./jre-custom/lib/security/cacerts
+fi
 
 # Package manually (follow build-local.sh for structure)
 ```
@@ -135,13 +140,19 @@ bin\run.bat [arguments]
 
 ### JRE Modules
 
-The custom JRE includes these Java modules:
-- `java.base` - Core functionality
-- `java.logging` - Logging framework
-- `java.desktop` - AWT/Swing (if needed)
-- `java.naming` - JNDI
-- `java.xml` - XML processing
-- `java.net.http` - HTTP client
+The custom JRE includes the complete Java SE platform (`java.se`) plus additional security modules for SSL/TLS connections:
+- `java.se` - Complete Java SE platform (includes base, logging, desktop, naming, xml, net.http, etc.)
+- `java.security.jgss` - Generic Security Services (GSS-API)
+- `java.security.sasl` - Simple Authentication and Security Layer (SASL)
+- `java.xml.crypto` - XML Digital Signature APIs
+- `jdk.crypto.cryptoki` - Cryptographic Token Interface (PKCS#11)
+- `jdk.crypto.ec` - Elliptic Curve Cryptography provider
+- `jdk.security.auth` - Authentication and authorization
+- `jdk.security.jgss` - GSS-API Kerberos mechanism
+
+**SSL/TLS Support**: The build process updates the certificate store (`cacerts`) with system certificates to ensure proper SSL/TLS connections to external services like NIST LIBS database.
+
+**Selenium Integration**: All Selenium WebDriver dependencies are included in the JAR via Maven's assembly plugin, ensuring web scraping functionality works correctly.
 
 To modify modules, edit the `jlink` command in:
 - `build-local.sh` (Linux/macOS)

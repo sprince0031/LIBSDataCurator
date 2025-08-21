@@ -37,12 +37,24 @@ if ! command -v jlink &> /dev/null; then
 fi
 
 echo "Creating custom JRE with jlink..."
-jlink --add-modules java.base,java.logging,java.desktop,java.naming,java.xml,java.net.http \
+jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss \
       --strip-debug \
       --no-man-pages \
       --no-header-files \
       --compress=2 \
       --output ./jre-custom
+
+echo "Updating cacerts with system certificate store..."
+# Update cacerts with system certificate store to fix SSL issues
+if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
+    cp /etc/ssl/certs/adoptium/cacerts ./jre-custom/lib/security/cacerts
+    echo "Updated cacerts from system store"
+elif [ -f "/etc/ssl/certs/java/cacerts" ]; then
+    cp /etc/ssl/certs/java/cacerts ./jre-custom/lib/security/cacerts
+    echo "Updated cacerts from system Java store"
+else
+    echo "Warning: System cacerts not found, using default"
+fi
 
 echo
 

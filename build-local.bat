@@ -44,11 +44,30 @@ if errorlevel 1 (
 )
 
 echo Creating custom JRE with jlink...
-jlink --add-modules java.base,java.logging,java.desktop,java.naming,java.xml,java.net.http --strip-debug --no-man-pages --no-header-files --compress=2 --output ./jre-custom
+jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./jre-custom
 if errorlevel 1 (
     echo ERROR: jlink failed
     exit /b 1
 )
+
+echo Updating cacerts with system certificate store...
+REM Update cacerts - try common Windows JDK locations
+if exist "C:\Program Files\Eclipse Adoptium\jdk-21*\lib\security\cacerts" (
+    for /d %%i in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
+        if exist "%%i\lib\security\cacerts" (
+            copy "%%i\lib\security\cacerts" .\jre-custom\lib\security\cacerts
+            echo Updated cacerts from system store
+            goto :cacerts_done
+        )
+    )
+)
+if exist "%JAVA_HOME%\lib\security\cacerts" (
+    copy "%JAVA_HOME%\lib\security\cacerts" .\jre-custom\lib\security\cacerts
+    echo Updated cacerts from JAVA_HOME
+) else (
+    echo Warning: System cacerts not found, using default
+)
+:cacerts_done
 
 echo.
 
