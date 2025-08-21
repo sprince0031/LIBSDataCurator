@@ -39,7 +39,7 @@ echo.
 REM Check if jlink is available
 where jlink >nul 2>&1
 if errorlevel 1 (
-    echo ERROR: jlink not found. Please ensure you have JDK 11+ installed.
+    echo ERROR: jlink not found. Please ensure you have JDK 21+ installed.
     exit /b 1
 )
 

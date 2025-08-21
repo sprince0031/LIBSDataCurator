@@ -32,7 +32,7 @@ echo
 
 # Check if jlink is available
 if ! command -v jlink &> /dev/null; then
-    echo "ERROR: jlink not found. Please ensure you have JDK 11+ installed."
+    echo "ERROR: jlink not found. Please ensure you have JDK 21+ installed."
     exit 1
 fi
 
