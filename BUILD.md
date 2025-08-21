@@ -10,7 +10,7 @@ The project provides both local and CI/CD workflows for building and packaging t
 
 ### Prerequisites
 
-- JDK 11 or higher (includes jlink tool)
+- JDK 21 or higher (includes jlink tool)
 - Maven 3.6+
 
 ### Quick Start
@@ -76,7 +76,7 @@ jlink --add-modules java.base,java.logging,java.desktop,java.naming,java.xml,jav
 - Pull requests targeting `main` or `dev` branches
 
 **Actions**:
-- Sets up JDK 17
+- Sets up JDK 21
 - Runs all tests
 - Builds the application (no packaging)
 
@@ -153,18 +153,18 @@ To modify modules, edit the `jlink` command in:
 Key Maven plugins:
 - `maven-assembly-plugin` - Creates fat JAR with dependencies
 - `maven-surefire-plugin` - Runs tests
-- `maven-compiler-plugin` - Java 17 compilation
+- `maven-compiler-plugin` - Java 21 compilation
 
 ## Troubleshooting
 
 ### Common Issues
 
 1. **jlink not found**
-   - Ensure you have JDK 11+ (not just JRE)
+   - Ensure you have JDK 21+ (not just JRE)
    - Verify `JAVA_HOME` points to JDK
 
 2. **Build fails on Java version**
-   - Project requires Java 17+
+   - Project requires Java 21+
    - Check `java -version` and `mvn -version`
 
 3. **Tests fail**
