@@ -73,13 +73,35 @@ echo.
 
 REM Get version from pom.xml with error handling
 echo Getting project version...
-for /f "delims=" %%i in ('mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2^>nul') do set VERSION=%%i
 
-REM Validate version - should be numeric/alphanumeric, not contain error messages
-echo %VERSION% | findstr /r /c:"^[0-9][0-9a-zA-Z.-]*$" >nul
-if errorlevel 1 (
-    echo ERROR: Failed to get valid project version. Got: %VERSION%
-    echo Make sure Maven is properly configured and pom.xml is valid.
+REM Use 'call' to execute the Maven batch script and ensure control returns.
+call mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>nul > temp_version.txt
+
+REM Check the errorlevel immediately after the command.
+REM A non-zero errorlevel indicates the previous command failed.
+if %errorlevel% neq 0 (
+    echo ERROR: Maven command failed with errorlevel %errorlevel%.
+    echo Please run the 'mvn' command manually to diagnose the issue.
+    if exist temp_version.txt del temp_version.txt
+    exit /b 1
+)
+
+REM Check if the output file was created, as a fallback.
+if not exist temp_version.txt (
+    echo ERROR: Maven command ran but failed to produce an output file. 
+    if exist temp_version.txt del temp_version.txt
+    exit /b 1
+)
+
+REM Read the version from the temporary file
+set /p VERSION=<temp_version.txt
+
+REM Clean up the temporary file
+del temp_version.txt
+
+REM Check if the VERSION variable was successfully set
+if not defined VERSION (
+    echo ERROR: Could not read version from the output file. It may be empty.
     exit /b 1
 )
 
