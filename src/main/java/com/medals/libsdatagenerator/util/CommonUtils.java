@@ -225,6 +225,28 @@ public class CommonUtils {
     }
 
     /**
+     * Builds a cross-platform compatible composition string for filenames.
+     * Replaces ':' with '-' to ensure compatibility with Windows filesystem.
+     * 
+     * @param composition List of Element objects that make up a composition
+     * @return A filename-safe composition string
+     */
+    public String buildCompositionStringForFilename(List<Element> composition) {
+        StringBuilder compositionString = new StringBuilder();
+        for(int i = 0; i < composition.size(); i++) {
+            Element element = composition.get(i);
+            // Use symbol + "-" + percentage instead of toString() which uses ":"
+            compositionString.append(element.getSymbol())
+                             .append("-")
+                             .append(element.getPercentageComposition());
+            if (i != composition.size()-1) {
+                compositionString.append(";");
+            }
+        }
+        return compositionString.toString();
+    }
+
+    /**
      * Testing if the target website is reachable
      *
      * @return boolean - True if website live, false otherwise
