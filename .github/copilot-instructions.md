@@ -42,6 +42,33 @@ Always run these commands in the repository root directory:
    ```
    - Takes about 25-30 seconds when dependencies are cached
 
+### Self-Contained Package Building
+The project supports creating self-contained packages with bundled Java Runtime Environment (JRE):
+
+4. **Local packaging for Linux/macOS:**
+   ```bash
+   ./build-local.sh
+   ```
+   - **NEVER CANCEL**: Takes 2-5 minutes. Set timeout to 10+ minutes for safety.
+   - Creates self-contained `LIBSDataCurator-{version}-linux.tar.gz`
+   - Includes custom JRE with SSL/TLS support
+   - Uses jlink for optimized runtime
+
+5. **Local packaging for Windows:**
+   ```batch
+   build-local.bat
+   ```
+   - **NEVER CANCEL**: Takes 2-5 minutes. Set timeout to 10+ minutes for safety.
+   - Creates self-contained `LIBSDataCurator-{version}-windows.zip`
+   - Includes custom JRE with SSL/TLS support
+
+**Key Features of Self-Contained Packages:**
+- No Java installation required on target systems
+- SSL/TLS support with updated certificate store for NIST LIBS connectivity
+- Complete Selenium WebDriver dependencies included
+- Cross-platform support (Windows and Linux/macOS)
+- Optimized custom JRE using jlink with security modules
+
 ### Running the Application
 
 **CRITICAL**: The application requires network access to the NIST LIBS database (physics.nist.gov) for full functionality. In restricted environments, it will show warnings but basic CLI validation still works.
@@ -55,6 +82,21 @@ java -jar target/LIBSDataCurator.jar [options]
 java -jar target/LIBSDataCurator.jar -c "Fe-80,C-20" --min-wavelength 200 --max-wavelength 300
 ```
 
+#### Method 3: Using Self-Contained Packages (Recommended for Distribution)
+```bash
+# Linux/macOS - extract and run
+tar -xzf LIBSDataCurator-{version}-linux.tar.gz
+cd LIBSDataCurator-{version}/
+./bin/run.sh [options]
+
+# Windows - extract and run
+# Extract LIBSDataCurator-{version}-windows.zip
+# Navigate to extracted folder
+bin\run.bat [options]
+
+# Examples
+./bin/run.sh -c "Fe-80,C-20" --min-wavelength 200 --max-wavelength 300
+```
 #### Method 2: Using the Run Script
 ```bash
 # Create required directories first
@@ -100,6 +142,21 @@ Build/bin/run.sh -c "Fe-80,C-20"
    - Should display usage help without errors (may show network warnings)
    - Verify command-line argument parsing works correctly
 
+5. **Self-contained package validation:**
+   ```bash
+   # Test local build script (Linux/macOS)
+   ./build-local.sh
+   
+   # Test local build script (Windows) 
+   build-local.bat
+   
+   # Test generated package
+   tar -xzf LIBSDataCurator-*-linux.tar.gz  # Linux/macOS
+   cd LIBSDataCurator-*/
+   ./bin/run.sh --help  # Should show usage without needing Java installed
+   ```
+   - Verify self-contained packages work without requiring Java installation
+   - Check SSL/TLS connectivity fixes are included
 4. **Argument validation test:**
    ```bash
    java -jar target/LIBSDataCurator.jar -c "Fe-50,C-50"
@@ -136,6 +193,15 @@ Build/bin/run.sh -c "Fe-80,C-20"
    - Create required directories: `mkdir -p Build/logs Build/data`
    - Logging errors don't prevent application functionality
 
+4. **SSL/TLS Connectivity:**
+   - Custom JRE includes comprehensive security modules for HTTPS connections
+   - Certificate store updated with system certificates for NIST LIBS database access
+   - SSL handshake exceptions resolved in self-contained packages
+
+5. **Self-Contained Package Artifacts:**
+   - Build artifacts include `jre-custom/`, `release-package/` directories
+   - Platform-specific packages: `LIBSDataCurator-*-linux.tar.gz`, `LIBSDataCurator-*-windows.zip`
+   - Added to .gitignore to prevent accidental commits
 3. **Browser Automation:**
    - Selenium WebDriver requires compatible browser environment
    - In headless environments, full web automation may not work
@@ -143,17 +209,36 @@ Build/bin/run.sh -c "Fe-80,C-20"
 
 ### CI/CD Integration
 
-The project uses GitHub Actions for automated building and testing:
-- **Build workflow**: `.github/workflows/build.yml`
-- **Triggered on**: PRs to main/dev branches and pushes to main
+The project uses GitHub Actions for automated building, testing, and releases:
+
+**Test Workflow** (`.github/workflows/build.yml`):
+- **Triggered on**: PRs to main/dev branches and pushes to main/dev
+- **Actions**: Runs tests and builds application (no packaging)
 - **Always ensure**: Your changes don't break the CI build
-- **Timeout warnings**: CI builds may take up to 10 minutes - **NEVER CANCEL**
+
+**Release Workflow** (`.github/workflows/release.yml`):
+- **Triggered on**: Git tags matching pattern `v*` (e.g., `v1.0.0`, `v0.8.1`)
+- **Actions**: Creates multiplatform self-contained packages with bundled JRE
+- **Outputs**: Linux and Windows packages as GitHub Release assets
+
+**Creating Releases:**
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+- Automatically triggers multiplatform package creation
+- Creates GitHub Release with download links
+- Includes SSL/TLS fixes and complete Selenium integration
+
+**Timeout warnings**: CI builds may take up to 10 minutes - **NEVER CANCEL**
 
 ### Performance Expectations
 
 - **Initial Maven dependency download**: Up to 15 minutes on first run
 - **Subsequent builds**: 30-40 seconds
 - **Test execution**: 3-5 seconds
+- **Self-contained package creation**: 2-5 minutes
+- **jlink custom JRE creation**: 30-60 seconds
 - **Full application startup**: 10-15 seconds (plus network connectivity checks)
 
 ### Project Structure
@@ -173,9 +258,14 @@ LIBSDataCurator/
 │   ├── lib/                # JAR files (created by build)
 │   ├── logs/               # Application logs (create manually)
 │   └── data/               # Output data (create manually)
+├── build-local.sh          # Local packaging script (Linux/macOS)
+├── build-local.bat         # Local packaging script (Windows)
+├── BUILD.md                # Comprehensive build documentation
 ├── docs/                   # Documentation
 ├── pom.xml                 # Maven configuration
 └── .github/workflows/      # CI/CD configuration
+    ├── build.yml           # Test workflow
+    └── release.yml         # Release packaging workflow
 ```
 
 ### Common Troubleshooting
@@ -185,6 +275,9 @@ LIBSDataCurator/
 - **Test failures**: Run `mvn clean test` to see detailed error output
 - **JAR not found**: Ensure `mvn package` completed successfully
 - **Permission errors**: Check file permissions, especially for `Build/bin/run.sh`
+- **jlink not found**: Ensure JDK 21+ is installed (not just JRE) for self-contained packaging
+- **SSL handshake errors**: Use self-contained packages which include updated certificate stores
+- **Large package size**: Self-contained packages are ~50MB due to bundled JRE (normal)
 
 Always prioritize fixing build and test failures before implementing new features.
 
@@ -195,13 +288,16 @@ The following are outputs from frequently run commands. Reference them instead o
 ### Repository Root Structure
 ```
 ls -la (repo root)
-total 48
+total 60
 drwxr-xr-x  8 runner docker 4096 Aug 21 16:48 .
 drwxr-xr-x  3 runner docker 4096 Aug 21 16:21 ..
 drwxr-xr-x  7 runner docker 4096 Aug 21 16:47 .git
 drwxr-xr-x  3 runner docker 4096 Aug 21 16:48 .github
 -rw-r--r--  1 runner docker  408 Aug 21 16:21 .gitignore
 drwxr-xr-x  7 runner docker 4096 Aug 21 16:39 Build
+-rw-r--r--  1 runner docker 7340 Aug 21 18:04 BUILD.md (Comprehensive build guide)
+-rwxr-xr-x  1 runner docker 4720 Aug 21 18:04 build-local.sh (Linux/macOS packaging)
+-rw-r--r--  1 runner docker 5690 Aug 21 18:04 build-local.bat (Windows packaging)
 drwxr-xr-x  3 runner docker 4096 Aug 21 16:21 docs
 -rw-r--r--  1 runner docker 8268 Aug 21 16:21 pom.xml
 drwxr-xr-x  5 runner docker 4096 Aug 21 16:21 src
@@ -222,6 +318,7 @@ Test files:
 - `src/test/java/com/medals/libsdatagenerator/util/ElementPropertiesTest.java` - Element handling tests
 
 ### Build Artifacts After Successful Build
+**Standard Maven Build (`mvn package`):**
 ```
 ls -la target/ (first 5 entries)
 total 109020
@@ -232,6 +329,57 @@ drwxr-xr-x  8 runner docker     4096 Aug 21 16:48 ..
 -rw-r--r--  1 runner docker 27075731 Aug 21 16:50 LIBSDataCurator-0.8.zip (Distribution)
 ```
 
+**Self-Contained Package Build (`./build-local.sh` or `build-local.bat`):**
+```
+ls -la (additional artifacts)
+drwxr-xr-x  6 runner docker     4096 Aug 21 18:05 jre-custom/ (Custom JRE)
+drwxr-xr-x  8 runner docker     4096 Aug 21 18:05 release-package/ (Packaging staging)
+-rw-r--r--  1 runner docker 52428800 Aug 21 18:05 LIBSDataCurator-0.8-linux.tar.gz (Self-contained)
+-rw-r--r--  1 runner docker 52194304 Aug 21 18:05 LIBSDataCurator-0.8-windows.zip (Self-contained)
+```
+
+**Self-Contained Package Structure:**
+```
+LIBSDataCurator-{version}/
+├── bin/
+│   ├── run.sh (Linux/macOS executable)
+│   └── run.bat (Windows executable)
+├── lib/
+│   └── LIBSDataCurator.jar
+├── jre-custom/ (Bundled Java Runtime with SSL support)
+├── conf/ (Configuration files)
+├── data/ (Output directory)
+├── logs/ (Log directory)
+├── docs/ (Documentation)
+└── README.txt (Usage instructions)
+```
+
+### CI/CD Workflow Files
+**Test Workflow (`.github/workflows/build.yml`):**
+```yaml
+name: CI - Build and Test
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4 (JDK 21, temurin, maven cache)
+      - run: mvn -B test --file pom.xml
+      - run: mvn -B package -DskipTests --file pom.xml
+```
+
+**Release Workflow (`.github/workflows/release.yml`):**
+- Triggered by git tags (`v*` pattern)
+- Matrix build: Linux and Windows
+- Creates custom JRE with jlink + security modules
+- Updates SSL certificate store
+- Packages self-contained distributions
+- Uploads to GitHub Releases
 ### Configuration Files
 ```
 ls -la Build/conf/
@@ -242,6 +390,36 @@ drwxr-xr-x 7 runner docker 4096 Aug 21 16:39 ..
 -rw-r--r-- 1 runner docker 1831 Aug 21 16:21 materials_catalogue.properties (Steel series definitions)
 ```
 
+### Local Build Script Usage
+**Linux/macOS (./build-local.sh):**
+```bash
+=== LIBSDataCurator Local Build Script ===
+Cleaning previous builds...
+Running tests...
+Building application...
+Creating custom JRE with jlink...
+Updating cacerts with system certificate store...
+Preparing release package (version: 0.8, platform: linux)...
+Creating archive: LIBSDataCurator-0.8-linux.tar.gz
+=== Build Complete ===
+Archive created: LIBSDataCurator-0.8-linux.tar.gz
+Size: 50M
+```
+
+**Windows (build-local.bat):**
+```batch
+=== LIBSDataCurator Local Build Script (Windows) ===
+Cleaning previous builds...
+Running tests...
+Building application...
+Creating custom JRE with jlink...
+Updating cacerts with system certificate store...
+Preparing release package (version: 0.8, platform: windows)...
+Creating archive: LIBSDataCurator-0.8-windows.zip
+=== Build Complete ===
+Archive created: LIBSDataCurator-0.8-windows.zip
+Size: 50 MB
+```
 ### Help Output (Application Usage)
 ```
 java -jar target/LIBSDataCurator.jar (no arguments)
@@ -261,7 +439,7 @@ usage: java LIBSDataGenerator
 ```
 
 ### Expected Application Startup Messages
-Normal startup (with network warnings in restricted environments):
+**Normal startup (with network warnings in restricted environments):**
 ```
 Aug 21, 2025 4:49:22 PM com.medals.libsdatagenerator.controller.LIBSDataController main
 INFO: Starting LIBS Data Curator...
@@ -275,3 +453,6 @@ WARNING: NIST LIBS reachable is not available
 ```
 
 This is normal behavior in restricted network environments and doesn't prevent basic functionality.
+
+**Self-contained package startup (with SSL support):**
+When using self-contained packages, SSL/TLS connections to NIST LIBS database should work correctly due to updated certificate stores and included security modules. Network connectivity warnings may still appear in firewalled environments but SSL handshake exceptions should be resolved.
