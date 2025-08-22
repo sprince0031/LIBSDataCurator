@@ -93,6 +93,9 @@ MAIN_DIR="$(dirname "$SCRIPT_DIR")"
 JAVA_HOME="$MAIN_DIR/jre-custom"
 export JAVA_HOME
 
+# Change to package directory so application can find conf files
+cd "$MAIN_DIR"
+
 # Run the application
 "$JAVA_HOME/bin/java" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
 EOF

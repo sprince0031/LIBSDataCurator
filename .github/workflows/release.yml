@@ -116,6 +116,9 @@ jobs:
           JAVA_HOME="$MAIN_DIR/jre-custom"
           export JAVA_HOME
           
+          # Change to package directory so application can find conf files
+          cd "$MAIN_DIR"
+          
           # Run the application
           "$JAVA_HOME/bin/java" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
           EOF
@@ -174,6 +177,9 @@ jobs:
           
           REM Use bundled JRE
           set JAVA_HOME=%MAIN_DIR%\jre-custom
+          
+          REM Change to package directory so application can find conf files
+          cd /d "%MAIN_DIR%"
           
           REM Run the application
           "%JAVA_HOME%\bin\java.exe" -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*

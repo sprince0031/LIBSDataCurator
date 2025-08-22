@@ -71,8 +71,17 @@ if exist "%JAVA_HOME%\lib\security\cacerts" (
 
 echo.
 
-REM Get version from pom.xml
-for /f "delims=" %%i in ('mvn help:evaluate -Dexpression=project.version -q -DforceStdout') do set VERSION=%%i
+REM Get version from pom.xml with error handling
+echo Getting project version...
+for /f "delims=" %%i in ('mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2^>nul') do set VERSION=%%i
+
+REM Validate version - should be numeric/alphanumeric, not contain error messages
+echo %VERSION% | findstr /r /c:"^[0-9][0-9a-zA-Z.-]*$" >nul
+if errorlevel 1 (
+    echo ERROR: Failed to get valid project version. Got: %VERSION%
+    echo Make sure Maven is properly configured and pom.xml is valid.
+    exit /b 1
+)
 
 echo Preparing release package (version: %VERSION%, platform: windows)...
 
@@ -108,6 +117,9 @@ echo set MAIN_DIR=%%SCRIPT_DIR%%..
 echo.
 echo REM Use bundled JRE
 echo set JAVA_HOME=%%MAIN_DIR%%\jre-custom
+echo.
+echo REM Change to package directory so application can find conf files
+echo cd /d "%%MAIN_DIR%%"
 echo.
 echo REM Run the application
 echo "%%JAVA_HOME%%\bin\java.exe" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
