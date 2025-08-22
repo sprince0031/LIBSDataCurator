@@ -241,26 +241,15 @@ public class LIBSDataService {
             Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
                     compositionFileName);
             
-            // Check for backward compatibility with old filename format (using colons)
-            Path legacyCompositionFilePath = null;
-            if (!Files.exists(compositionFilePath)) {
-                String legacyCompositionId = commonUtils.buildCompositionString(composition);
-                String legacyCompositionFileName = "composition_" + legacyCompositionId + ".csv";
-                legacyCompositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
-                        legacyCompositionFileName);
-            }
-            
             logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
             boolean compositionFileExists = Files.exists(compositionFilePath);
-            boolean legacyFileExists = legacyCompositionFilePath != null && Files.exists(legacyCompositionFilePath);
             
-            if (forceFetch || (!compositionFileExists && !legacyFileExists)) {
+            if (forceFetch || !compositionFileExists) {
                 logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")");
                 csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
             } else {
-                Path fileToRead = compositionFileExists ? compositionFilePath : legacyCompositionFilePath;
-                logger.info("Reading cached composition data for " + compositionId + " from: " + fileToRead.toAbsolutePath());
-                try (BufferedReader csvReader = Files.newBufferedReader(fileToRead)) {
+                logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
+                try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
                     csvData = csvReader.lines().collect(Collectors.joining("\n")); // Ensure newlines are preserved
                 } catch (IOException e) {
                     throw new RuntimeException(e);
