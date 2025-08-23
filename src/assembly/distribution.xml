@@ -22,7 +22,7 @@
         
         <!-- Include configuration files -->
         <fileSet>
-            <directory>${project.basedir}/Build/conf</directory>
+            <directory>${project.basedir}/conf</directory>
             <outputDirectory>conf</outputDirectory>
             <includes>
                 <include>*.properties</include>
@@ -31,7 +31,7 @@
         
         <!-- Include run script -->
         <fileSet>
-            <directory>${project.basedir}/Build/bin</directory>
+            <directory>${project.basedir}/build/scripts</directory>
             <outputDirectory>bin</outputDirectory>
             <includes>
                 <include>run.sh</include>

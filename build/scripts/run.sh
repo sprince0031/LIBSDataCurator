@@ -3,13 +3,15 @@
 # ----------------------------------
 # 1) Identify script base directory
 # ----------------------------------
-# If the script is located in bin/, then going one level up gives the project root
-BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# If the script is located in build/scripts/, then going two levels up gives the project root
+BASE_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
-LIB_DIR="$BASE_DIR/lib"
+# Build directories are now relative to root
+BUILD_DIR="$BASE_DIR/build"
+LIB_DIR="$BUILD_DIR/lib"
 SELENIUM_DIR="$LIB_DIR/selenium-java-4.27.0"
 CONF_DIR="$BASE_DIR/conf"
-LOGS_DIR="$BASE_DIR/logs"
+LOGS_DIR="$BUILD_DIR/logs"
 
 # ----------------------------------
 # 2) Build the CLASSPATH

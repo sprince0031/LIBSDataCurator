@@ -47,7 +47,7 @@ jobs:
           PROJECT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
           ZIP_NAME="LIBSDataGenerator-v${PROJECT_VERSION}-${{ steps.date.outputs.date }}.zip"
           echo "Creating zip archive: $ZIP_NAME"
-          zip -r $ZIP_NAME Build/
+          zip -r $ZIP_NAME build/
           echo "zip_path=./$ZIP_NAME" >> $GITHUB_OUTPUT
 
       - name: Create Git Tag

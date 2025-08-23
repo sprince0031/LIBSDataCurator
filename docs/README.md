@@ -68,12 +68,12 @@ LIBSDataGenerator/
 │   ├── controller/       # Main application control
 │   ├── service/         # Core business logic
 │   └── util/           # Helper utilities
-├── Build/
-│   ├── bin/           # Runtime scripts
-│   ├── conf/          # Configuration files
-│   ├── data/          # Output data storage
-│   ├── lib/           # Dependencies
-│   └── logs/          # Application logs
+├── conf/                # Configuration files (at root level)
+├── build/
+│   ├── scripts/         # Runtime scripts
+│   ├── data/            # Output data storage
+│   ├── lib/             # Dependencies
+│   └── logs/            # Application logs
 ```
 
 ## Dependencies

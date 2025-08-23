@@ -176,7 +176,7 @@
                 </executions>
             </plugin>
             
-            <!-- Copy the JAR to Build/lib directory -->
+            <!-- Copy the JAR to build/lib directory -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-antrun-plugin</artifactId>
@@ -190,11 +190,11 @@
                         </goals>
                         <configuration>
                             <target>
-                                <mkdir dir="${project.basedir}/Build/lib"/>
+                                <mkdir dir="${project.basedir}/build/lib"/>
                                 <copy file="${project.build.directory}/LIBSDataCurator.jar" 
-                                      todir="${project.basedir}/Build/lib" 
+                                      todir="${project.basedir}/build/lib" 
                                       overwrite="true"/>
-                                <echo message="Copied LIBSDataCurator.jar to Build/lib directory"/>
+                                <echo message="Copied LIBSDataCurator.jar to build/lib directory"/>
                             </target>
                         </configuration>
                     </execution>
