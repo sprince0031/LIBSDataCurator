@@ -30,3 +30,8 @@ Build/lib/
 .idea/
 target/
 src/test/resources/test_elements.properties
+
+# Distribution extraction artifacts  
+LIBSDataCurator-*/
+jre-custom/
+release-package/
