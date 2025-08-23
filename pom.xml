@@ -198,6 +198,24 @@
                             </target>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>copy-distribution-to-build</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <copy todir="${project.basedir}/build" overwrite="true">
+                                    <fileset dir="${project.build.directory}">
+                                        <include name="LIBSDataCurator-${project.version}.tar.gz"/>
+                                        <include name="LIBSDataCurator-${project.version}.zip"/>
+                                    </fileset>
+                                </copy>
+                                <echo message="Copied distribution files to build directory"/>
+                            </target>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             
