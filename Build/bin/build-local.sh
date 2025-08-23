@@ -67,8 +67,12 @@ echo "Preparing release package (version: $VERSION, platform: $PLATFORM)..."
 # Create directory structure
 mkdir -p release-package/{lib,bin,conf,data,logs,docs}
 
-# Copy JAR
+# Copy JAR to release package
 cp target/LIBSDataCurator.jar release-package/lib/
+
+# Copy JAR to Build/lib for backwards compatibility
+mkdir -p Build/lib
+cp target/LIBSDataCurator.jar Build/lib/
 
 # Copy custom JRE
 cp -r jre-custom release-package/

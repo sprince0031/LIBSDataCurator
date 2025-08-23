@@ -115,8 +115,12 @@ mkdir release-package\data
 mkdir release-package\logs
 mkdir release-package\docs
 
-REM Copy JAR
+REM Copy JAR to release package
 copy target\LIBSDataCurator.jar release-package\lib\
+
+REM Copy JAR to Build\lib for backwards compatibility
+if not exist Build\lib mkdir Build\lib
+copy target\LIBSDataCurator.jar Build\lib\
 
 REM Copy custom JRE
 xcopy /s /e /i jre-custom release-package\jre-custom
