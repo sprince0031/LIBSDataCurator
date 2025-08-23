@@ -65,7 +65,7 @@ PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 echo "Preparing release package (version: $VERSION, platform: $PLATFORM)..."
 
 # Create directory structure
-mkdir -p release-package/{lib,bin,conf,data,logs,docs}
+mkdir -p release-package/{lib,bin,conf,data,logs}
 
 # Copy JAR to release package
 cp target/LIBSDataCurator.jar release-package/lib/
@@ -82,9 +82,9 @@ if [ -d "Build/conf" ]; then
     cp -r Build/conf/* release-package/conf/ 2>/dev/null || true
 fi
 
-# Copy docs if they exist
-if [ -d "docs" ]; then
-    cp -r docs/* release-package/docs/ 2>/dev/null || true
+# Copy only user-facing documentation (not developer build docs)
+if [ -f "docs/CHANGELOG.md" ]; then
+    cp docs/CHANGELOG.md release-package/
 fi
 
 # Create run script

@@ -113,7 +113,6 @@ mkdir release-package\bin
 mkdir release-package\conf
 mkdir release-package\data
 mkdir release-package\logs
-mkdir release-package\docs
 
 REM Copy JAR to release package
 copy target\LIBSDataCurator.jar release-package\lib\
@@ -130,9 +129,9 @@ if exist "Build\conf" (
     xcopy /s /e Build\conf\* release-package\conf\ 2>nul
 )
 
-REM Copy docs if they exist
-if exist "docs" (
-    xcopy /s /e docs\* release-package\docs\ 2>nul
+REM Copy only user-facing documentation (not developer build docs)
+if exist "docs\CHANGELOG.md" (
+    copy docs\CHANGELOG.md release-package\
 )
 
 REM Create run script

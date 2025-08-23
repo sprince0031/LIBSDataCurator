@@ -88,7 +88,6 @@ jobs:
           mkdir -p release-package/conf
           mkdir -p release-package/data
           mkdir -p release-package/logs
-          mkdir -p release-package/docs
           
           # Copy JAR
           cp target/LIBSDataCurator.jar release-package/lib/
@@ -101,9 +100,9 @@ jobs:
             cp -r Build/conf/* release-package/conf/ 2>/dev/null || true
           fi
           
-          # Copy docs if they exist
-          if [ -d "docs" ]; then
-            cp -r docs/* release-package/docs/ 2>/dev/null || true
+          # Copy only user-facing documentation (not developer build docs)
+          if [ -f "docs/CHANGELOG.md" ]; then
+            cp docs/CHANGELOG.md release-package/
           fi
           
           # Create run script
@@ -151,7 +150,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path release-package/conf
           New-Item -ItemType Directory -Force -Path release-package/data
           New-Item -ItemType Directory -Force -Path release-package/logs
-          New-Item -ItemType Directory -Force -Path release-package/docs
           
           # Copy JAR
           Copy-Item target/LIBSDataCurator.jar release-package/lib/
@@ -164,9 +162,9 @@ jobs:
             Copy-Item -Recurse Build/conf/* release-package/conf/ -ErrorAction SilentlyContinue
           }
           
-          # Copy docs if they exist
-          if (Test-Path "docs") {
-            Copy-Item -Recurse docs/* release-package/docs/ -ErrorAction SilentlyContinue
+          # Copy only user-facing documentation (not developer build docs)
+          if (Test-Path "docs/CHANGELOG.md") {
+            Copy-Item docs/CHANGELOG.md release-package/
           }
           
           # Create run script
