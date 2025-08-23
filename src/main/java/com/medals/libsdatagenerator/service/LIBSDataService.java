@@ -79,8 +79,8 @@ public class LIBSDataService {
             }
 
             // Save to a file with a unique name
-            // Build the composition string ID using the same utility as in generateDataset
-            String compositionId = commonUtils.buildCompositionString(elements); // 'elements' is the parameter to fetchLIBSData
+            // Build the composition string ID using the cross-platform compatible method
+            String compositionId = commonUtils.buildCompositionStringForFilename(elements);
             String filename = "composition_" + compositionId + ".csv";
             Path csvPath = Paths.get(String.valueOf(dataPath), filename);
             logger.info("Saving fetched LIBS data to: " + csvPath.toAbsolutePath()); // New log
@@ -223,8 +223,8 @@ public class LIBSDataService {
         // For each composition, fetch the CSV, parse it, store data
         for (List<Element> composition : compositions) {
 
-            // Build a string like "Cu:50;Fe:50" for identifying this composition
-            String compositionId = commonUtils.buildCompositionString(composition);
+            // Build a string like "Cu-50;Fe-50" for cross-platform compatible filename
+            String compositionId = commonUtils.buildCompositionStringForFilename(composition);
 
             // Sleep for 5 seconds after every 5 requests to the NIST LIBS server
             if (compositionsProcessed % 5 == 0) {
@@ -240,8 +240,10 @@ public class LIBSDataService {
             String compositionFileName = "composition_" + compositionId + ".csv";
             Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
                     compositionFileName);
+            
             logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
             boolean compositionFileExists = Files.exists(compositionFilePath);
+            
             if (forceFetch || !compositionFileExists) {
                 logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")");
                 csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
