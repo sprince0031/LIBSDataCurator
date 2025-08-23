@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
+import com.medals.libsdatagenerator.util.LoggingConfigurationUtil;
 import org.apache.commons.cli.CommandLine;
 
 import java.util.List;
@@ -22,6 +23,9 @@ public class LIBSDataController {
     private static final Pattern COMPOSITION_STRING_PATTERN = Pattern.compile(LIBSDataGenConstants.INPUT_COMPOSITION_STRING_REGEX);
 
     public static void main(String[] args) {
+        // Configure logging before any logging occurs
+        LoggingConfigurationUtil.configureLogging();
+        
         logger.info("Starting LIBS Data Curator...");
 
         LIBSDataService libsDataService = LIBSDataService.getInstance(); // Data interfacing class for NIST LIBS
