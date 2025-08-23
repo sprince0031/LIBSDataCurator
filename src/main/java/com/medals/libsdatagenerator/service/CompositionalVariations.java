@@ -42,6 +42,9 @@ public class CompositionalVariations {
             return compositions; // Return empty list, or perhaps add the (empty) originalComposition if that's desired.
         }
         compositions.add(originalComposition); // Adding the original composition
+        
+        // Calculate number of variations to generate: samples - 1 (since original is already added)
+        int numVariationsToGenerate = Math.max(0, samples - 1);
 
         boolean allElementsAreFixed = true;
         for (Element el : originalComposition) {
@@ -78,12 +81,12 @@ public class CompositionalVariations {
         if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("maxDelta", maxDelta);
-            GaussianSampler.getInstance().sample(effectiveComposition, samples, compositions, metadata);
+            GaussianSampler.getInstance().sample(effectiveComposition, numVariationsToGenerate, compositions, metadata);
 
         } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("overviewGuid", overviewGuid);
-            DirichletSampler.getInstance().sample(effectiveComposition, samples, compositions, metadata);
+            DirichletSampler.getInstance().sample(effectiveComposition, numVariationsToGenerate, compositions, metadata);
 
         } else { // For uniform distribution
             // Start backtracking with an empty "current combo" and a running sum of 0
