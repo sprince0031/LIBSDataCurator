@@ -30,3 +30,9 @@ Build/lib/
 .idea/
 target/
 src/test/resources/test_elements.properties
+
+# Build and packaging artifacts
+jre-custom/
+release-package/
+LIBSDataCurator-*.tar.gz
+LIBSDataCurator-*.zip
