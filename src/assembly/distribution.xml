@@ -29,16 +29,6 @@
             </includes>
         </fileSet>
         
-        <!-- Include run script -->
-        <fileSet>
-            <directory>${project.basedir}/Build/bin</directory>
-            <outputDirectory>bin</outputDirectory>
-            <includes>
-                <include>run.sh</include>
-            </includes>
-            <fileMode>0755</fileMode>
-        </fileSet>
-        
         <!-- Include docs -->
         <fileSet>
             <directory>${project.basedir}/docs</directory>
@@ -61,4 +51,12 @@
             </excludes>
         </fileSet>
     </fileSets>
+    
+    <files>
+        <!-- Create a simple README for the distribution -->
+        <file>
+            <source>${project.basedir}/src/assembly/README.txt</source>
+            <outputDirectory>.</outputDirectory>
+        </file>
+    </files>
 </assembly>
