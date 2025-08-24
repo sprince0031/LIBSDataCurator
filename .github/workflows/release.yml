@@ -51,14 +51,14 @@ jobs:
                 --no-man-pages \
                 --no-header-files \
                 --compress=2 \
-                --output ./jre-custom
+                --output ./build/jre-custom
           
           # Update cacerts with system certificate store to fix SSL issues
           if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
-            cp /etc/ssl/certs/adoptium/cacerts ./jre-custom/lib/security/cacerts
+            cp /etc/ssl/certs/adoptium/cacerts ./build/jre-custom/lib/security/cacerts
             echo "Updated cacerts from system store"
           elif [ -f "/etc/ssl/certs/java/cacerts" ]; then
-            cp /etc/ssl/certs/java/cacerts ./jre-custom/lib/security/cacerts
+            cp /etc/ssl/certs/java/cacerts ./build/jre-custom/lib/security/cacerts
             echo "Updated cacerts from system Java store"
           else
             echo "Warning: System cacerts not found, using default"
@@ -68,13 +68,13 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           # Create custom JRE with only required modules including security modules for SSL/TLS
-          jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./jre-custom
+          jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./build/jre-custom
           
           # Update cacerts - Windows may have different paths
           Write-Host "Checking for system cacerts..."
           if (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-21.*\lib\security\cacerts") {
             $systemCacerts = Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-21.*\lib\security\cacerts" | Select-Object -First 1
-            Copy-Item $systemCacerts.FullName ./jre-custom/lib/security/cacerts -Force
+            Copy-Item $systemCacerts.FullName ./build/jre-custom/lib/security/cacerts -Force
             Write-Host "Updated cacerts from system store"
           } else {
             Write-Host "Warning: System cacerts not found, using default"
@@ -83,31 +83,31 @@ jobs:
       - name: Prepare release package (Linux/macOS)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          mkdir -p release-package/lib
-          mkdir -p release-package/bin
-          mkdir -p release-package/conf
-          mkdir -p release-package/data
-          mkdir -p release-package/logs
-          mkdir -p release-package/docs
+          mkdir -p build/release-package/lib
+          mkdir -p build/release-package/bin
+          mkdir -p build/release-package/conf
+          mkdir -p build/release-package/data
+          mkdir -p build/release-package/logs
+          mkdir -p build/release-package/docs
           
           # Copy JAR
-          cp target/LIBSDataCurator.jar release-package/lib/
+          cp build/target/LIBSDataCurator.jar build/release-package/lib/
           
           # Copy custom JRE
-          cp -r jre-custom release-package/
+          cp -r build/jre-custom build/release-package/
           
           # Copy configuration files if they exist
-          if [ -d "Build/conf" ]; then
-            cp -r Build/conf/* release-package/conf/ 2>/dev/null || true
+          if [ -d "conf" ]; then
+            cp -r conf/* build/release-package/conf/ 2>/dev/null || true
           fi
           
           # Copy docs if they exist
           if [ -d "docs" ]; then
-            cp -r docs/* release-package/docs/ 2>/dev/null || true
+            cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} release-package/docs/ 2>/dev/null || true
           fi
           
           # Create run script
-          cat > release-package/bin/run.sh << 'EOF'
+          cat > build/release-package/bin/run.sh << 'EOF'
           #!/bin/bash
           SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           MAIN_DIR="$(dirname "$SCRIPT_DIR")"
@@ -126,7 +126,7 @@ jobs:
           chmod +x release-package/bin/run.sh
           
           # Create README
-          cat > release-package/README.txt << 'EOF'
+          cat > build/release-package/README.txt << 'EOF'
           LIBSDataCurator ${{ steps.get_version.outputs.version }}
           
           This is a self-contained package that includes:
@@ -146,27 +146,28 @@ jobs:
       - name: Prepare release package (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          New-Item -ItemType Directory -Force -Path release-package/lib
-          New-Item -ItemType Directory -Force -Path release-package/bin
-          New-Item -ItemType Directory -Force -Path release-package/conf
-          New-Item -ItemType Directory -Force -Path release-package/data
-          New-Item -ItemType Directory -Force -Path release-package/logs
-          New-Item -ItemType Directory -Force -Path release-package/docs
+          New-Item -ItemType Directory -Force -Path build/release-package/lib
+          New-Item -ItemType Directory -Force -Path build/release-package/bin
+          New-Item -ItemType Directory -Force -Path build/release-package/conf
+          New-Item -ItemType Directory -Force -Path build/release-package/data
+          New-Item -ItemType Directory -Force -Path build/release-package/logs
+          New-Item -ItemType Directory -Force -Path build/release-package/docs
           
           # Copy JAR
-          Copy-Item target/LIBSDataCurator.jar release-package/lib/
+          Copy-Item build/target/LIBSDataCurator.jar build/release-package/lib/
           
           # Copy custom JRE
-          Copy-Item -Recurse jre-custom release-package/
+          Copy-Item -Recurse build/jre-custom build/release-package/
           
           # Copy configuration files if they exist
-          if (Test-Path "Build/conf") {
-            Copy-Item -Recurse Build/conf/* release-package/conf/ -ErrorAction SilentlyContinue
+          if (Test-Path "conf") {
+            Copy-Item -Recurse conf/* build/release-package/conf/ -ErrorAction SilentlyContinue
           }
           
           # Copy docs if they exist
           if (Test-Path "docs") {
-            Copy-Item -Recurse docs/* release-package/docs/ -ErrorAction SilentlyContinue
+            Copy-Item docs/CHANGELOG.md build/release-package/docs/ -ErrorAction SilentlyContinue
+            Copy-Item docs/TOOL_DESCRIPTION.md build/release-package/docs/ -ErrorAction SilentlyContinue
           }
           
           # Create run script
@@ -183,7 +184,7 @@ jobs:
           
           REM Run the application
           "%JAVA_HOME%\bin\java.exe" -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*
-          "@ | Out-File -FilePath "release-package/bin/run.bat" -Encoding ASCII
+          "@ | Out-File -FilePath "build/release-package/bin/run.bat" -Encoding ASCII
           
           # Create README
           @"
@@ -201,22 +202,22 @@ jobs:
           bin\run.bat [arguments]
           
           The application includes its own JRE, so you don't need Java installed on your system.
-          "@ | Out-File -FilePath "release-package/README.txt" -Encoding UTF8
+          "@ | Out-File -FilePath "build/release-package/README.txt" -Encoding UTF8
 
       - name: Create archive (Linux/macOS)
         if: matrix.os == 'ubuntu-latest'
         run: |
-          tar -czf LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.tar.gz -C release-package .
+          tar -czf build/LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.tar.gz -C build/release-package .
 
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          Compress-Archive -Path release-package/* -DestinationPath LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.zip
+          Compress-Archive -Path build/release-package/* -DestinationPath build/LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.zip
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v2
         with:
-          files: LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.${{ matrix.extension }}
+          files: build/LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.${{ matrix.extension }}
           body: |
             ## LIBSDataCurator ${{ steps.get_version.outputs.version }}
             
