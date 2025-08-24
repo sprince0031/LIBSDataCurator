@@ -3,6 +3,9 @@
 # Local build script that mirrors the CI/CD workflow
 # This script creates self-contained packages with bundled JRE
 
+# Change script root directory to project root
+cd ../../
+
 set -e  # Exit on any error
 
 echo "=== LIBSDataCurator Local Build Script ==="
@@ -11,10 +14,9 @@ echo
 # Clean previous builds
 echo "Cleaning previous builds..."
 mvn clean
-rm -rf release-package
-rm -rf jre-custom
-rm -f LIBSDataCurator-*.tar.gz
-rm -f LIBSDataCurator-*.zip
+rm -rf build/release-package
+rm -rf build/jre-custom
+rm -f build/LIBSDataCurator-*.tar.gz
 
 echo
 
@@ -42,15 +44,15 @@ jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypt
       --no-man-pages \
       --no-header-files \
       --compress=2 \
-      --output ./jre-custom
+      --output ./build/jre-custom
 
 echo "Updating cacerts with system certificate store..."
 # Update cacerts with system certificate store to fix SSL issues
 if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
-    cp /etc/ssl/certs/adoptium/cacerts ./jre-custom/lib/security/cacerts
+    cp /etc/ssl/certs/adoptium/cacerts ./build/jre-custom/lib/security/cacerts
     echo "Updated cacerts from system store"
 elif [ -f "/etc/ssl/certs/java/cacerts" ]; then
-    cp /etc/ssl/certs/java/cacerts ./jre-custom/lib/security/cacerts
+    cp /etc/ssl/certs/java/cacerts ./build/jre-custom/lib/security/cacerts
     echo "Updated cacerts from system Java store"
 else
     echo "Warning: System cacerts not found, using default"
@@ -65,26 +67,26 @@ PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 echo "Preparing release package (version: $VERSION, platform: $PLATFORM)..."
 
 # Create directory structure
-mkdir -p release-package/{lib,bin,conf,data,logs,docs}
+mkdir -p build/release-package/{lib,bin,conf,data,logs,docs}
 
 # Copy JAR
-cp target/LIBSDataCurator.jar release-package/lib/
+cp build/target/LIBSDataCurator.jar build/release-package/lib/
 
 # Copy custom JRE
-cp -r jre-custom release-package/
+cp -r build/jre-custom build/release-package/
 
 # Copy configuration files if they exist
-if [ -d "Build/conf" ]; then
-    cp -r Build/conf/* release-package/conf/ 2>/dev/null || true
+if [ -d "conf" ]; then
+    cp -r conf/* build/release-package/conf/ 2>/dev/null || true
 fi
 
 # Copy docs if they exist
 if [ -d "docs" ]; then
-    cp -r docs/* release-package/docs/ 2>/dev/null || true
+    cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} build/release-package/docs/ 2>/dev/null || true
 fi
 
 # Create run script
-cat > release-package/bin/run.sh << 'EOF'
+cat > build/release-package/bin/run.sh << 'EOF'
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAIN_DIR="$(dirname "$SCRIPT_DIR")"
@@ -100,10 +102,10 @@ cd "$MAIN_DIR"
 "$JAVA_HOME/bin/java" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
 EOF
 
-chmod +x release-package/bin/run.sh
+chmod +x build/release-package/bin/run.sh
 
 # Create README
-cat > release-package/README.txt << EOF
+cat > build/release-package/README.txt << EOF
 LIBSDataCurator $VERSION
 
 This is a self-contained package that includes:
@@ -128,12 +130,12 @@ echo
 # Create archive
 ARCHIVE_NAME="LIBSDataCurator-${VERSION}-${PLATFORM}.tar.gz"
 echo "Creating archive: $ARCHIVE_NAME"
-tar -czf "$ARCHIVE_NAME" -C release-package .
+tar -czf "build/$ARCHIVE_NAME" -C build/release-package .
 
 echo
 echo "=== Build Complete ==="
-echo "Archive created: $ARCHIVE_NAME"
-echo "Size: $(du -h "$ARCHIVE_NAME" | cut -f1)"
+echo "Archive created: build/$ARCHIVE_NAME"
+echo "Size: $(du -h "build/$ARCHIVE_NAME" | cut -f1)"
 echo
 echo "To test the package:"
 echo "1. Extract: tar -xzf $ARCHIVE_NAME"

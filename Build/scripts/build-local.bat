@@ -2,6 +2,9 @@
 REM Local build script for Windows that mirrors the CI/CD workflow
 REM This script creates self-contained packages with bundled JRE
 
+REM Change script root directory to project root
+cd ..\..\
+
 setlocal enabledelayedexpansion
 
 echo === LIBSDataCurator Local Build Script (Windows) ===
@@ -10,9 +13,9 @@ echo.
 REM Clean previous builds
 echo Cleaning previous builds...
 call mvn clean
-if exist release-package rmdir /s /q release-package
-if exist jre-custom rmdir /s /q jre-custom
-del /q LIBSDataCurator-*.zip 2>nul
+if exist build\release-package rmdir /s /q build\release-package
+if exist build\jre-custom rmdir /s /q build\jre-custom
+del /q build\LIBSDataCurator-*.zip 2>nul
 
 echo.
 
@@ -44,7 +47,7 @@ if errorlevel 1 (
 )
 
 echo Creating custom JRE with jlink...
-jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./jre-custom
+jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./build/jre-custom
 if errorlevel 1 (
     echo ERROR: jlink failed
     exit /b 1
@@ -55,14 +58,14 @@ REM Update cacerts - try common Windows JDK locations
 if exist "C:\Program Files\Eclipse Adoptium\jdk-21*\lib\security\cacerts" (
     for /d %%i in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
         if exist "%%i\lib\security\cacerts" (
-            copy "%%i\lib\security\cacerts" .\jre-custom\lib\security\cacerts
+            copy "%%i\lib\security\cacerts" .\build\jre-custom\lib\security\cacerts
             echo Updated cacerts from system store
             goto :cacerts_done
         )
     )
 )
 if exist "%JAVA_HOME%\lib\security\cacerts" (
-    copy "%JAVA_HOME%\lib\security\cacerts" .\jre-custom\lib\security\cacerts
+    copy "%JAVA_HOME%\lib\security\cacerts" .\build\jre-custom\lib\security\cacerts
     echo Updated cacerts from JAVA_HOME
 ) else (
     echo Warning: System cacerts not found, using default
@@ -108,27 +111,27 @@ if not defined VERSION (
 echo Preparing release package (version: %VERSION%, platform: windows)...
 
 REM Create directory structure
-mkdir release-package\lib
-mkdir release-package\bin
-mkdir release-package\conf
-mkdir release-package\data
-mkdir release-package\logs
-mkdir release-package\docs
+mkdir build\release-package\lib
+mkdir build\release-package\bin
+mkdir build\release-package\conf
+mkdir build\release-package\data
+mkdir build\release-package\logs
+mkdir build\release-package\docs
 
 REM Copy JAR
-copy target\LIBSDataCurator.jar release-package\lib\
+copy build\target\LIBSDataCurator.jar build\release-package\lib\
 
 REM Copy custom JRE
-xcopy /s /e /i jre-custom release-package\jre-custom
+xcopy /s /e /i build\jre-custom build\release-package\jre-custom
 
 REM Copy configuration files if they exist
-if exist "Build\conf" (
-    xcopy /s /e Build\conf\* release-package\conf\ 2>nul
+if exist "conf" (
+    xcopy /s /e conf\* build\release-package\conf\ 2>nul
 )
 
 REM Copy docs if they exist
 if exist "docs" (
-    xcopy /s /e docs\* release-package\docs\ 2>nul
+    for %%f in (docs\CHANGELOG.md docs\TOOL_DESCRIPTION.md) do copy "%%f" "build\release-package\docs\"
 )
 
 REM Create run script
@@ -145,7 +148,7 @@ echo cd /d "%%MAIN_DIR%%"
 echo.
 echo REM Run the application
 echo "%%JAVA_HOME%%\bin\java.exe" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
-) > release-package\bin\run.bat
+) > build\release-package\bin\run.bat
 
 REM Create README
 (
@@ -166,7 +169,7 @@ echo The application includes its own JRE, so you don't need Java installed on y
 echo.
 echo For help with command line arguments:
 echo bin\run.bat --help
-) > release-package\README.txt
+) > build\release-package\README.txt
 
 echo.
 
@@ -175,7 +178,7 @@ set ARCHIVE_NAME=LIBSDataCurator-%VERSION%-windows.zip
 echo Creating archive: %ARCHIVE_NAME%
 
 REM Use PowerShell to create zip
-powershell -command "Compress-Archive -Path 'release-package\*' -DestinationPath '%ARCHIVE_NAME%' -Force"
+powershell -command "Compress-Archive -Path 'build\release-package\*' -DestinationPath 'build\%ARCHIVE_NAME%' -Force"
 if errorlevel 1 (
     echo ERROR: Failed to create archive
     exit /b 1
@@ -195,5 +198,3 @@ echo To test the package:
 echo 1. Extract the zip file
 echo 2. Run: bin\run.bat --help
 echo.
-
-pause
