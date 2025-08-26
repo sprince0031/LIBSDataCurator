@@ -49,6 +49,11 @@ public class LIBSDataController {
             String resolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
             String plasmaTemp = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT, "1");
             String electronDensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT, "1e17");
+            String wavelengthUnit = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_SHORT, "1"); // Nm default
+            String wavelengthCondition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_SHORT, "2");
+            String maxIonCharge = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_SHORT, "2");
+            String minRelativeIntensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT, "2"); // TODO: Need to map to actual values for query param
+            String intensityScale = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_SHORT, "1");
             String csvDirPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT, CommonUtils.DATA_PATH);
             boolean appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
             boolean forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);

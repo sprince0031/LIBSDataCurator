@@ -43,6 +43,60 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_RESOLUTION_SHORT = "res";
     public static final String CMD_OPT_RESOLUTION_LONG = "resolution";
     public static final String CMD_OPT_RESOLUTION_DESC = "Wavelength resolution. Default: 1000";
+    public static final String CMD_OPT_WAVELENGTH_UNIT_SHORT = "wu";
+    public static final String CMD_OPT_WAVELENGTH_UNIT_LONG = "wavelength-unit";
+    public static final String CMD_OPT_WAVELENGTH_UNIT_DESC = """
+            Unit of wavelength. Options: \
+            
+            0 -> Armstrong\
+            
+            1 -> Nanometer (default)\
+            
+            2 -> Micrometer""";
+    public static final String CMD_OPT_WAVELENGTH_CONDITION_SHORT = "wcon";
+    public static final String CMD_OPT_WAVELENGTH_CONDITION_LONG = "wavelength-condition";
+    public static final String CMD_OPT_WAVELENGTH_CONDITION_DESC = """
+            Condition of measurement for wavelength. Options: \
+            
+            2 -> Vacuum (< 200 nm) Air (200 - 2000 nm) Vacuum (> 2000 nm) (default)\
+            
+            3 -> Vacuum (all wavelengths)""";
+    public static final String CMD_OPT_MAX_ION_CHARGE_SHORT = "mic";
+    public static final String CMD_OPT_MAX_ION_CHARGE_LONG = "max-ion-charge";
+    public static final String CMD_OPT_MAX_ION_CHARGE_DESC = """
+            Select maximum ion charge to be included. Options: \
+            
+            2 -> 2+ (default)\
+            
+            3 -> 3+\
+            
+            4 -> 4+\
+            
+            0 -> no limit""";
+    public static final String CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT = "mri";
+    public static final String CMD_OPT_MIN_RELATIVE_INTENSITY_LONG = "min-relative-intensity";
+    public static final String CMD_OPT_MIN_RELATIVE_INTENSITY_DESC = """
+            Minimum relative intensity. Ref: https://physics.nist.gov/PhysRefData/ASD/Html/libshelp.html#ADVANCED_OPT\
+            
+            Options: \
+            
+            1 -> 0.1\
+            
+            2 -> 0.01 (default)\
+            
+            3 -> 0.001\
+            
+            0 -> 0 (removes limitation - very slow)""";
+    public static final String CMD_OPT_INTENSITY_SCALE_SHORT = "is";
+    public static final String CMD_OPT_INTENSITY_SCALE_LONG = "intensity-scale";
+    public static final String CMD_OPT_INTENSITY_SCALE_DESC = """
+            Intensity scale. Ref: https://physics.nist.gov/PhysRefData/ASD/Html/libshelp.html#ADVANCED_OPT\
+            
+            Options: \
+            
+            1 -> Energy flux (default)\
+            
+            2 -> Photon flux""";
     public static final String CMD_OPT_OUTPUT_PATH_SHORT = "o";
     public static final String CMD_OPT_OUTPUT_PATH_LONG = "output";
     public static final String CMD_OPT_OUTPUT_PATH_DESC = "Path to save CSV file";
@@ -58,21 +112,31 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_FORCE_FETCH_LONG = "force-fetch";
     public static final String CMD_OPT_FORCE_FETCH_DESC = "Will force re-downloading of individual spectrum data " +
             "for every composition even if data is available locally in the /data directory.";
+    @Deprecated
     public static final String CMD_OPT_VARY_BY_SHORT = "vb";
+    @Deprecated
     public static final String CMD_OPT_VARY_BY_LONG = "vary-by";
+    @Deprecated
     public static final String CMD_OPT_VARY_BY_DESC = "By how much each compositional variation for percentage weight" +
             " should be varied by.";
+    @Deprecated
     public static final String CMD_OPT_MAX_DELTA_SHORT = "md";
+    @Deprecated
     public static final String CMD_OPT_MAX_DELTA_LONG = "max-delta";
+    @Deprecated
     public static final String CMD_OPT_MAX_DELTA_DESC = "Upper and lower (+-) limits to the variations.";
     public static final String CMD_OPT_VAR_MODE_SHORT = "vm";
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
-    public static final String CMD_OPT_VAR_MODE_DESC = "Chooses the variation mode: " +
-            "1 - Dirichlet sampling (default), 2 - Gaussian sampling";
+    public static final String CMD_OPT_VAR_MODE_DESC = """
+            Chooses the variation mode: \
+            
+            1 -> Dirichlet sampling (default)\
+            
+            2 -> Gaussian sampling""";
     public static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
     public static final String CMD_OPT_OVERVIEW_GUID_LONG = "overview-guid";
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
-            "Required for Dirichlet sampling mode (mode 2) to get series average compositions.";
+            "Required for Dirichlet sampling mode (mode 1) to get series average compositions.";
 
     public static final String CMD_OPT_SERIES_SHORT = "s";
     public static final String CMD_OPT_SERIES_LONG = "series";

@@ -168,6 +168,7 @@ public class LIBSDataService {
 
         // Advanced input params
         // TODO: Add max ion charge
+        // 2+, 2+, 4+, no limit (value set to 109 in URL)
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MAXCHARGE, "2");
 
         // TODO: Add min relative intensity
