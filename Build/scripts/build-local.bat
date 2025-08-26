@@ -137,17 +137,56 @@ if exist "docs" (
 REM Create run script
 (
 echo @echo off
-echo set SCRIPT_DIR=%%~dp0
-echo set MAIN_DIR=%%SCRIPT_DIR%%..
+echo setlocal enabledelayedexpansion
 echo.
-echo REM Use bundled JRE
-echo set JAVA_HOME=%%MAIN_DIR%%\jre-custom
+echo REM --- Define Paths ---
+echo set "SCRIPT_DIR=%%~dp0"
+echo set "MAIN_DIR=%%SCRIPT_DIR%%.."
+echo set "LOG_PROPERTIES=%%MAIN_DIR%%\conf\logging.properties"
+echo set "LOGS_DIR=%%MAIN_DIR%%\logs"
 echo.
-echo REM Change to package directory so application can find conf files
+echo REM --- Use Bundled JRE ---
+echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
+echo.
+echo REM --- First-Time Setup for Logging ---
+echo findstr /C:"__LOG_PATH_PLACEHOLDER__" "%%LOG_PROPERTIES%%" ^>nul
+echo if ^^!errorlevel^^! equ 0 (
+echo     echo Performing first-time setup for logging path...
+echo.
+echo     REM Create logs directory if it doesn't exist
+echo     if not exist "%%LOGS_DIR%%" mkdir "%%LOGS_DIR%%"
+echo.
+echo     REM Get the log path and format it for the properties file (using forward slashes^)
+echo     set "LOG_PATH_FOR_PROPS=%%LOGS_DIR%%"
+echo     set "LOG_PATH_FOR_PROPS=^!LOG_PATH_FOR_PROPS:\=/^!"
+echo.
+echo     REM Create a new properties file by replacing the placeholder
+echo     (for /f "usebackq delims=" %%%%L in ("%%LOG_PROPERTIES%%"^) do (
+echo         set "line=%%%%L"
+echo         REM Check if the line contains the placeholder
+echo         if "^!line:__LOG_PATH_PLACEHOLDER__=^!" NEQ "^!line^!" (
+echo             REM If it does, print the corrected line
+echo             echo java.util.logging.FileHandler.pattern=^^!LOG_PATH_FOR_PROPS^^!/LIBSDataGenerator%%%%g.log
+echo         ^) else (
+echo             REM Otherwise, print the original line
+echo             echo ^^!line^^!
+echo         ^)
+echo     ^)^) ^> "%%LOG_PROPERTIES%%.tmp"
+echo.
+echo     REM Replace the original file with the new one and clean up
+echo     move /Y "%%LOG_PROPERTIES%%.tmp" "%%LOG_PROPERTIES%%" ^>nul
+echo     echo Log path configured successfully.
+echo ^)
+echo.
+echo set "JAVA_OPTS=-Djava.util.logging.config.file=%%LOG_PROPERTIES%%"
+echo set "JAVA_OPTS=%%JAVA_OPTS%% -Duser.dir=%%MAIN_DIR%%"
+echo.
+echo REM --- Change to Application Directory ---
 echo cd /d "%%MAIN_DIR%%"
 echo.
-echo REM Run the application
-echo "%%JAVA_HOME%%\bin\java.exe" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
+echo REM --- Run the Application ---
+echo echo Starting LIBSDataCurator...
+echo "%%JAVA_HOME%%\bin\java.exe" %%JAVA_OPTS%% -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
 ) > build\release-package\bin\run.bat
 
 REM Create README
@@ -189,7 +228,7 @@ echo === Build Complete ===
 echo Archive created: %ARCHIVE_NAME%
 
 REM Get file size
-for %%A in ("%ARCHIVE_NAME%") do set SIZE=%%~zA
+for %%A in ("build\%ARCHIVE_NAME%") do set SIZE=%%~zA
 set /a SIZE_MB=!SIZE!/1024/1024
 echo Size: !SIZE_MB! MB
 
