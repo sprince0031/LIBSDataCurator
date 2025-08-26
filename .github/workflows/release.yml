@@ -147,7 +147,7 @@ jobs:
           "$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
           EOF
           
-          chmod +x release-package/bin/run.sh
+          chmod +x build/release-package/bin/run.sh
           
           # Create README
           cat > build/release-package/README.txt << 'EOF'
