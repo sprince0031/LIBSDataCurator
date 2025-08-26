@@ -45,16 +45,27 @@ public class LIBSDataService {
         return instance;
     }
 
-    // Fetching data from NIST LIBS database
-    public String fetchLIBSData(List<Element> elements, String minWavelength, String maxWavelength,
-                                String savePath) {
+    /**
+     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
+     * @param elements list of Elements in composition
+     * @param minWavelength minimum wavelength cutoff for spectrum
+     * @param maxWavelength maximum wavelength cutoff for spectrum
+     * @param resolution wavelength resolution (default: 1000)
+     * @param plasmaTemp plasma temperature, Te (eV) (default: 1)
+     * @param electronDensity electron density, Ne (cm^-3) (default: 1e17)
+     * @param savePath path to data/ directory within tool installation directory
+     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     */
+    public String fetchLIBSData(List<Element> elements, String minWavelength, String maxWavelength, String resolution,
+                                String plasmaTemp,String electronDensity, String savePath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
-            Map<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
+            Map<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength, resolution,
+                    plasmaTemp, electronDensity);
             seleniumUtils.connectToWebsite(
                     commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
-        );
+            );
 
             WebElement csvButton = seleniumUtils.getDriver()
                     .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
@@ -102,7 +113,7 @@ public class LIBSDataService {
     }
 
     public Map<String, String> processLIBSQueryParams(List<Element> elements, String minWavelength,
-            String maxWavelength) {
+            String maxWavelength, String resolution, String plasmaTemp, String electronDensity) {
         // Processing the information for each element and adding to the query params
         // hashmap
         // Sample query params:
@@ -126,29 +137,49 @@ public class LIBSDataService {
             }
         }
 
-        // Adding composition
+        // Add composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
 
-        // Adding spectra
+        // Add spectra
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SPECTRA, spectra.substring(1));
 
-        // Adding min wavelength
+        // Add min wavelength
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LOW_W, minWavelength);
 
-        // Adding max wavelength
+        // Add max wavelength
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UPP_W, maxWavelength);
 
-        // The rest of the query params are kept constant for now. Can update to take
-        // custom values as needed in the future.
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LIMITS_TYPE, "0");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SHOW_AV, "2");
+        // Add wavelength resolution
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_RESOLUTION, resolution);
+
+        // Add plasma temperature
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_TEMP, plasmaTemp);
+
+        // Add electron density
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_EDEN, electronDensity);
+
+        // TODO: Add wavelength unit - default Nm (1)
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UNIT, "1");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_RESOLUTION, "1000");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_TEMP, "1");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_EDEN, "1e17");
+
+        // TODO: Show wavelengths in:
+        // Vacuum (< 200 nm) Air (200 - 2000 nm) Vacuum (> 2000 nm) - 2 (default)
+        // Vacuum (all wavelengths) - 3
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SHOW_AV, "2");
+
+        // Advanced input params
+        // TODO: Add max ion charge
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MAXCHARGE, "2");
+
+        // TODO: Add min relative intensity
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MIN_REL_INT, "0.01");
+
+        // TODO: Add intensity scale
+        // Energy flux - 1 (default)
+        // Photon flux - 2
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_INT_SCALE, "1");
+
+        // The rest of the query params are kept constant. No direct input field mapped for these in NIST LIBS form.
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LIMITS_TYPE, "0");
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LIBS, "1");
 
         return queryParams;
@@ -201,7 +232,7 @@ public class LIBSDataService {
     }
 
     public void generateDataset(List<List<Element>> compositions, String minWavelength, String maxWavelength,
-            String savePath, boolean appendMode, boolean forceFetch) {
+            String resolution, String plasmaTemp, String electronDensity, String savePath, boolean appendMode, boolean forceFetch) {
 
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
@@ -246,7 +277,7 @@ public class LIBSDataService {
             
             if (forceFetch || !compositionFileExists) {
                 logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")");
-                csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
+                csvData = fetchLIBSData(composition, minWavelength, maxWavelength, resolution, plasmaTemp, electronDensity, savePath);
             } else {
                 logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
                 try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {

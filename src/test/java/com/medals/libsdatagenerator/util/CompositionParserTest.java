@@ -84,7 +84,8 @@ class CompositionParserTest {
         elements.add(new Element("Carbon", "C", 0.2, null, null, null));
         elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 
-        Map<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
+        Map<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800", "1000",
+                "1", "1e17");
 
         // Verify composition string contains both elements in correct format
         String composition = params.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION);

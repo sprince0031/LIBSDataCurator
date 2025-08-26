@@ -103,6 +103,24 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_DESC);
 
+        // Wavelength resolution
+        options.addOption(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_DESC);
+
+        // Plasma temperature
+        options.addOption(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT,
+                LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_DESC);
+
+        // Electron density
+        options.addOption(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT,
+                LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_DESC);
+
         // Data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,

@@ -46,6 +46,9 @@ public class LIBSDataController {
             // Common parameters
             String minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "200");
             String maxWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "800");
+            String resolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
+            String plasmaTemp = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT, "1");
+            String electronDensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT, "1e17");
             String csvDirPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT, CommonUtils.DATA_PATH);
             boolean appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
             boolean forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
@@ -106,8 +109,8 @@ public class LIBSDataController {
                             );
 
                     if (compositions != null && !compositions.isEmpty()) {
-                        libsDataService.generateDataset(compositions, minWavelength, maxWavelength, csvDirPath,
-                                appendMode, forceFetch);
+                        libsDataService.generateDataset(compositions, minWavelength, maxWavelength, resolution,
+                                plasmaTemp, electronDensity, csvDirPath, appendMode, forceFetch);
                         logger.info("Successfully generated dataset for composition: " + materialGrade);
                     } else {
                         logger.warning("No compositions generated for input: " + materialGrade);
@@ -115,7 +118,8 @@ public class LIBSDataController {
 
                 } else {
                     // This is the original non-variation path for -c
-                    libsDataService.fetchLIBSData(materialGrade.getComposition(), minWavelength, maxWavelength, csvDirPath);
+                    libsDataService.fetchLIBSData(materialGrade.getComposition(), minWavelength, maxWavelength,
+                            resolution, plasmaTemp, electronDensity, csvDirPath);
                     logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
                 }
             }
