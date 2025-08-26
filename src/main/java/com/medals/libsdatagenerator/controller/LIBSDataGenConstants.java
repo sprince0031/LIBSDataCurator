@@ -59,7 +59,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_VAR_MODE_SHORT = "vm";
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
     public static final String CMD_OPT_VAR_MODE_DESC = "Chooses the variation mode: " +
-            "0 - uniform dist, 1 - Gaussian sampling (default), 2 - Dirichlet sampling";
+            "1 - Dirichlet sampling (default), 2 - Gaussian sampling";
     public static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
     public static final String CMD_OPT_OVERVIEW_GUID_LONG = "overview-guid";
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
@@ -121,8 +121,8 @@ public class LIBSDataGenConstants {
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
     public static final int STAT_VAR_MODE_UNIFORM_DIST = 0; // Uniform distribution mode (longest and unnecessary)
-    public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 1; // Gaussian sampling mode
-    public static final int STAT_VAR_MODE_DIRICHLET_DIST = 2; // Dirichlet sampling mode
+    public static final int STAT_VAR_MODE_DIRICHLET_DIST = 1; // Dirichlet sampling mode
+    public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 2; // Gaussian sampling mode
 
     // Default concentration parameter for Dirichlet distribution. Higher = less variance.
     public static final double DIRICHLET_BASE_CONCENTRATION = 100.0;

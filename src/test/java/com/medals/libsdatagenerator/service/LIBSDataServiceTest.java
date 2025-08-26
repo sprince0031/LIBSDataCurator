@@ -63,8 +63,8 @@ class LIBSDataServiceTest {
             LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST, 10, null
         );
 
-        // Expected size is samples + 1 (original)
-        assertEquals(11, compositions.size(), "Should generate original + requested number of samples.");
+        // Expected size is original + samples
+        assertEquals(10, compositions.size(), "Should generate original + requested number of samples.");
 
         boolean foundDifferent = false;
         for (int i = 1; i < compositions.size(); i++) { // Start from 1 to skip original

@@ -97,7 +97,7 @@ public class LIBSDataController {
                             cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05")
                     );
                     int numSamples = Integer.parseInt(
-                            cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "50"));
+                            cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "20"));
 
                     List<List<Element>> compositions = CompositionalVariations.getInstance()
                             .generateCompositionalVariations(
