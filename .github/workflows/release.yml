@@ -1,0 +1,299 @@
+name: Release - Build and Package
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v0.8.1, etc.
+
+jobs:
+  build-release:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            extension: tar.gz
+          - os: windows-latest
+            platform: windows
+            extension: zip
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+          cache: "maven"
+
+      - name: Get version from tag
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build application
+        run: mvn -B package -DskipTests --file pom.xml
+
+      - name: Create custom JRE with jlink (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # Create custom JRE with only required modules including security modules for SSL/TLS
+          jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss \
+                --strip-debug \
+                --no-man-pages \
+                --no-header-files \
+                --compress=2 \
+                --output ./build/jre-custom
+          
+          # Update cacerts with system certificate store to fix SSL issues
+          if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
+            cp /etc/ssl/certs/adoptium/cacerts ./build/jre-custom/lib/security/cacerts
+            echo "Updated cacerts from system store"
+          elif [ -f "/etc/ssl/certs/java/cacerts" ]; then
+            cp /etc/ssl/certs/java/cacerts ./build/jre-custom/lib/security/cacerts
+            echo "Updated cacerts from system Java store"
+          else
+            echo "Warning: System cacerts not found, using default"
+          fi
+
+      - name: Create custom JRE with jlink (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # Create custom JRE with only required modules including security modules for SSL/TLS
+          jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./build/jre-custom
+          
+          # Update cacerts - Windows may have different paths
+          Write-Host "Checking for system cacerts..."
+          if (Test-Path "C:\Program Files\Eclipse Adoptium\jdk-21.*\lib\security\cacerts") {
+            $systemCacerts = Get-ChildItem "C:\Program Files\Eclipse Adoptium\jdk-21.*\lib\security\cacerts" | Select-Object -First 1
+            Copy-Item $systemCacerts.FullName ./build/jre-custom/lib/security/cacerts -Force
+            Write-Host "Updated cacerts from system store"
+          } else {
+            Write-Host "Warning: System cacerts not found, using default"
+          }
+
+      - name: Prepare release package (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p build/release-package/lib
+          mkdir -p build/release-package/bin
+          mkdir -p build/release-package/conf
+          mkdir -p build/release-package/data
+          mkdir -p build/release-package/logs
+          mkdir -p build/release-package/docs
+          
+          # Copy JAR
+          cp build/target/LIBSDataCurator.jar build/release-package/lib/
+          
+          # Copy custom JRE
+          cp -r build/jre-custom build/release-package/
+          
+          # Copy configuration files if they exist
+          if [ -d "conf" ]; then
+            cp -r conf/* build/release-package/conf/ 2>/dev/null || true
+          fi
+          
+          # Copy docs if they exist
+          if [ -d "docs" ]; then
+            cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} build/release-package/docs/ 2>/dev/null || true
+          fi
+          
+          # Create run script
+          cat > build/release-package/bin/run.sh << 'EOF'
+          #!/bin/bash
+          # Define paths
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          MAIN_DIR="$(dirname "$SCRIPT_DIR")"
+          LOG_PROPERTIES="$MAIN_DIR/conf/logging.properties"
+          LOGS_DIR="$MAIN_DIR/logs"
+          
+          # Use bundled JRE
+          JAVA_HOME="$MAIN_DIR/jre-custom"
+          export JAVA_HOME
+          
+          # --- First-Time Setup for Logging ---
+          # Check if the placeholder is still in the logging properties file
+          if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
+          echo "Performing first-time setup for logging path..."
+          
+          # Create logs directory if it doesn't exist
+          mkdir -p "$LOGS_DIR"
+          
+          # Escape the logs directory path for sed (to handle special characters)
+          LOGS_DIR_ESCAPED=$(printf '%s\n' "$LOGS_DIR" | sed -e 's/[\/&]/\\&/g')
+          
+          # Create a backup and then replace the placeholder in the file
+          sed -i.bak "s|__LOG_PATH_PLACEHOLDER__/LIBSDataGenerator%g.log|${LOGS_DIR_ESCAPED}/LIBSDataGenerator%g.log|" "$LOG_PROPERTIES"
+          
+          echo "Log path configured. A backup of the original logging config was saved as logging.properties.bak"
+          fi
+          
+          # Java options for logging configuration
+          JAVA_OPTS="-Djava.util.logging.config.file=$LOG_PROPERTIES"
+          JAVA_OPTS="$JAVA_OPTS -Duser.dir=$MAIN_DIR"
+          
+          # Change to package directory so application can find conf files
+          cd "$MAIN_DIR"
+        
+          # Run the application
+          "$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
+          EOF
+          
+          chmod +x build/release-package/bin/run.sh
+          
+          # Create README
+          cat > build/release-package/README.txt << 'EOF'
+          LIBSDataCurator ${{ steps.get_version.outputs.version }}
+          
+          This is a self-contained package that includes:
+          - The application JAR file
+          - A custom Java Runtime Environment (JRE)
+          - Configuration files
+          - Documentation
+          
+          To run the application:
+          
+          Linux/macOS:
+          ./bin/run.sh [arguments]
+          
+          The application includes its own JRE, so you don't need Java installed on your system.
+          EOF
+
+      - name: Prepare release package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          New-Item -ItemType Directory -Force -Path build/release-package/lib
+          New-Item -ItemType Directory -Force -Path build/release-package/bin
+          New-Item -ItemType Directory -Force -Path build/release-package/conf
+          New-Item -ItemType Directory -Force -Path build/release-package/data
+          New-Item -ItemType Directory -Force -Path build/release-package/logs
+          New-Item -ItemType Directory -Force -Path build/release-package/docs
+          
+          # Copy JAR
+          Copy-Item build/target/LIBSDataCurator.jar build/release-package/lib/
+          
+          # Copy custom JRE
+          Copy-Item -Recurse build/jre-custom build/release-package/
+          
+          # Copy configuration files if they exist
+          if (Test-Path "conf") {
+            Copy-Item -Recurse conf/* build/release-package/conf/ -ErrorAction SilentlyContinue
+          }
+          
+          # Copy docs if they exist
+          if (Test-Path "docs") {
+            Copy-Item docs/CHANGELOG.md build/release-package/docs/ -ErrorAction SilentlyContinue
+            Copy-Item docs/TOOL_DESCRIPTION.md build/release-package/docs/ -ErrorAction SilentlyContinue
+          }
+          
+          # Create run script
+          @"
+          @echo off
+          setlocal enabledelayedexpansion
+          
+          REM --- Define Paths ---
+          set "SCRIPT_DIR=%~dp0"
+          set "MAIN_DIR=%SCRIPT_DIR%.."
+          set "LOG_PROPERTIES=%MAIN_DIR%\conf\logging.properties"
+          set "LOGS_DIR=%MAIN_DIR%\logs"
+          
+          REM --- Use Bundled JRE ---
+          set "JAVA_HOME=%MAIN_DIR%\jre-custom"
+          
+          REM --- First-Time Setup for Logging ---
+          findstr /C:"__LOG_PATH_PLACEHOLDER__" "%LOG_PROPERTIES%" >nul
+          if !errorlevel! equ 0 (
+            echo Performing first-time setup for logging path...
+          
+            REM Create logs directory if it doesn't exist
+            if not exist "%LOGS_DIR%" mkdir "%LOGS_DIR%"
+            
+            REM Get the log path and format it for the properties file (using forward slashes)
+            set "LOG_PATH_FOR_PROPS=%LOGS_DIR%"
+            set "LOG_PATH_FOR_PROPS=!LOG_PATH_FOR_PROPS:\=/!"
+            
+            REM Create a new properties file by replacing the placeholder
+            (for /f "usebackq delims=" %%L in ("%LOG_PROPERTIES%") do (
+              set "line=%%L"
+              REM Check if the line contains the placeholder
+              if "!line:__LOG_PATH_PLACEHOLDER__=!" NEQ "!line!" (
+                REM If it does, print the corrected line
+                echo java.util.logging.FileHandler.pattern=!LOG_PATH_FOR_PROPS!/LIBSDataGenerator%%g.log
+              ) else (
+                REM Otherwise, print the original line
+                echo !line!
+              )
+            )) > "%LOG_PROPERTIES%.tmp"
+            
+            REM Replace the original file with the new one and clean up
+            move /Y "%LOG_PROPERTIES%.tmp" "%LOG_PROPERTIES%" >nul
+            echo Log path configured successfully.
+          )
+          
+          set "JAVA_OPTS=-Djava.util.logging.config.file=%LOG_PROPERTIES%"
+          set "JAVA_OPTS=%JAVA_OPTS% -Duser.dir=%MAIN_DIR%"
+          
+          REM --- Change to Application Directory ---
+          cd /d "%MAIN_DIR%"
+          
+          REM --- Run the Application ---
+          echo Starting LIBSDataCurator...
+          "%JAVA_HOME%\bin\java.exe" %JAVA_OPTS% -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*  
+          "@ | Out-File -FilePath "build/release-package/bin/run.bat" -Encoding ASCII
+          
+          # Create README
+          @"
+          LIBSDataCurator ${{ steps.get_version.outputs.version }}
+          
+          This is a self-contained package that includes:
+          - The application JAR file
+          - A custom Java Runtime Environment (JRE)
+          - Configuration files
+          - Documentation
+          
+          To run the application:
+          
+          Windows:
+          bin\run.bat [arguments]
+          
+          The application includes its own JRE, so you don't need Java installed on your system.
+          "@ | Out-File -FilePath "build/release-package/README.txt" -Encoding UTF8
+
+      - name: Create archive (Linux/macOS)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          tar -czf build/LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.tar.gz -C build/release-package .
+
+      - name: Create archive (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Compress-Archive -Path build/release-package/* -DestinationPath build/LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.zip
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/LIBSDataCurator-${{ steps.get_version.outputs.version }}-${{ matrix.platform }}.${{ matrix.extension }}
+          body: |
+            ## LIBSDataCurator ${{ steps.get_version.outputs.version }}
+            
+            Self-contained packages with bundled JRE. No need to install Java separately.
+            
+            ### Downloads
+            - **Linux/macOS**: `LIBSDataCurator-${{ steps.get_version.outputs.version }}-linux.tar.gz`
+            - **Windows**: `LIBSDataCurator-${{ steps.get_version.outputs.version }}-windows.zip`
+            
+            ### Usage
+            - Extract the archive
+            - Run `bin/run.sh` (Linux/macOS) or `bin\run.bat` (Windows)
+            
+            See included README.txt for more details.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

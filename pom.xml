@@ -6,7 +6,7 @@
 
     <groupId>com.medals</groupId>
     <artifactId>libsdatagenerator</artifactId>
-    <version>0.8</version>
+    <version>0.8.5</version>
 
     <properties>
         <!-- Use Java 21 -->
@@ -119,7 +119,7 @@
                 <version>3.2.5</version> <!-- Use a recent version -->
             </plugin>
 
-            <!-- Optionally, to create a 'fat' or 'uber' jar with dependencies inside -->
+            <!-- To create a 'fat' or 'uber' jar with dependencies inside -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
@@ -145,59 +145,6 @@
                             <goal>single</goal>
                         </goals>
                     </execution>
-                    <execution>
-                        <id>create-distribution</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                        <configuration>
-                            <finalName>LIBSDataCurator-${project.version}</finalName>
-                            <appendAssemblyId>false</appendAssemblyId>
-                            <descriptors>
-                                <descriptor>src/assembly/distribution.xml</descriptor>
-                            </descriptors>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- (Optional) If you want to run the app via `mvn exec:java` -->
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            
-            <!-- Copy the JAR to Build/lib directory -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <id>copy-jar-to-build-lib</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>run</goal>
-                        </goals>
-                        <configuration>
-                            <target>
-                                <mkdir dir="${project.basedir}/Build/lib"/>
-                                <copy file="${project.build.directory}/LIBSDataCurator.jar" 
-                                      todir="${project.basedir}/Build/lib" 
-                                      overwrite="true"/>
-                                <echo message="Copied LIBSDataCurator.jar to Build/lib directory"/>
-                            </target>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
             
@@ -211,5 +158,6 @@
                 </configuration>
             </plugin>
         </plugins>
+        <directory>${project.basedir}/build/target</directory>
     </build>
 </project>

@@ -1,0 +1,239 @@
+@echo off
+REM Local build script for Windows that mirrors the CI/CD workflow
+REM This script creates self-contained packages with bundled JRE
+
+REM Change script root directory to project root
+cd ..\..\
+
+setlocal enabledelayedexpansion
+
+echo === LIBSDataCurator Local Build Script (Windows) ===
+echo.
+
+REM Clean previous builds
+echo Cleaning previous builds...
+call mvn clean
+if exist build\release-package rmdir /s /q build\release-package
+if exist build\jre-custom rmdir /s /q build\jre-custom
+del /q build\LIBSDataCurator-*.zip 2>nul
+
+echo.
+
+REM Run tests
+echo Running tests...
+call mvn test
+if errorlevel 1 (
+    echo ERROR: Tests failed
+    exit /b 1
+)
+
+echo.
+
+REM Build application
+echo Building application...
+call mvn package -DskipTests
+if errorlevel 1 (
+    echo ERROR: Build failed
+    exit /b 1
+)
+
+echo.
+
+REM Check if jlink is available
+where jlink >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: jlink not found. Please ensure you have JDK 21+ installed.
+    exit /b 1
+)
+
+echo Creating custom JRE with jlink...
+jlink --add-modules java.se,java.security.jgss,java.security.sasl,java.xml.crypto,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.security.auth,jdk.security.jgss --strip-debug --no-man-pages --no-header-files --compress=2 --output ./build/jre-custom
+if errorlevel 1 (
+    echo ERROR: jlink failed
+    exit /b 1
+)
+
+echo Updating cacerts with system certificate store...
+REM Update cacerts - try common Windows JDK locations
+if exist "C:\Program Files\Eclipse Adoptium\jdk-21*\lib\security\cacerts" (
+    for /d %%i in ("C:\Program Files\Eclipse Adoptium\jdk-21*") do (
+        if exist "%%i\lib\security\cacerts" (
+            copy "%%i\lib\security\cacerts" .\build\jre-custom\lib\security\cacerts
+            echo Updated cacerts from system store
+            goto :cacerts_done
+        )
+    )
+)
+if exist "%JAVA_HOME%\lib\security\cacerts" (
+    copy "%JAVA_HOME%\lib\security\cacerts" .\build\jre-custom\lib\security\cacerts
+    echo Updated cacerts from JAVA_HOME
+) else (
+    echo Warning: System cacerts not found, using default
+)
+:cacerts_done
+
+echo.
+
+REM Get version from pom.xml with error handling
+echo Getting project version...
+
+REM Use 'call' to execute the Maven batch script and ensure control returns.
+call mvn help:evaluate -Dexpression=project.version -q -DforceStdout 2>nul > temp_version.txt
+
+REM Check the errorlevel immediately after the command.
+REM A non-zero errorlevel indicates the previous command failed.
+if %errorlevel% neq 0 (
+    echo ERROR: Maven command failed with errorlevel %errorlevel%.
+    echo Please run the 'mvn' command manually to diagnose the issue.
+    if exist temp_version.txt del temp_version.txt
+    exit /b 1
+)
+
+REM Check if the output file was created, as a fallback.
+if not exist temp_version.txt (
+    echo ERROR: Maven command ran but failed to produce an output file. 
+    if exist temp_version.txt del temp_version.txt
+    exit /b 1
+)
+
+REM Read the version from the temporary file
+set /p VERSION=<temp_version.txt
+
+REM Clean up the temporary file
+del temp_version.txt
+
+REM Check if the VERSION variable was successfully set
+if not defined VERSION (
+    echo ERROR: Could not read version from the output file. It may be empty.
+    exit /b 1
+)
+
+echo Preparing release package (version: %VERSION%, platform: windows)...
+
+REM Create directory structure
+mkdir build\release-package\lib
+mkdir build\release-package\bin
+mkdir build\release-package\conf
+mkdir build\release-package\data
+mkdir build\release-package\logs
+mkdir build\release-package\docs
+
+REM Copy JAR
+copy build\target\LIBSDataCurator.jar build\release-package\lib\
+
+REM Copy custom JRE
+xcopy /s /e /i build\jre-custom build\release-package\jre-custom
+
+REM Copy configuration files if they exist
+if exist "conf" (
+    xcopy /s /e conf\* build\release-package\conf\ 2>nul
+)
+
+REM Copy docs if they exist
+if exist "docs" (
+    for %%f in (docs\CHANGELOG.md docs\TOOL_DESCRIPTION.md) do copy "%%f" "build\release-package\docs\"
+)
+
+REM Create run script
+(
+echo @echo off
+echo setlocal enabledelayedexpansion
+echo.
+echo REM --- Define Paths ---
+echo set "SCRIPT_DIR=%%~dp0"
+echo set "MAIN_DIR=%%SCRIPT_DIR%%.."
+echo set "LOG_PROPERTIES=%%MAIN_DIR%%\conf\logging.properties"
+echo set "LOGS_DIR=%%MAIN_DIR%%\logs"
+echo.
+echo REM --- Use Bundled JRE ---
+echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
+echo.
+echo REM --- First-Time Setup for Logging ---
+echo findstr /C:"__LOG_PATH_PLACEHOLDER__" "%%LOG_PROPERTIES%%" ^>nul
+echo if ^^!errorlevel^^! equ 0 (
+echo     echo Performing first-time setup for logging path...
+echo.
+echo     REM Create logs directory if it doesn't exist
+echo     if not exist "%%LOGS_DIR%%" mkdir "%%LOGS_DIR%%"
+echo.
+echo     REM Get the log path and format it for the properties file (using forward slashes^)
+echo     set "LOG_PATH_FOR_PROPS=%%LOGS_DIR%%"
+echo     set "LOG_PATH_FOR_PROPS=^!LOG_PATH_FOR_PROPS:\=/^!"
+echo.
+echo     REM Create a new properties file by replacing the placeholder
+echo     (for /f "usebackq delims=" %%%%L in ("%%LOG_PROPERTIES%%"^) do (
+echo         set "line=%%%%L"
+echo         REM Check if the line contains the placeholder
+echo         if "^!line:__LOG_PATH_PLACEHOLDER__=^!" NEQ "^!line^!" (
+echo             REM If it does, print the corrected line
+echo             echo java.util.logging.FileHandler.pattern=^^!LOG_PATH_FOR_PROPS^^!/LIBSDataGenerator%%%%g.log
+echo         ^) else (
+echo             REM Otherwise, print the original line
+echo             echo ^^!line^^!
+echo         ^)
+echo     ^)^) ^> "%%LOG_PROPERTIES%%.tmp"
+echo.
+echo     REM Replace the original file with the new one and clean up
+echo     move /Y "%%LOG_PROPERTIES%%.tmp" "%%LOG_PROPERTIES%%" ^>nul
+echo     echo Log path configured successfully.
+echo ^)
+echo.
+echo set "JAVA_OPTS=-Djava.util.logging.config.file=%%LOG_PROPERTIES%%"
+echo set "JAVA_OPTS=%%JAVA_OPTS%% -Duser.dir=%%MAIN_DIR%%"
+echo.
+echo REM --- Change to Application Directory ---
+echo cd /d "%%MAIN_DIR%%"
+echo.
+echo REM --- Run the Application ---
+echo echo Starting LIBSDataCurator...
+echo "%%JAVA_HOME%%\bin\java.exe" %%JAVA_OPTS%% -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
+) > build\release-package\bin\run.bat
+
+REM Create README
+(
+echo LIBSDataCurator %VERSION%
+echo.
+echo This is a self-contained package that includes:
+echo - The application JAR file
+echo - A custom Java Runtime Environment ^(JRE^)
+echo - Configuration files
+echo - Documentation
+echo.
+echo To run the application:
+echo.
+echo Windows:
+echo bin\run.bat [arguments]
+echo.
+echo The application includes its own JRE, so you don't need Java installed on your system.
+echo.
+echo For help with command line arguments:
+echo bin\run.bat --help
+) > build\release-package\README.txt
+
+echo.
+
+REM Create archive
+set ARCHIVE_NAME=LIBSDataCurator-%VERSION%-windows.zip
+echo Creating archive: %ARCHIVE_NAME%
+
+REM Use PowerShell to create zip
+powershell -command "Compress-Archive -Path 'build\release-package\*' -DestinationPath 'build\%ARCHIVE_NAME%' -Force"
+if errorlevel 1 (
+    echo ERROR: Failed to create archive
+    exit /b 1
+)
+
+echo.
+echo === Build Complete ===
+echo Archive created: %ARCHIVE_NAME%
+
+REM Get file size
+for %%A in ("build\%ARCHIVE_NAME%") do set SIZE=%%~zA
+set /a SIZE_MB=!SIZE!/1024/1024
+echo Size: !SIZE_MB! MB
+
+echo.
+echo To test the package:
+echo 1. Extract the zip file
+echo 2. Run: bin\run.bat --help
+echo.
