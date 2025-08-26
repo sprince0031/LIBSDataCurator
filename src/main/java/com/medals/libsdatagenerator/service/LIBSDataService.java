@@ -249,8 +249,6 @@ public class LIBSDataService {
 
         PrintStream out = System.out;
 
-        int progressBarWidth = 50; // Width of the progress bar
-
         // For each composition, fetch the CSV, parse it, store data
         for (List<Element> composition : compositions) {
 
@@ -313,12 +311,13 @@ public class LIBSDataService {
             compElementPcts.put(compositionId, elemMap);
 
             // Calculate progress
-            int progress = (compositionsProcessed + 1) * progressBarWidth / compositions.size();
-            String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
-            out.printf("\r[%s] %d/%d samples completed", bar, compositionsProcessed + 1, compositions.size());
+            CommonUtils.printProgressBar(compositionsProcessed + 1, compositions.size(), "samples completed", out);
 
             compositionsProcessed++;
         }
+
+        // Print newline after progress bar completion
+        CommonUtils.finishProgressBar(compositions.size(), out);
 
         // Write a single "master CSV" of all results
         // columns: composition, each wavelength (sorted), each element symbol (sorted).
