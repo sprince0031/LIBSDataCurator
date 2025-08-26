@@ -165,7 +165,6 @@ public class InputCompositionProcessor {
             
             int materialsProcessed = 0;
             PrintStream out = System.out;
-            int progressBarWidth = 50; // Width of the progress bar
 
             for (SeriesInput series : processedSeriesData) {
                 if (series.getIndividualMaterialGuids().isEmpty()) {
@@ -185,11 +184,7 @@ public class InputCompositionProcessor {
                     if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
                         materialsProcessed++;
                         // Update progress bar even for failed materials
-                        if (totalMaterials > 1) {
-                            int progress = materialsProcessed * progressBarWidth / totalMaterials;
-                            String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
-                            out.printf("\r[%s] %d/%d materials processed", bar, materialsProcessed, totalMaterials);
-                        }
+                        CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                         continue;
                     }
                     List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
@@ -200,18 +195,12 @@ public class InputCompositionProcessor {
                     materialsProcessed++;
                     
                     // Calculate and display progress
-                    if (totalMaterials > 1) {
-                        int progress = materialsProcessed * progressBarWidth / totalMaterials;
-                        String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
-                        out.printf("\r[%s] %d/%d materials processed", bar, materialsProcessed, totalMaterials);
-                    }
+                    CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                 }
             }
             
             // Print newline after progress bar completion
-            if (totalMaterials > 1) {
-                out.println();
-            }
+            CommonUtils.finishProgressBar(totalMaterials, out);
         }
         return materialGrades;
     }
