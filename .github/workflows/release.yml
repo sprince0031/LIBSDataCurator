@@ -103,24 +103,48 @@ jobs:
           
           # Copy docs if they exist
           if [ -d "docs" ]; then
-            cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} release-package/docs/ 2>/dev/null || true
+            cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} build/release-package/docs/ 2>/dev/null || true
           fi
           
           # Create run script
           cat > build/release-package/bin/run.sh << 'EOF'
           #!/bin/bash
+          # Define paths
           SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
           MAIN_DIR="$(dirname "$SCRIPT_DIR")"
+          LOG_PROPERTIES="$MAIN_DIR/conf/logging.properties"
+          LOGS_DIR="$MAIN_DIR/logs"
           
           # Use bundled JRE
           JAVA_HOME="$MAIN_DIR/jre-custom"
           export JAVA_HOME
           
+          # --- First-Time Setup for Logging ---
+          # Check if the placeholder is still in the logging properties file
+          if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
+          echo "Performing first-time setup for logging path..."
+          
+          # Create logs directory if it doesn't exist
+          mkdir -p "$LOGS_DIR"
+          
+          # Escape the logs directory path for sed (to handle special characters)
+          LOGS_DIR_ESCAPED=$(printf '%s\n' "$LOGS_DIR" | sed -e 's/[\/&]/\\&/g')
+          
+          # Create a backup and then replace the placeholder in the file
+          sed -i.bak "s|__LOG_PATH_PLACEHOLDER__/LIBSDataGenerator%g.log|${LOGS_DIR_ESCAPED}/LIBSDataGenerator%g.log|" "$LOG_PROPERTIES"
+          
+          echo "Log path configured. A backup of the original logging config was saved as logging.properties.bak"
+          fi
+          
+          # Java options for logging configuration
+          JAVA_OPTS="-Djava.util.logging.config.file=$LOG_PROPERTIES"
+          JAVA_OPTS="$JAVA_OPTS -Duser.dir=$MAIN_DIR"
+          
           # Change to package directory so application can find conf files
           cd "$MAIN_DIR"
-          
+        
           # Run the application
-          "$JAVA_HOME/bin/java" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
+          "$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
           EOF
           
           chmod +x release-package/bin/run.sh
@@ -173,17 +197,56 @@ jobs:
           # Create run script
           @"
           @echo off
-          set SCRIPT_DIR=%~dp0
-          set MAIN_DIR=%SCRIPT_DIR%..
+          setlocal enabledelayedexpansion
           
-          REM Use bundled JRE
-          set JAVA_HOME=%MAIN_DIR%\jre-custom
+          REM --- Define Paths ---
+          set "SCRIPT_DIR=%~dp0"
+          set "MAIN_DIR=%SCRIPT_DIR%.."
+          set "LOG_PROPERTIES=%MAIN_DIR%\conf\logging.properties"
+          set "LOGS_DIR=%MAIN_DIR%\logs"
           
-          REM Change to package directory so application can find conf files
+          REM --- Use Bundled JRE ---
+          set "JAVA_HOME=%MAIN_DIR%\jre-custom"
+          
+          REM --- First-Time Setup for Logging ---
+          findstr /C:"__LOG_PATH_PLACEHOLDER__" "%LOG_PROPERTIES%" >nul
+          if !errorlevel! equ 0 (
+            echo Performing first-time setup for logging path...
+          
+            REM Create logs directory if it doesn't exist
+            if not exist "%LOGS_DIR%" mkdir "%LOGS_DIR%"
+            
+            REM Get the log path and format it for the properties file (using forward slashes)
+            set "LOG_PATH_FOR_PROPS=%LOGS_DIR%"
+            set "LOG_PATH_FOR_PROPS=!LOG_PATH_FOR_PROPS:\=/!"
+            
+            REM Create a new properties file by replacing the placeholder
+            (for /f "usebackq delims=" %%L in ("%LOG_PROPERTIES%") do (
+              set "line=%%L"
+              REM Check if the line contains the placeholder
+              if "!line:__LOG_PATH_PLACEHOLDER__=!" NEQ "!line!" (
+                REM If it does, print the corrected line
+                echo java.util.logging.FileHandler.pattern=!LOG_PATH_FOR_PROPS!/LIBSDataGenerator%%g.log
+              ) else (
+                REM Otherwise, print the original line
+                echo !line!
+              )
+            )) > "%LOG_PROPERTIES%.tmp"
+            
+            REM Replace the original file with the new one and clean up
+            move /Y "%LOG_PROPERTIES%.tmp" "%LOG_PROPERTIES%" >nul
+            echo Log path configured successfully.
+          )
+          
+          set "JAVA_OPTS=-Djava.util.logging.config.file=%LOG_PROPERTIES%"
+          set "JAVA_OPTS=%JAVA_OPTS% -Duser.dir=%MAIN_DIR%"
+          
+          REM --- Change to Application Directory ---
           cd /d "%MAIN_DIR%"
           
-          REM Run the application
-          "%JAVA_HOME%\bin\java.exe" -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*
+          REM --- Run the Application ---
+          echo Starting LIBSDataCurator...
+          "%JAVA_HOME%\bin\java.exe" %JAVA_OPTS% -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*  
           "@ | Out-File -FilePath "build/release-package/bin/run.bat" -Encoding ASCII
           
           # Create README
