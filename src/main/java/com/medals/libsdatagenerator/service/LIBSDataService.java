@@ -103,7 +103,7 @@ public class LIBSDataService {
             seleniumUtils.getDriver().close();
             // Switch back to the original window
             seleniumUtils.getDriver().switchTo().window(originalWindow);
-            return String.valueOf(csvPath);
+            return csvData;
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
         } finally {
@@ -319,7 +319,7 @@ public class LIBSDataService {
         // Print newline after progress bar completion
         CommonUtils.finishProgressBar(compositions.size(), out);
 
-        // Write a single "master CSV" of all results
+        // Write a single "master CSV" with all results
         // columns: composition, each wavelength (sorted), each element symbol (sorted).
 
         // Convert sets to sorted lists
