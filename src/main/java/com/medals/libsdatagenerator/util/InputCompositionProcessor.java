@@ -8,6 +8,7 @@ import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.service.MatwebDataService;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -155,6 +156,16 @@ public class InputCompositionProcessor {
             materialGrades.add(materialGrade);
         } else {
             List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
+            
+            // Calculate total number of materials to process for progress tracking
+            int totalMaterials = 0;
+            for (SeriesInput series : processedSeriesData) {
+                totalMaterials += series.getIndividualMaterialGuids().size();
+            }
+            
+            int materialsProcessed = 0;
+            PrintStream out = System.out;
+
             for (SeriesInput series : processedSeriesData) {
                 if (series.getIndividualMaterialGuids().isEmpty()) {
                     logger.info("No individual material GUIDs found for series: " + series.getSeriesKey() + ". Skipping this series entry.");
@@ -171,14 +182,25 @@ public class InputCompositionProcessor {
                     String[] compositionArray = matwebService.getMaterialComposition(individualGuid);
 
                     if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
+                        materialsProcessed++;
+                        // Update progress bar even for failed materials
+                        CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                         continue;
                     }
                     List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
                     MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid());
                     materialGrade.setMaterialName(matwebService.getDatasheetName());
                     materialGrades.add(materialGrade);
+                    
+                    materialsProcessed++;
+                    
+                    // Calculate and display progress
+                    CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                 }
             }
+            
+            // Print newline after progress bar completion
+            CommonUtils.finishProgressBar(totalMaterials, out);
         }
         return materialGrades;
     }
