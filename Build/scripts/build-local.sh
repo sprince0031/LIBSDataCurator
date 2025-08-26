@@ -88,18 +88,43 @@ fi
 # Create run script
 cat > build/release-package/bin/run.sh << 'EOF'
 #!/bin/bash
+
+# Define paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAIN_DIR="$(dirname "$SCRIPT_DIR")"
+LOG_PROPERTIES="$MAIN_DIR/conf/logging.properties"
+LOGS_DIR="$MAIN_DIR/logs"
 
 # Use bundled JRE
 JAVA_HOME="$MAIN_DIR/jre-custom"
 export JAVA_HOME
 
+# --- First-Time Setup for Logging ---
+# Check if the placeholder is still in the logging properties file
+if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
+    echo "Performing first-time setup for logging path..."
+
+    # Create logs directory if it doesn't exist
+    mkdir -p "$LOGS_DIR"
+
+    # Escape the logs directory path for sed (to handle special characters)
+    LOGS_DIR_ESCAPED=$(printf '%s\n' "$LOGS_DIR" | sed -e 's/[\/&]/\\&/g')
+
+    # Create a backup and then replace the placeholder in the file
+    sed -i.bak "s|__LOG_PATH_PLACEHOLDER__/LIBSDataGenerator%g.log|${LOGS_DIR_ESCAPED}/LIBSDataGenerator%g.log|" "$LOG_PROPERTIES"
+
+    echo "Log path configured. A backup of the original logging config was saved as logging.properties.bak"
+fi
+
+# Java options for logging configuration
+JAVA_OPTS="-Djava.util.logging.config.file=$LOG_PROPERTIES"
+JAVA_OPTS="$JAVA_OPTS -Duser.dir=$MAIN_DIR"
+
 # Change to package directory so application can find conf files
 cd "$MAIN_DIR"
 
 # Run the application
-"$JAVA_HOME/bin/java" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
+"$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
 EOF
 
 chmod +x build/release-package/bin/run.sh
