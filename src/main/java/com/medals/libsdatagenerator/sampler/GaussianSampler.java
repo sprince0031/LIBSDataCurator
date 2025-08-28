@@ -33,7 +33,7 @@ public class GaussianSampler implements Sampler {
         // TODO: load from a properties file.
         Map<String, Double> stdDevs = LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK;
 
-        while (variations.size() < numSamples) {
+        while (variations.size() <= numSamples) {
             List<Element> newVariation = new ArrayList<>();
             double totalPercentage = 0;
 

@@ -122,6 +122,36 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_DESC);
 
+        // Wavelength unit
+        options.addOption(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_SHORT,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_DESC);
+
+        // Wavelength condition
+        options.addOption(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_DESC);
+
+        // Maximum ion charge
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_DESC);
+
+        // Minimum relative intensity
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_DESC);
+
+        // Intensity scale
+        options.addOption(LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_DESC);
+
         // Data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,

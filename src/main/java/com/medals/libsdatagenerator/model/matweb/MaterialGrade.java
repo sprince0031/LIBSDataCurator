@@ -1,10 +1,15 @@
-package com.medals.libsdatagenerator.model;
+package com.medals.libsdatagenerator.model.matweb;
 
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.util.CommonUtils;
 
 import java.util.List;
 import java.util.logging.Logger;
 
+/**
+ * Class to track input material and associated Matweb metadata
+ * @author Siddharth Prince | 28/07/2025 05:37
+ */
 public class MaterialGrade {
 
     private static final Logger logger = Logger.getLogger(MaterialGrade.class.getName());

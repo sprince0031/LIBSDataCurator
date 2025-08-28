@@ -1,13 +1,17 @@
 package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.Element;
-import com.medals.libsdatagenerator.model.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
+import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
+import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,7 +23,6 @@ import java.util.regex.Pattern;
 
 public class LIBSDataController {
     private static Logger logger = Logger.getLogger(LIBSDataController.class.getName());
-    private static final Pattern COMPOSITION_STRING_PATTERN = Pattern.compile(LIBSDataGenConstants.INPUT_COMPOSITION_STRING_REGEX);
 
     public static void main(String[] args) {
         logger.info("Starting LIBS Data Curator...");
@@ -43,54 +46,29 @@ public class LIBSDataController {
                 return;
             }
 
-            // Common parameters
-            String minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "200");
-            String maxWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "800");
-            String resolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
-            String plasmaTemp = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT, "1");
-            String electronDensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT, "1e17");
-            String wavelengthUnit = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_SHORT, "1"); // Nm default
-            String wavelengthCondition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_SHORT, "2");
-            String maxIonCharge = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_SHORT, "2");
-            String minRelativeIntensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT, "2"); // TODO: Need to map to actual values for query param
-            String intensityScale = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_SHORT, "1");
-            String csvDirPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT, CommonUtils.DATA_PATH);
-            boolean appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
-            boolean forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
+           // Read and build user input configuration
+            UserInputConfig userInputs = new UserInputConfig(cmd);
 
-            List<MaterialGrade> materialGrades;
+            List<MaterialGrade> materialGrades = new ArrayList<>();
 
-            if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT)) {
+            if (userInputs.isSeriesMode) {
                 // Process input for -s (series) option
                 logger.info("Processing with -s (series) option.");
-
-                String seriesKeyValueInput = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT);
-                materialGrades = compositionProcessor.getMaterialsList(seriesKeyValueInput, false);
-            } else if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT)) {
-                // Process input for -c (composition) option
-                logger.info("Processing with -c (composition) option.");
-
-                String compositionInput = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
-                String overviewGUID = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT)?
-                        cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT) : null;
-                if (COMPOSITION_STRING_PATTERN.matcher(compositionInput).matches()) {
-                    materialGrades = compositionProcessor.getMaterialsList(compositionInput, true, overviewGUID);
-                } else {
-                    materialGrades = compositionProcessor.getMaterialsList(compositionInput, false, overviewGUID);
-                }
-            } else {
-                // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler
-                logger.warning("Invalid command line arguments. Aborting.");
-                return;
+                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput);
             }
 
+            if (userInputs.isCompositionMode) {
+                // Process input for -c (composition) option
+                logger.info("Processing with -c (composition) option.");
+                materialGrades.add(compositionProcessor.getMaterial(userInputs.compositionInput, userInputs.overviewGuid));
+            }
+
+            // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler
+
             for (MaterialGrade materialGrade : materialGrades) {
-                if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT)) {
-                    int variationMode = Integer.parseInt(cmd.getOptionValue(
-                            LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
-                            String.valueOf(LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST)
-                    ));
-                    if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
+                if (userInputs.performVariations) {
+                    VariationMode variationMode = userInputs.variationMode;
+                    if (variationMode == VariationMode.DIRICHLET) {
                         if (materialGrade.getOverviewGUID() == null) {
                             logger.severe("Overview GUID not present for Dirichlet sampling for "
                                     + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
@@ -98,24 +76,15 @@ public class LIBSDataController {
                         }
                     }
 
-                    double varyBy = Double.parseDouble(
-                            cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1")
-                    );
-                    double maxDelta = Double.parseDouble(
-                            cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05")
-                    );
-                    int numSamples = Integer.parseInt(
-                            cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "20"));
+                    double varyBy = userInputs.varyBy;
+                    double maxDelta = userInputs.maxDelta;
+                    int numSamples = userInputs.numSamples;
 
                     List<List<Element>> compositions = CompositionalVariations.getInstance()
-                            .generateCompositionalVariations(
-                                materialGrade.getComposition(), varyBy, maxDelta, variationMode, numSamples,
-                                materialGrade.getOverviewGUID()
-                            );
+                            .generateCompositionalVariations(materialGrade.getComposition(), userInputs);
 
                     if (compositions != null && !compositions.isEmpty()) {
-                        libsDataService.generateDataset(compositions, minWavelength, maxWavelength, resolution,
-                                plasmaTemp, electronDensity, csvDirPath, appendMode, forceFetch);
+                        libsDataService.generateDataset(compositions, userInputs);
                         logger.info("Successfully generated dataset for composition: " + materialGrade);
                     } else {
                         logger.warning("No compositions generated for input: " + materialGrade);
@@ -123,8 +92,7 @@ public class LIBSDataController {
 
                 } else {
                     // This is the original non-variation path for -c
-                    libsDataService.fetchLIBSData(materialGrade.getComposition(), minWavelength, maxWavelength,
-                            resolution, plasmaTemp, electronDensity, csvDirPath);
+                    libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs);
                     logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
                 }
             }

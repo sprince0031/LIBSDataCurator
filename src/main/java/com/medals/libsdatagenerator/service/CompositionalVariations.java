@@ -2,6 +2,8 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
+import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import com.medals.libsdatagenerator.util.CommonUtils;
@@ -33,8 +35,7 @@ public class CompositionalVariations {
     }
 
     public List<List<Element>> generateCompositionalVariations(List<Element> originalComposition,
-                                                               double varyBy, double maxDelta, int variationMode,
-                                                               int samples, String overviewGuid) {
+                                                               UserInputConfig config) {
 
         List<List<Element>> compositions = new ArrayList<>();
         if (originalComposition == null || originalComposition.isEmpty()) {
@@ -74,16 +75,16 @@ public class CompositionalVariations {
         // System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
         logger.info("\nGenerating different combinations for the input composition (refer log for list)...");
 
-        int numVariationsToGenerate = Math.max(0, samples - 1);
+        int numVariationsToGenerate = Math.max(0, config.numSamples - 1);
 
-        if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
+        if (config.variationMode == VariationMode.GAUSSIAN) {
             Map<String, Object> metadata = new HashMap<>();
-            metadata.put("maxDelta", maxDelta);
+            metadata.put("maxDelta", config.maxDelta);
             GaussianSampler.getInstance().sample(effectiveComposition, numVariationsToGenerate, compositions, metadata);
 
-        } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
+        } else if (config.variationMode == VariationMode.DIRICHLET) {
             Map<String, Object> metadata = new HashMap<>();
-            metadata.put("overviewGuid", overviewGuid);
+            metadata.put("overviewGuid", config.overviewGuid);
             DirichletSampler.getInstance().sample(effectiveComposition, numVariationsToGenerate, compositions, metadata);
 
         } else { // For uniform distribution
@@ -91,8 +92,8 @@ public class CompositionalVariations {
             CompositionalVariations.getInstance().getUniformDistribution(
                     0,
                     effectiveComposition,
-                    varyBy,
-                    maxDelta, // 'limit'
+                    config.varyBy,
+                    config.maxDelta, // 'limit'
                     0.0,
                     new ArrayList<Element>(),
                     compositions);

@@ -48,31 +48,31 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_WAVELENGTH_UNIT_DESC = """
             Unit of wavelength. Options: \
             
-            0 -> Armstrong\
+            1 -> Armstrong\
             
-            1 -> Nanometer (default)\
+            2 -> Nanometer (default)\
             
-            2 -> Micrometer""";
+            3 -> Micrometer""";
     public static final String CMD_OPT_WAVELENGTH_CONDITION_SHORT = "wcon";
     public static final String CMD_OPT_WAVELENGTH_CONDITION_LONG = "wavelength-condition";
     public static final String CMD_OPT_WAVELENGTH_CONDITION_DESC = """
             Condition of measurement for wavelength. Options: \
             
-            2 -> Vacuum (< 200 nm) Air (200 - 2000 nm) Vacuum (> 2000 nm) (default)\
+            1 -> Vacuum (< 200 nm) Air (200 - 2000 nm) Vacuum (> 2000 nm) (default)\
             
-            3 -> Vacuum (all wavelengths)""";
+            2 -> Vacuum (all wavelengths)""";
     public static final String CMD_OPT_MAX_ION_CHARGE_SHORT = "mic";
     public static final String CMD_OPT_MAX_ION_CHARGE_LONG = "max-ion-charge";
     public static final String CMD_OPT_MAX_ION_CHARGE_DESC = """
             Select maximum ion charge to be included. Options: \
             
+            1 -> no limit\
+            
             2 -> 2+ (default)\
             
             3 -> 3+\
             
-            4 -> 4+\
-            
-            0 -> no limit""";
+            4 -> 4+""";
     public static final String CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT = "mri";
     public static final String CMD_OPT_MIN_RELATIVE_INTENSITY_LONG = "min-relative-intensity";
     public static final String CMD_OPT_MIN_RELATIVE_INTENSITY_DESC = """
@@ -80,13 +80,13 @@ public class LIBSDataGenConstants {
             
             Options: \
             
-            1 -> 0.1\
+            1 -> No limit (very slow)
             
-            2 -> 0.01 (default)\
+            2 -> 0.1\
             
-            3 -> 0.001\
+            3 -> 0.01 (default)\
             
-            0 -> 0 (removes limitation - very slow)""";
+            4 -> 0.001""";
     public static final String CMD_OPT_INTENSITY_SCALE_SHORT = "is";
     public static final String CMD_OPT_INTENSITY_SCALE_LONG = "intensity-scale";
     public static final String CMD_OPT_INTENSITY_SCALE_DESC = """
