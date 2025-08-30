@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
@@ -60,6 +61,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("A", "A", 50.0, 50.0, 50.0, 50.0));
         originalComposition.add(new Element("B", "B", 50.0, 50.0, 50.0, 50.0));
 
+        MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
         CommandLine cmd = CommonUtils.getInstance().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "A-50,B-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1",
@@ -68,7 +70,7 @@ class LIBSDataServiceTest {
                 "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
         UserInputConfig config = new UserInputConfig(cmd);
         // samples = 10, so 1 original + 10 variations expected if fallback works
-        List<List<Element>> compositions = compVariations.generateCompositionalVariations(originalComposition, config);
+        List<List<Element>> compositions = compVariations.generateCompositionalVariations(materialGrade, config);
 
         // Expected size is specified number of samples with original included
         assertEquals(5, compositions.size(), "Expected size is specified number of samples with original included");
@@ -124,6 +126,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("Fe", "Fe", 70.0, 70.0, 70.0, 70.0)); // Fixed
         originalComposition.add(new Element("Cr", "Cr", 30.0, 25.0, 35.0, 30.0)); // Variable
 
+        MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
         CommandLine cmd = CommonUtils.getInstance().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "Cr-25:35,Fe-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.5", // varyBy=0.5
@@ -131,7 +134,7 @@ class LIBSDataServiceTest {
                 "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST),
                 "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
         UserInputConfig config = new UserInputConfig(cmd);
-        List<List<Element>> compositions = compVariations.generateCompositionalVariations(originalComposition, config);
+        List<List<Element>> compositions = compVariations.generateCompositionalVariations(materialGrade, config);
 
         // Expected size is specified number of samples with original included
         assertEquals(5, compositions.size(), "Expected size is specified number of samples with original included");

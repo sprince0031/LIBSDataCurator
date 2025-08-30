@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -43,10 +44,9 @@ class CompositionalVariationsTest {
         baseComp.add(new Element("B", "B", 30.0, 28.0, 32.0, 30.0));
         baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
 
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
         List<List<Element>> variations = new ArrayList<>();
-        Map<String, Object> metadata =  new HashMap<>();
-        metadata.put("maxDelta", 5.0);
-        GaussianSampler.getInstance().sample(baseComp, 100, variations, metadata);
+        GaussianSampler.getInstance().sample(materialGrade, 100, variations);
 
         assertEquals(100, variations.size(), "Should generate the requested number of samples");
 
@@ -87,10 +87,9 @@ class CompositionalVariationsTest {
         baseComp.add(new Element("A", "A", 50.0, 49.9, 50.1, 50.0));
         baseComp.add(new Element("B", "B", 50.0, 40.0, 60.0, 50.0));
 
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
         List<List<Element>> variations = new ArrayList<>();
-        Map<String, Object> metadata =  new HashMap<>();
-        metadata.put("maxDelta", 2.0);
-        GaussianSampler.getInstance().sample(baseComp, 50, variations, metadata);
+        GaussianSampler.getInstance().sample(materialGrade, 50, variations);
 
         assertEquals(50, variations.size());
         for (List<Element> variant : variations) {

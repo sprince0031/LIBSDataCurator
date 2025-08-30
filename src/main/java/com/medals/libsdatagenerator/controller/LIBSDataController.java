@@ -76,12 +76,8 @@ public class LIBSDataController {
                         }
                     }
 
-                    double varyBy = userInputs.varyBy;
-                    double maxDelta = userInputs.maxDelta;
-                    int numSamples = userInputs.numSamples;
-
                     List<List<Element>> compositions = CompositionalVariations.getInstance()
-                            .generateCompositionalVariations(materialGrade.getComposition(), userInputs);
+                            .generateCompositionalVariations(materialGrade, userInputs);
 
                     if (compositions != null && !compositions.isEmpty()) {
                         libsDataService.generateDataset(compositions, userInputs);
