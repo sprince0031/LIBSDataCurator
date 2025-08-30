@@ -1,7 +1,11 @@
-package com.medals.libsdatagenerator.model;
+package com.medals.libsdatagenerator.model.matweb;
 
 import java.util.List;
 
+/**
+ * Data class for full set of materials including overview datasheet for a series
+ * @author Siddharth Prince | 05:37
+ */
 public class SeriesInput {
     private String seriesKey;
     private List<String> individualMaterialGuids;

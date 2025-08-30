@@ -2,7 +2,9 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.service.LIBSDataService;
+import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -84,7 +86,15 @@ class CompositionParserTest {
         elements.add(new Element("Carbon", "C", 0.2, null, null, null));
         elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 
-        Map<String, String> params = libsDataService.processLIBSQueryParams(elements, "200", "800");
+        CommandLine cmd = CommonUtils.getInstance().getTerminalArgHandler(new String[]{
+                "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "C-0.2,Fe-#",
+                "-"+LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "200",
+                "-"+LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "800",
+                "-"+LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000",
+                "-"+LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT, "1",
+                "-"+LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT, "1e17",});
+        UserInputConfig config = new UserInputConfig(cmd);
+        Map<String, String> params = libsDataService.processLIBSQueryParams(elements, config);
 
         // Verify composition string contains both elements in correct format
         String composition = params.get(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION);

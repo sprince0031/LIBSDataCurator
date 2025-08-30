@@ -2,8 +2,8 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
-import com.medals.libsdatagenerator.model.MaterialGrade;
-import com.medals.libsdatagenerator.model.SeriesInput;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.service.MatwebDataService;
 
@@ -20,6 +20,7 @@ public class InputCompositionProcessor {
 
     private static final Logger logger = Logger.getLogger(InputCompositionProcessor.class.getName());
     private static final Pattern MATWEB_GUID_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_GUID_REGEX);
+    private static final Pattern COMPOSITION_STRING_PATTERN = Pattern.compile(LIBSDataGenConstants.INPUT_COMPOSITION_STRING_REGEX);
     private static boolean hasIndividualGuidsToProcess = false;
 
     private static InputCompositionProcessor instance = null;
@@ -143,61 +144,55 @@ public class InputCompositionProcessor {
         return processedSeries;
     }
 
-    public List<MaterialGrade> getMaterialsList(String userInput, boolean isCompositionString) throws IOException {
+    public List<MaterialGrade> getMaterialsList(String userInput) throws IOException {
 
         MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
 
         List<MaterialGrade> materialGrades = new ArrayList<>();
 
-        // Process input according to flag
-        if (isCompositionString) {
-            List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(userInput.split(","));
-            MaterialGrade materialGrade = new MaterialGrade(baseComposition, null, null);
-            materialGrades.add(materialGrade);
-        } else {
-            List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
-            
-            // Calculate total number of materials to process for progress tracking
-            int totalMaterials = 0;
-            for (SeriesInput series : processedSeriesData) {
-                totalMaterials += series.getIndividualMaterialGuids().size();
-            }
-            
-            int materialsProcessed = 0;
-            PrintStream out = System.out;
+        List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
 
-            for (SeriesInput series : processedSeriesData) {
-                if (series.getIndividualMaterialGuids().isEmpty()) {
-                    logger.info("No individual material GUIDs found for series: " + series.getSeriesKey() + ". Skipping this series entry.");
+        // Calculate total number of materials to process for progress tracking
+        int totalMaterials = 0;
+        for (SeriesInput series : processedSeriesData) {
+            totalMaterials += series.getIndividualMaterialGuids().size();
+        }
+
+        int materialsProcessed = 0;
+        PrintStream out = System.out;
+
+        for (SeriesInput series : processedSeriesData) {
+            if (series.getIndividualMaterialGuids().isEmpty()) {
+                logger.info("No individual material GUIDs found for series: " + series.getSeriesKey() + ". Skipping this series entry.");
+                continue;
+            }
+
+            logger.info("Processing series: " + series.getSeriesKey() + " with " + series.getIndividualMaterialGuids().size()
+                    + " individual material(s). Overview GUID for variations: "
+                    + (series.getOverviewGuid() != null ? series.getOverviewGuid() : "N/A"));
+
+            for (String individualGuid : series.getIndividualMaterialGuids()) {
+                logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
+
+                String[] compositionArray = matwebService.getMaterialComposition(individualGuid);
+
+                if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
+                    materialsProcessed++;
+                    // Update progress bar even for failed materials
+                    CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                     continue;
                 }
+                List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
+                MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid());
+                materialGrade.setMaterialName(matwebService.getDatasheetName());
+                materialGrades.add(materialGrade);
 
-                logger.info("Processing series: " + series.getSeriesKey() + " with " + series.getIndividualMaterialGuids().size()
-                        + " individual material(s). Overview GUID for variations: "
-                        + (series.getOverviewGuid() != null ? series.getOverviewGuid() : "N/A"));
+                materialsProcessed++;
 
-                for (String individualGuid : series.getIndividualMaterialGuids()) {
-                    logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
-
-                    String[] compositionArray = matwebService.getMaterialComposition(individualGuid);
-
-                    if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
-                        materialsProcessed++;
-                        // Update progress bar even for failed materials
-                        CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
-                        continue;
-                    }
-                    List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-                    MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid());
-                    materialGrade.setMaterialName(matwebService.getDatasheetName());
-                    materialGrades.add(materialGrade);
-                    
-                    materialsProcessed++;
-                    
-                    // Calculate and display progress
-                    CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
-                }
+                // Calculate and display progress
+                CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
             }
+
             
             // Print newline after progress bar completion
             CommonUtils.finishProgressBar(totalMaterials, out);
@@ -205,18 +200,28 @@ public class InputCompositionProcessor {
         return materialGrades;
     }
 
-    public List<MaterialGrade> getMaterialsList(String userInput, boolean isCompositionString, String overviewGUID) throws IOException {
-        List<MaterialGrade> materialGrades = new ArrayList<>();
-
-        if (isCompositionString) {
-            List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(userInput.split(","));
-            MaterialGrade materialGrade = new MaterialGrade(baseComposition, null, overviewGUID);
-            materialGrades.add(materialGrade);
+    /**
+     * Parses only single composition
+     * @param userInput either a direct composition string or a single matGUID
+     * @param overviewGUID overviewGUID if given, null if not
+     * @return
+     * @throws IOException
+     */
+    public MaterialGrade getMaterial(String userInput, String overviewGUID) throws IOException {
+        MaterialGrade materialGrade;
+        String[] compositionArray;
+        if (COMPOSITION_STRING_PATTERN.matcher(userInput).matches()) {
+            compositionArray = userInput.split(",");
+            List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
+            materialGrade = new MaterialGrade(baseComposition, null, overviewGUID);
+        } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
+            compositionArray = MatwebDataService.getInstance().getMaterialComposition(userInput);
+            List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
+            materialGrade = new MaterialGrade(baseComposition, userInput, overviewGUID);
         } else {
-            userInput += ",og-" + overviewGUID;
-            materialGrades = getMaterialsList(userInput, false);
+            throw new IOException("Invalid command line arguments. Aborting.");
         }
-        return materialGrades;
+        return materialGrade;
     }
 
 }

@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.sampler;
 
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.ConcentrationParameterEstimator;
 import com.medals.libsdatagenerator.service.MatwebDataService;
@@ -36,10 +37,11 @@ public class DirichletSampler implements Sampler {
      * @param variations List to store generated variations
      * @param metadata contains GUID of the overview datasheet for series statistics
      */
-    public void sample(List<Element> baseComp, int numSamples,
-                       List<List<Element>> variations, Map<String, Object> metadata) {
+    public void sample(MaterialGrade materialGrade, int numSamples,
+                       List<List<Element>> variations) {
 
-        String overviewGuid = (String) metadata.get("overviewGuid");
+        List<Element> baseComp = materialGrade.getComposition();
+        String overviewGuid = materialGrade.getOverviewGUID();
 
         logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
 
@@ -50,8 +52,7 @@ public class DirichletSampler implements Sampler {
         if (seriesStats == null) {
             logger.severe("Failed to extract series statistics from overview sheet. Falling back to Gaussian sampling.");
             // Fallback to Gaussian sampling
-            metadata.put("maxDelta", 5.0); // Use default maxDelta of 5.0
-            GaussianSampler.getInstance().sample(baseComp, numSamples, variations, metadata);
+            GaussianSampler.getInstance().sample(materialGrade, numSamples, variations);
             return;
         }
 
@@ -69,8 +70,7 @@ public class DirichletSampler implements Sampler {
         double[] concentrationParams = parameterEstimator.estimateParametersForElements(seriesStats, elementOrder);
         if (concentrationParams == null || !parameterEstimator.validateParameters(concentrationParams)) {
             logger.severe("Failed to estimate valid Dirichlet parameters. Falling back to Gaussian sampling.");
-            metadata.put("maxDelta", 5.0); // Use default maxDelta of 5.0
-            GaussianSampler.getInstance().sample(baseComp, numSamples, variations, metadata);
+            GaussianSampler.getInstance().sample(materialGrade, numSamples, variations);
             return;
         }
 
@@ -78,8 +78,7 @@ public class DirichletSampler implements Sampler {
         if (concentrationParams.length != elementOrder.length) {
             logger.severe("Mismatch between concentration parameters (" + concentrationParams.length +
                     ") and element order (" + elementOrder.length + "). Falling back to Gaussian sampling.");
-            metadata.put("maxDelta", 5.0); // Use default maxDelta of 5.0
-            GaussianSampler.getInstance().sample(baseComp, numSamples, variations, metadata);
+            GaussianSampler.getInstance().sample(materialGrade, numSamples, variations);
             return;
         }
 
