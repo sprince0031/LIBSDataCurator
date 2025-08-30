@@ -5,6 +5,54 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2025-08-30
+### Added
+- New command-line options for resolution, plasma temperature, electron density, and several advanced NIST LIBS parameters
+- Introduced UserInputConfig class to centralize parameter management and replace scattered parameter passing
+- Support for wavelength unit selection (Angstrom, Nanometer, Micrometer)
+- Support for wavelength condition selection (vacuum/air combinations)
+- Support for maximum ion charge limits (2+, 3+, 4+, no limit)
+- Support for minimum relative intensity thresholds
+- Support for intensity scale selection (energy flux vs photon flux)
+
+### Fixed
+- Fixed bug #44: Overview GUID not being passed to Dirichlet sampler
+- Fixed issue with `-c` acting like the `-s` option with clearly assigned roles for each flag
+- Fixed bug that failed to write spectrum data to master CSV
+
+### Changed
+- Updated method signatures throughout the codebase to use the new configuration object instead of individual parameters
+- Reorganized model classes into `matweb` and `nist` packages for better structure
+- Enhanced input parameter validation with enum-based options
+
+## [0.8.5] - 2025-08-26
+### Fixed
+- Fixed write permissions in release workflow
+- Fixed logging to file functionality in local build scripts
+- Fixed issue with number of input samples generated not accounting for original composition
+- Changed default `-n` parameter from 50 to 20 samples
+- Updated `-vm` description to reflect Dirichlet sampling as default
+
+### Changed
+- Updated GitHub workflow files to reflect changes to build process
+- **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames
+- Cleaned up build process to remove duplicate packaging steps and reorganized directory structure
+
+## [0.8.0] - 2025-08-25
+### Added
+- Self-contained packaging with bundled JRE (no Java installation required)
+- SSL/TLS support with updated certificate store for NIST LIBS connectivity
+- Cross-platform support (Windows and Linux/macOS packages)
+- Optimized custom JRE using jlink with security modules
+
+### Fixed
+- Windows incompatible filenames for NIST CSV data by replacing colons with hyphens
+- SSL handshake exceptions resolved in self-contained packages
+
+### Changed
+- Migrated build system to use custom JRE creation
+- Updated release workflow for multiplatform package creation
+
 ## [0.6.0] - 2025-02-04
 ### Added
 - Initial release with core functionality
