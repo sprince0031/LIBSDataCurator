@@ -5,6 +5,26 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2025-08-30
+### Added
+- New command-line options for resolution, plasma temperature, electron density, and several advanced NIST LIBS parameters
+- Introduced UserInputConfig class to centralize parameter management and replace scattered parameter passing
+- Support for wavelength unit selection (Angstrom, Nanometer, Micrometer)
+- Support for wavelength condition selection (vacuum/air combinations)
+- Support for maximum ion charge limits (2+, 3+, 4+, no limit)
+- Support for minimum relative intensity thresholds
+- Support for intensity scale selection (energy flux vs photon flux)
+
+### Fixed
+- Fixed bug #44: Overview GUID not being passed to Dirichlet sampler
+- Fixed issue with `-c` acting like the `-s` option with clearly assigned roles for each flag
+- Fixed bug that failed to write spectrum data to master CSV
+
+### Changed
+- Updated method signatures throughout the codebase to use the new configuration object instead of individual parameters
+- Reorganized model classes into `matweb` and `nist` packages for better structure
+- Enhanced input parameter validation with enum-based options
+
 ## [0.8.5] - 2025-08-26
 ### Fixed
 - Fixed write permissions in release workflow

@@ -6,12 +6,13 @@ LIBS Data Curator enables researchers and engineers to systematically collect sp
 
 ## Latest Changes
 
-### [0.8.5] - 2025-08-26
-- **Fixed**: Write permissions in release workflow and logging to file functionality
-- **Fixed**: Issue with number of input samples generated not accounting for original composition
-- **Changed**: Default `-n` parameter from 50 to 20 samples, updated `-vm` description
-- **Breaking**: Removed backward compatibility for legacy CSV files with colon-based filenames
-- **Improved**: Cleaned up build process and reorganized directory structure
+### [0.8.6] - 2025-08-30
+- **Added**: New command-line options for resolution, plasma temperature, electron density, and advanced NIST LIBS parameters
+- **Added**: UserInputConfig class to centralize parameter management
+- **Added**: Support for wavelength units, conditions, ion charge limits, and intensity scale selection
+- **Fixed**: Overview GUID not being passed to Dirichlet sampler (bug #44)
+- **Fixed**: Issue with `-c` option behavior and CSV spectrum data writing
+- **Enhanced**: Input parameter validation with enum-based options
 
 [See full changelog](/docs/CHANGELOG.md) for complete list of changes.
 
@@ -21,16 +22,16 @@ LIBS Data Curator enables researchers and engineers to systematically collect sp
 
 Download the latest version from [GitHub Releases](https://github.com/sprince0031/LIBSDataCurator/releases/latest):
 
-- **Linux/macOS**: `LIBSDataCurator-0.8.5-linux.tar.gz`
-- **Windows**: `LIBSDataCurator-0.8.5-windows.zip`
+- **Linux/macOS**: `LIBSDataCurator-0.8.6-linux.tar.gz`
+- **Windows**: `LIBSDataCurator-0.8.6-windows.zip`
 
 ### Installation
 
 #### Linux/macOS
 ```bash
 # Download and extract
-tar -xzf LIBSDataCurator-0.8.5-linux.tar.gz
-cd LIBSDataCurator-0.8.5/
+tar -xzf LIBSDataCurator-0.8.6-linux.tar.gz
+cd LIBSDataCurator-0.8.6/
 
 # Run the application
 ./bin/run.sh [options]
@@ -65,8 +66,11 @@ bin\run.bat [options]
 # Simple composition analysis
 ./bin/run.sh -c "Fe-80,C-20" --min-wavelength 200 --max-wavelength 300
 
-# Generate compositional variations
-./bin/run.sh -c "Fe-70,C-1.5,Mn-1,Cr-#" -v -n 20 --max-delta 2.0
+# Generate compositional variations with advanced parameters
+./bin/run.sh -c "Fe-70,C-1.5,Mn-1,Cr-#" -v -n 20 --max-delta 2.0 --plasma-temperature 1.5 --electron-density 1e18
+
+# Use different wavelength units (Angstrom)
+./bin/run.sh -c "Fe-80,C-20" --wavelength-unit 1 --resolution 2000
 
 # Use MatWeb GUID for composition
 ./bin/run.sh -c "a1d2f3e4c5b6a7f8e9d0c1b2a3f4e5d6" -o steel_data.csv
@@ -74,15 +78,28 @@ bin\run.bat [options]
 
 ### Command Line Options
 
+**Basic Options:**
 - `-c, --composition`: Material composition (e.g., "Fe-80,C-20") or MatWeb GUID
 - `--min-wavelength`: Minimum wavelength in nm (default: 200)
 - `--max-wavelength`: Maximum wavelength in nm (default: 800)
 - `-o, --output`: Output directory path
+- `-s, --series`: Process steel series from materials catalogue
+
+**Compositional Variations:**
 - `-v, --compvar`: Enable compositional variations
 - `-n, --num-samples`: Number of compositional variations (default: 20)
 - `--max-delta`: Maximum variation limit (default: 2.0)
-- `-vm, --variation-mode`: Sampling mode (1: Dirichlet, 2: Gaussian, 0: Uniform)
-- `-s, --series`: Process steel series from materials catalogue
+- `-vm, --variation-mode`: Sampling mode (1: Dirichlet, 2: Gaussian)
+
+**Advanced NIST LIBS Parameters:**
+- `--resolution`: Wavelength resolution (default: 1000)
+- `--plasma-temperature`: Plasma temperature in eV (default: 1)
+- `--electron-density`: Electron density in cm^-3 (default: 1e17)
+- `--wavelength-unit`: Unit (1: Angstrom, 2: Nanometer, 3: Micrometer)
+- `--wavelength-condition`: Measurement condition (1: Mixed, 2: Vacuum)
+- `--max-ion-charge`: Maximum ion charge (1: No limit, 2: 2+, 3: 3+, 4: 4+)
+- `--min-relative-intensity`: Minimum intensity (1: No limit, 2: 0.1, 3: 0.01, 4: 0.001)
+- `--intensity-scale`: Scale type (1: Energy flux, 2: Photon flux)
 
 ### Output
 
