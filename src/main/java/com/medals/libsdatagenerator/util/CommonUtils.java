@@ -12,6 +12,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
@@ -102,6 +103,54 @@ public class CommonUtils {
                 LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_LONG,
                 true,
                 LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_DESC);
+
+        // Wavelength resolution
+        options.addOption(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_DESC);
+
+        // Plasma temperature
+        options.addOption(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT,
+                LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_DESC);
+
+        // Electron density
+        options.addOption(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT,
+                LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_DESC);
+
+        // Wavelength unit
+        options.addOption(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_SHORT,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_DESC);
+
+        // Wavelength condition
+        options.addOption(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_DESC);
+
+        // Maximum ion charge
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_DESC);
+
+        // Minimum relative intensity
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_DESC);
+
+        // Intensity scale
+        options.addOption(LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_DESC);
 
         // Data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
@@ -341,6 +390,50 @@ public class CommonUtils {
         } catch (Exception e) {
             logger.log(Level.SEVERE, "An error occurred while trying to fetch data from archive.org.", e);
             throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Displays a progress bar for tracking completion of tasks.
+     * 
+     * @param current The current number of completed items
+     * @param total The total number of items to process
+     * @param message The message to display (e.g., "materials processed", "samples completed")
+     * @param out The PrintStream to output to (typically System.out)
+     * @param progressBarWidth The width of the progress bar in characters (default: 50)
+     */
+    public static void printProgressBar(int current, int total, String message, PrintStream out, int progressBarWidth) {
+        if (total <= 1) {
+            return; // Don't show progress bar for single items
+        }
+        
+        int progress = current * progressBarWidth / total;
+        String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
+        out.printf("\r[%s] %d/%d %s", bar, current, total, message);
+    }
+
+    /**
+     * Displays a progress bar with default width of 50 characters.
+     * 
+     * @param current The current number of completed items
+     * @param total The total number of items to process
+     * @param message The message to display (e.g., "materials processed", "samples completed")
+     * @param out The PrintStream to output to (typically System.out)
+     */
+    public static void printProgressBar(int current, int total, String message, PrintStream out) {
+        printProgressBar(current, total, message, out, 50);
+    }
+
+    /**
+     * Prints a newline to complete the progress bar display.
+     * Call this after the progress bar reaches completion.
+     * 
+     * @param total The total number of items (used to determine if progress bar was shown)
+     * @param out The PrintStream to output to (typically System.out)
+     */
+    public static void finishProgressBar(int total, PrintStream out) {
+        if (total > 1) {
+            out.println();
         }
     }
 

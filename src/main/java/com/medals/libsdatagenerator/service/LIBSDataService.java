@@ -2,6 +2,8 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
+import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
@@ -45,16 +47,20 @@ public class LIBSDataService {
         return instance;
     }
 
-    // Fetching data from NIST LIBS database
-    public String fetchLIBSData(List<Element> elements, String minWavelength, String maxWavelength,
-                                String savePath) {
+    /**
+     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
+     * @param elements list of Elements in composition
+     * @param config User input configuration object containing all user input data
+     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     */
+    public String fetchLIBSData(List<Element> elements, UserInputConfig config) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
-            Map<String, String> queryParams = processLIBSQueryParams(elements, minWavelength, maxWavelength);
+            Map<String, String> queryParams = processLIBSQueryParams(elements, config);
             seleniumUtils.connectToWebsite(
                     commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
-        );
+            );
 
             WebElement csvButton = seleniumUtils.getDriver()
                     .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
@@ -73,7 +79,7 @@ public class LIBSDataService {
             String csvData = seleniumUtils.getDriver().findElement(By.tagName("pre")).getText();
 
             // Create data folder if it doesn't exist
-            Path dataPath = Paths.get(savePath, "NIST LIBS");
+            Path dataPath = Paths.get(config.csvDirPath, "NIST LIBS");
             if (!Files.exists(dataPath)) {
                 Files.createDirectories(dataPath);
             }
@@ -92,7 +98,7 @@ public class LIBSDataService {
             seleniumUtils.getDriver().close();
             // Switch back to the original window
             seleniumUtils.getDriver().switchTo().window(originalWindow);
-            return String.valueOf(csvPath);
+            return csvData;
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
         } finally {
@@ -101,8 +107,7 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    public Map<String, String> processLIBSQueryParams(List<Element> elements, String minWavelength,
-            String maxWavelength) {
+    public Map<String, String> processLIBSQueryParams(List<Element> elements, UserInputConfig config) {
         // Processing the information for each element and adding to the query params
         // hashmap
         // Sample query params:
@@ -126,29 +131,50 @@ public class LIBSDataService {
             }
         }
 
-        // Adding composition
+        // Add composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
 
-        // Adding spectra
+        // Add spectra
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SPECTRA, spectra.substring(1));
 
-        // Adding min wavelength
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LOW_W, minWavelength);
+        // Add min wavelength
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LOW_W, config.minWavelength);
 
-        // Adding max wavelength
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UPP_W, maxWavelength);
+        // Add max wavelength
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UPP_W, config.maxWavelength);
 
-        // The rest of the query params are kept constant for now. Can update to take
-        // custom values as needed in the future.
+        // Add wavelength resolution
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_RESOLUTION, config.resolution);
+
+        // Add plasma temperature
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_TEMP, config.plasmaTemp);
+
+        // Add electron density
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_EDEN, config.electronDensity);
+
+        // Add wavelength unit - default Nm (1)
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UNIT, config.wavelengthUnit.getUrlParam());
+
+        // Show wavelengths in:
+        // Vacuum (< 200 nm) Air (200 - 2000 nm) Vacuum (> 2000 nm) - 2 (default)
+        // Vacuum (all wavelengths) - 3
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SHOW_AV, config.wavelengthCondition.getUrlParam());
+
+        // Advanced input params
+        // Add max ion charge
+        // 2+, 3+, 4+, no limit (value set to 109 in URL)
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MAXCHARGE, config.maxIonCharge.getUrlParam());
+
+        // Add min relative intensity
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MIN_REL_INT, config.minRelativeIntensity.getUrlParam());
+
+        // Add intensity scale
+        // Energy flux - 1 (default)
+        // Photon flux - 2
+        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_INT_SCALE, config.intensityScale.getUrlParam());
+
+        // The rest of the query params are kept constant. No direct input field mapped for these in NIST LIBS form.
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LIMITS_TYPE, "0");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_SHOW_AV, "2");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_UNIT, "1");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_RESOLUTION, "1000");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_TEMP, "1");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_EDEN, "1e17");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MAXCHARGE, "2");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_MIN_REL_INT, "0.01");
-        queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_INT_SCALE, "1");
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_LIBS, "1");
 
         return queryParams;
@@ -200,8 +226,7 @@ public class LIBSDataService {
         return elementsList;
     }
 
-    public void generateDataset(List<List<Element>> compositions, String minWavelength, String maxWavelength,
-            String savePath, boolean appendMode, boolean forceFetch) {
+    public void generateDataset(List<List<Element>> compositions, UserInputConfig config) {
 
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
@@ -217,8 +242,6 @@ public class LIBSDataService {
         int compositionsProcessed = 0;
 
         PrintStream out = System.out;
-
-        int progressBarWidth = 50; // Width of the progress bar
 
         // For each composition, fetch the CSV, parse it, store data
         for (List<Element> composition : compositions) {
@@ -238,15 +261,15 @@ public class LIBSDataService {
             // Fetch CSV data from NIST
             String csvData;
             String compositionFileName = "composition_" + compositionId + ".csv";
-            Path compositionFilePath = Paths.get(savePath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
+            Path compositionFilePath = Paths.get(config.csvDirPath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
                     compositionFileName);
             
             logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
             boolean compositionFileExists = Files.exists(compositionFilePath);
             
-            if (forceFetch || !compositionFileExists) {
-                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + forceFetch + ", fileExists=" + compositionFileExists + ")");
-                csvData = fetchLIBSData(composition, minWavelength, maxWavelength, savePath);
+            if (config.forceFetch || !compositionFileExists) {
+                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + config.forceFetch + ", fileExists=" + compositionFileExists + ")");
+                csvData = fetchLIBSData(composition, config);
             } else {
                 logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
                 try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
@@ -265,7 +288,7 @@ public class LIBSDataService {
             // Parse wave->intensity
             Map<Double, Double> waveMap;
             try {
-                waveMap = parseNistCsv(csvData, allWavelengths);
+                waveMap = parseNistCsv(csvData, allWavelengths, config.wavelengthUnit);
             } catch (IOException e) {
                 logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
                 continue;
@@ -282,14 +305,15 @@ public class LIBSDataService {
             compElementPcts.put(compositionId, elemMap);
 
             // Calculate progress
-            int progress = (compositionsProcessed + 1) * progressBarWidth / compositions.size();
-            String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
-            out.printf("\r[%s] %d/%d samples completed", bar, compositionsProcessed + 1, compositions.size());
+            CommonUtils.printProgressBar(compositionsProcessed + 1, compositions.size(), "samples completed", out);
 
             compositionsProcessed++;
         }
 
-        // Write a single "master CSV" of all results
+        // Print newline after progress bar completion
+        CommonUtils.finishProgressBar(compositions.size(), out);
+
+        // Write a single "master CSV" with all results
         // columns: composition, each wavelength (sorted), each element symbol (sorted).
 
         // Convert sets to sorted lists
@@ -312,11 +336,11 @@ public class LIBSDataService {
         }
 
         // Write out to "master.csv" inside savePath
-        Path masterCsvPath = Paths.get(savePath, "master_dataset.csv");
+        Path masterCsvPath = Paths.get(config.csvDirPath, "master_dataset.csv");
         // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
 
         String[] headerArray = header.toArray(new String[0]);
-        try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, appendMode, headerArray)) {
+        try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, config.appendMode, headerArray)) {
             // If appending, and the file might have already existed and had data (and thus headers),
             // CSVUtils.getCsvPrinter when appendMode=true opens without writing new headers.
             // If not appending, or if appending and file is new, headers are written by CSVUtils.
@@ -359,7 +383,7 @@ public class LIBSDataService {
      * @return a map: (wavelength -> intensity).
      *         Also add each encountered wavelength to 'allWavelengths'.
      */
-    private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException {
+    private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths, WavelengthUnit wavelengthUnit) throws IOException {
         Map<Double, Double> waveMap = new HashMap<>();
 
         // Check if CSV string is correctly parsed
@@ -371,7 +395,7 @@ public class LIBSDataService {
 
         // Headers might be "Wavelength (nm)" and "Sum"—confirm with a real example.
         for (CSVRecord record : records) {
-            String waveStr = record.get("Wavelength (nm)"); // or "Wavelength"
+            String waveStr = record.get("Wavelength (" + wavelengthUnit.getUnitString() + ")"); // or "Wavelength"
             String sumStr = record.get("Sum"); // or "Sum"
 
             if (waveStr != null && sumStr != null) {

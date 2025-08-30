@@ -1,8 +1,11 @@
 # LIBS Data Curator
 
-A Java 21 Maven application for automated collection of Laser-Induced Breakdown Spectroscopy (LIBS) data from the NIST LIBS database. The tool uses Selenium WebDriver for web automation and supports compositional variations with statistical sampling.
+[![Build](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml)
+[![Release](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml/badge.svg)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml)
 
-LIBS Data Curator enables researchers and engineers to systematically collect spectral data for material compositions, with support for generating compositional variations using multiple statistical sampling methods. The tool creates self-contained packages with bundled Java Runtime Environment for easy deployment across different platforms.
+A tool for automated collection of Laser-Induced Breakdown Spectroscopy (LIBS) data from the NIST LIBS database. The tool uses Selenium WebDriver for web automation and supports compositional variations with statistical sampling.
+
+LIBS Data Curator enables one to systematically collect spectral data for material compositions, with support for generating compositional variations using multiple statistical sampling methods. The tool creates self-contained packages with bundled Java Runtime Environment for easy deployment across different platforms.
 
 ## Latest Changes
 
