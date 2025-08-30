@@ -48,7 +48,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_WAVELENGTH_UNIT_DESC = """
             Unit of wavelength. Options: \
             
-            1 -> Armstrong\
+            1 -> Angstrom\
             
             2 -> Nanometer (default)\
             

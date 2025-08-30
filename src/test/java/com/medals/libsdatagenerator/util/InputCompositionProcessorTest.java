@@ -80,7 +80,7 @@ class InputCompositionProcessorTest {
 
     // ===== COMPOSITION STRING PROCESSING TESTS =====
 
-    // Depricated test due to change resulting in -s option not handling any direct composition strings.
+    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
 //    @Test
 //    void testGetMaterialsList_withCompositionString_singleElement() throws IOException {
 //        List<MaterialGrade> result = processor.getMaterialsList("Fe-100");
@@ -101,7 +101,7 @@ class InputCompositionProcessorTest {
 //        assertFalse(output.contains("["), "Progress bar should not appear for composition strings");
 //    }
 
-    // Depricated test due to change resulting in -s option not handling any direct composition strings.
+    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
 //    @Test
 //    void testGetMaterialsList_withCompositionString_multipleElements() throws IOException {
 //        List<MaterialGrade> result = processor.getMaterialsList("Fe-80,C-20");
@@ -440,7 +440,7 @@ class InputCompositionProcessorTest {
 
     // ===== PROGRESS BAR TESTS =====
 
-    // Depricated test due to change resulting in -s option not handling any direct composition strings.
+    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
 //    @Test
 //    void testCompositionStringProcessingNoProgressBar() throws IOException {
 //        List<MaterialGrade> result = processor.getMaterialsList("Fe-80,C-20");
@@ -455,7 +455,7 @@ class InputCompositionProcessorTest {
 
     // ===== ERROR HANDLING TESTS =====
 
-    // Depricated test due to change resulting in -s option not handling any direct composition strings.
+    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
 //    @Test
 //    void testGetMaterialsList_invalidCompositionString() {
 //        // Test with invalid element symbol - this should throw an exception in LIBSDataService
@@ -482,7 +482,7 @@ class InputCompositionProcessorTest {
 
     // ===== INTEGRATION TESTS =====
 
-    // Depricated test due to change resulting in -c option not calling -s handler methods
+    // Deprecated test due to change resulting in -c option not calling -s handler methods
 //    @Test
 //    void testGetMaterial_withOverviewGuidAppending() throws IOException {
 //        String overviewGuid = "81a26031d1b44cbb911f70ab863281f5";

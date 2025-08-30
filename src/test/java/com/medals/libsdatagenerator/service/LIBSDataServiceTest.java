@@ -87,7 +87,7 @@ class LIBSDataServiceTest {
         assertTrue(foundDifferent, "Expected at least one generated composition to differ from the all-fixed original due to Gaussian fallback.");
     }
 
-    // Retiring test because brute force a.k.a "uniform dist" in tool code is being deprecated
+    // Retiring test because brute force a.k.a. "uniform dist" in tool code is being deprecated
 //    @Test
 //    void testGenerateVariations_allFixed_uniformFallback() {
 //        List<Element> originalComposition = new ArrayList<>();
@@ -154,7 +154,7 @@ class LIBSDataServiceTest {
         }
     }
 
-    // Retiring test because brute force a.k.a "uniform dist" in tool code is being deprecated
+    // Retiring test because brute force a.k.a. "uniform dist" in tool code is being deprecated
 //    @Test
 //    void testGenerateVariations_mixedFixedAndVariable_uniform() {
 //        List<Element> originalComposition = new ArrayList<>();
