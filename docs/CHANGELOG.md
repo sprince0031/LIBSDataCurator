@@ -5,70 +5,92 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.8.6] - 2025-08-30
-### Added
+## [Unreleased]
+### Planned Features
 - New command-line options for resolution, plasma temperature, electron density, and several advanced NIST LIBS parameters
-- Introduced UserInputConfig class to centralize parameter management and replace scattered parameter passing
+- UserInputConfig class to centralize parameter management and replace scattered parameter passing
 - Support for wavelength unit selection (Angstrom, Nanometer, Micrometer)
 - Support for wavelength condition selection (vacuum/air combinations)
 - Support for maximum ion charge limits (2+, 3+, 4+, no limit)
 - Support for minimum relative intensity thresholds
 - Support for intensity scale selection (energy flux vs photon flux)
-
-### Fixed
-- Fixed bug #44: Overview GUID not being passed to Dirichlet sampler
-- Fixed issue with `-c` acting like the `-s` option with clearly assigned roles for each flag
-- Fixed bug that failed to write spectrum data to master CSV
+- Enhanced input parameter validation with enum-based options
+- Reorganized model classes into `matweb` and `nist` packages for better structure
 
 ### Changed
-- Updated method signatures throughout the codebase to use the new configuration object instead of individual parameters
-- Reorganized model classes into `matweb` and `nist` packages for better structure
-- Enhanced input parameter validation with enum-based options
+- **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames. The application now only generates and reads CSV files using the new cross-platform compatible filename format with hyphens instead of colons (e.g., `C-0.26;Fe-99.74` instead of `C:0.26;Fe:99.74`). Existing legacy files will no longer be recognized or read by the system.
+
+### Planned
+- GUI interface for easier user interaction
+- Database integration for local data storage
+- Enhanced data validation and error reporting
+- Real-time spectral analysis tools
+- Data compression and export options
+- Integration with additional spectroscopic databases
+- Advanced filtering and search capabilities
+- Machine learning integration for spectral pattern recognition
+- Batch processing capabilities for large-scale data collection
+- Export formats for popular spectroscopy software packages
 
 ## [0.8.5] - 2025-08-26
+### Added
+- Comprehensive GitHub Actions CI/CD workflows with build and release automation
+- Self-contained packaging scripts (build-local.sh, build-local.bat) with bundled JRE support
+- Cross-platform support (Windows and Linux/macOS packages)
+- Optimized custom JRE using jlink with security modules
+- SSL/TLS support with updated certificate store for NIST LIBS connectivity
+- Enhanced build documentation (BUILD.md) with complete build instructions
+- Copilot instructions for development support
+
 ### Fixed
 - Fixed write permissions in release workflow
 - Fixed logging to file functionality in local build scripts
 - Fixed issue with number of input samples generated not accounting for original composition
 - Changed default `-n` parameter from 50 to 20 samples
 - Updated `-vm` description to reflect Dirichlet sampling as default
-
-### Changed
-- Updated GitHub workflow files to reflect changes to build process
-- **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames
-- Cleaned up build process to remove duplicate packaging steps and reorganized directory structure
-
-## [0.8.0] - 2025-08-25
-### Added
-- Self-contained packaging with bundled JRE (no Java installation required)
-- SSL/TLS support with updated certificate store for NIST LIBS connectivity
-- Cross-platform support (Windows and Linux/macOS packages)
-- Optimized custom JRE using jlink with security modules
-
-### Fixed
 - Windows incompatible filenames for NIST CSV data by replacing colons with hyphens
 - SSL handshake exceptions resolved in self-contained packages
 
 ### Changed
-- Migrated build system to use custom JRE creation
-- Updated release workflow for multiplatform package creation
+- **BREAKING:** Migrated configuration files from `Build/conf/` to `conf/` directory
+- Updated GitHub workflow files to reflect changes to build process
+- **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames
+- Cleaned up build process to remove duplicate packaging steps and reorganized directory structure
+- Enhanced CLI help with improved composition parameter validation
+- Migrated build system to use custom JRE creation for distribution packages
+- Simplified Maven configuration by removing complex assembly descriptors
 
-## [0.7.0] - 2025-03-15
+## [0.8.0] - 2025-07-29
+### Changed
+- Version bump from 0.7 to 0.8
+- Consolidated development features from v0.7 into stable release
+
+## [0.7.0] - 2025-07-29
 ### Added
-- Dirichlet sampling for compositional variations with improved statistical modeling
-- Series statistics extraction for better parameter estimation
-- Enhanced compositional variation generation with concentration parameter estimation
-- Support for processing steel series from materials catalogue
-- Improved MatWeb integration with series data analysis
+- **Dirichlet sampling implementation**: New statistical sampling method using Apache Commons RNG for more realistic compositional variations
+- **Materials catalogue support**: Added steel series processing with materials catalogue properties file containing MatWeb GUID collections for steel grades
+- **Series statistics extraction**: New service to extract statistical information from MatWeb overview sheets with average values and grade counts
+- **Concentration parameter estimation**: Enhanced statistical modeling for concentration distributions from series data
+- **Sampler interface architecture**: Refactored sampling methods into common interface with DirichletSampler and GaussianSampler implementations
+- **Archive.org fallback mechanism**: Added fallback to use archived version of datasheet from Wayback Machine when MatWeb is down
+- **Steel series CLI support**: New `-s/--series` command-line option to process steel series from materials catalogue
+- **Enhanced compositional variations**: Support for both Dirichlet and Gaussian sampling with proper value clamping within element ranges
 
-### Enhanced
-- Better statistical sampling methods for more realistic compositional variations
-- Enhanced variation mode support with both Dirichlet and Gaussian sampling options
-- Improved parameter estimation for concentration distributions
+### Enhanced  
+- **Controller architecture**: Major refactoring of controller structure to remove redundant code and improve readability
+- **MatWeb integration**: Improved data processing with better error handling and series data analysis
+- **Element model**: Moved Element class to model package as part of code structure improvements
+- **Statistical accuracy**: Better parameter estimation and more realistic compositional variations using Dirichlet distributions
+
+### Fixed
+- **Dirichlet sampling constraints**: Ensured proper clamping of sampled values within individual material value ranges from datasheets
+- **Gaussian sampling logic**: Improved maxDelta calculation using min/max range for more accurate sampling
+- **Test coverage**: Added JUnit @Test annotations for proper test execution during build
 
 ### Changed
-- Default sampling method changed to Dirichlet for more realistic compositional variations
-- Enhanced variation generation with statistical modeling based on series data
+- **Default sampling method**: Changed from uniform/Gaussian to Dirichlet sampling for more realistic compositional variations
+- **CLI interface**: Enhanced command-line parsing with new series option and improved validation
+- **Code structure**: Significant refactoring of sampler logic and controller orchestration for better maintainability
 
 ## [0.6.0] - 2025-02-04
 ### Added
@@ -103,15 +125,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Element management system
 - Simple CSV export
 
-## [Unreleased]
-### Changed
-- **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames. The application now only generates and reads CSV files using the new cross-platform compatible filename format with hyphens instead of colons (e.g., `C-0.26;Fe-99.74` instead of `C:0.26;Fe:99.74`). Existing legacy files will no longer be recognized or read by the system.
 
-### Planned
-- GUI interface for easier user interaction
-- Database integration for local data storage
-- Enhanced data validation and error reporting
-- Real-time spectral analysis tools
-- Data compression and export options
-- Integration with additional spectroscopic databases
-- Advanced filtering and search capabilities
