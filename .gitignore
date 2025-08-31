@@ -24,12 +24,14 @@ hs_err_pid*
 replay_pid*
 
 # Misc/Project Specific
-Build/data/
-Build/logs/
-Build/lib/
+build/data/
+build/logs/
+build/lib/
 .idea/
 target/
 src/test/resources/test_elements.properties
+docs/assets/
+docs/Common Steel Grades in Steel Scrap.md
 
 # Build and packaging artifacts
 jre-custom/
