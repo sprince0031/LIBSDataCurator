@@ -61,36 +61,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Simplified Maven configuration by removing complex assembly descriptors
 
 ## [0.8.0] - 2025-07-29
-### Changed
-- Version bump from 0.7 to 0.8
-- Consolidated development features from v0.7 into stable release
-
-## [0.7.0] - 2025-07-29
-### Added
-- **Dirichlet sampling implementation**: New statistical sampling method using Apache Commons RNG for more realistic compositional variations
-- **Materials catalogue support**: Added steel series processing with materials catalogue properties file containing MatWeb GUID collections for steel grades
-- **Series statistics extraction**: New service to extract statistical information from MatWeb overview sheets with average values and grade counts
-- **Concentration parameter estimation**: Enhanced statistical modeling for concentration distributions from series data
-- **Sampler interface architecture**: Refactored sampling methods into common interface with DirichletSampler and GaussianSampler implementations
+### Added  
+- **Complete Dirichlet sampling implementation**: Finished Dirichlet sampling implementation using Apache Commons RNG for more realistic compositional variations
+- **Sampler interface architecture**: Refactored sampling methods into common interface with DirichletSampler and GaussianSampler implementations  
 - **Archive.org fallback mechanism**: Added fallback to use archived version of datasheet from Wayback Machine when MatWeb is down
-- **Steel series CLI support**: New `-s/--series` command-line option to process steel series from materials catalogue
 - **Enhanced compositional variations**: Support for both Dirichlet and Gaussian sampling with proper value clamping within element ranges
+- **Materials catalogue input feature**: Support for accepting a series or multiple series of MatWeb datasheets
+- **Model classes**: Added MaterialGrade, SeriesInput, ElementStatistics, and SeriesStatistics models for better data structure
 
-### Enhanced  
-- **Controller architecture**: Major refactoring of controller structure to remove redundant code and improve readability
-- **MatWeb integration**: Improved data processing with better error handling and series data analysis
+### Enhanced
+- **Controller architecture**: Major refactoring of controller structure to remove redundant code and improve readability  
 - **Element model**: Moved Element class to model package as part of code structure improvements
 - **Statistical accuracy**: Better parameter estimation and more realistic compositional variations using Dirichlet distributions
+- **Architecture documentation**: Added high-level architecture diagram to documentation assets
 
 ### Fixed
 - **Dirichlet sampling constraints**: Ensured proper clamping of sampled values within individual material value ranges from datasheets
-- **Gaussian sampling logic**: Improved maxDelta calculation using min/max range for more accurate sampling
+- **Gaussian sampling logic**: Improved maxDelta calculation using min/max range for more accurate sampling  
 - **Test coverage**: Added JUnit @Test annotations for proper test execution during build
 
 ### Changed
 - **Default sampling method**: Changed from uniform/Gaussian to Dirichlet sampling for more realistic compositional variations
-- **CLI interface**: Enhanced command-line parsing with new series option and improved validation
 - **Code structure**: Significant refactoring of sampler logic and controller orchestration for better maintainability
+- **Version**: Updated from 0.7 to 0.8 in pom.xml
+- **Dependencies**: Updated and enhanced dependency management for sampling libraries
+
+## [0.7.0] - 2025-06-20  
+### Added
+- **MatWeb datasheet scraping**: Implemented material composition inputs from MatWeb datasheet scraping capabilities
+- **Materials catalogue support**: Added steel series processing with steel_series_catalog.properties file containing MatWeb GUID collections for steel grades  
+- **Series statistics extraction**: New service to extract statistical information from MatWeb overview sheets with average values and grade counts
+- **Concentration parameter estimation**: Enhanced statistical modeling for concentration distributions from series data
+- **Steel series CLI support**: New `-s/--series` command-line option to process steel series from materials catalogue
+- **GitHub Actions workflow**: Added automated testing workflow for continuous integration
+- **Initial Dirichlet sampling**: Partial implementation of Dirichlet sampling method for compositional variations
+- **Element composition ranges**: Added composition ranges for elements from MatWeb data in Element class with updated data parsing logic
+
+### Enhanced  
+- **MatWeb integration**: Improved data processing with better error handling and series data analysis
+- **CSV parsing**: Fixed CSV parsing issues for reading from cached CSV files
+- **Element model**: Enhanced Element class with composition range support from MatWeb datasheets
+
+### Fixed  
+- **Static file paths**: Fixed static path to material series properties file to load using file path relative to classpath
+- **CSV data handling**: Resolved issues with CSV parsing for cached files
+- **Material series processing**: Enhanced series processing logic for multiple material grades
+
+### Changed
+- **CLI interface**: Enhanced command-line parsing with new series option and improved validation
+- **Configuration management**: Improved handling of materials catalogue properties
 
 ## [0.6.0] - 2025-02-04
 ### Added
