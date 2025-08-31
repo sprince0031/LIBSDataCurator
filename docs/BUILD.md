@@ -17,12 +17,12 @@ The project provides both local and CI/CD workflows for building and packaging t
 
 #### Linux/macOS
 ```bash
-./Build/scripts/build-local.sh
+./build/scripts/build-local.sh
 ```
 
 #### Windows
 ```batch
-Build\scripts\build-local.bat
+build\scripts\build-local.bat
 ```
 
 These scripts will:
@@ -69,7 +69,7 @@ if [ -f "/etc/ssl/certs/adoptium/cacerts" ]; then
     cp /etc/ssl/certs/adoptium/cacerts ./jre-custom/lib/security/cacerts
 fi
 
-# Package manually (follow Build/scripts/build-local.sh for structure)
+# Package manually (follow build/scripts/build-local.sh for structure)
 ```
 
 ## CI/CD Workflows
@@ -155,8 +155,8 @@ The custom JRE includes the complete Java SE platform (`java.se`) plus additiona
 **Selenium Integration**: All Selenium WebDriver dependencies are included in the JAR via Maven's assembly plugin, ensuring web scraping functionality works correctly.
 
 To modify modules, edit the `jlink` command in:
-- `Build/scripts/build-local.sh` (Linux/macOS)
-- `Build/scripts/build-local.bat` (Windows)
+- `build/scripts/build-local.sh` (Linux/macOS)
+- `build/scripts/build-local.bat` (Windows)
 - `.github/workflows/release.yml` (CI/CD)
 
 ### Build Configuration

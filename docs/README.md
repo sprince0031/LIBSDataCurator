@@ -3,9 +3,9 @@
 [![Build](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml)
 [![Release](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml/badge.svg)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml)
 
-A tool for automated collection of Laser-Induced Breakdown Spectroscopy (LIBS) data from the NIST LIBS database. Generate comprehensive spectral datasets for material compositions with statistical compositional variations.
+A tool for automated generation of Laser-Induced Breakdown Spectroscopy (LIBS) data from the NIST LIBS database. Generate comprehensive spectral datasets for material compositions with statistical compositional variations.
 
-LIBS Data Curator enables systematic collection of spectral data for any material composition, helping researchers, materials scientists, and engineers gather LIBS reference data efficiently. Generate variations of base compositions to study compositional effects on spectral characteristics.
+LIBS Data Curator enables systematic generation of synthetic spectral data for any material composition, helping researchers, materials scientists, and engineers gather LIBS reference data efficiently. Generate variations of base compositions to study compositional effects on spectral characteristics.
 
 ## Latest Changes
 
@@ -126,8 +126,8 @@ cd LIBSDataCurator
 mvn clean package
 
 # Create self-contained package
-./Build/scripts/build-local.sh        # Linux/macOS
-Build\scripts\build-local.bat         # Windows
+./build/scripts/build-local.sh        # Linux/macOS
+build\scripts\build-local.bat         # Windows
 ```
 
 ## Reporting Issues

@@ -5,32 +5,19 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-### Planned Features
-- New command-line options for resolution, plasma temperature, electron density, and several advanced NIST LIBS parameters
-- UserInputConfig class to centralize parameter management and replace scattered parameter passing
+## [0.8.6] - 2025-08-31
+- New command-line options for resolution, plasma temperature, electron density.
 - Support for wavelength unit selection (Angstrom, Nanometer, Micrometer)
 - Support for wavelength condition selection (vacuum/air combinations)
 - Support for maximum ion charge limits (2+, 3+, 4+, no limit)
 - Support for minimum relative intensity thresholds
 - Support for intensity scale selection (energy flux vs photon flux)
+- UserInputConfig class to centralize parameter management and replace scattered parameter passing
 - Enhanced input parameter validation with enum-based options
 - Reorganized model classes into `matweb` and `nist` packages for better structure
 
 ### Changed
 - **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames. The application now only generates and reads CSV files using the new cross-platform compatible filename format with hyphens instead of colons (e.g., `C-0.26;Fe-99.74` instead of `C:0.26;Fe:99.74`). Existing legacy files will no longer be recognized or read by the system.
-
-### Planned
-- GUI interface for easier user interaction
-- Database integration for local data storage
-- Enhanced data validation and error reporting
-- Real-time spectral analysis tools
-- Data compression and export options
-- Integration with additional spectroscopic databases
-- Advanced filtering and search capabilities
-- Machine learning integration for spectral pattern recognition
-- Batch processing capabilities for large-scale data collection
-- Export formats for popular spectroscopy software packages
 
 ## [0.8.5] - 2025-08-26
 ### Added
@@ -52,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SSL handshake exceptions resolved in self-contained packages
 
 ### Changed
-- **BREAKING:** Migrated configuration files from `Build/conf/` to `conf/` directory
+- **BREAKING:** Migrated configuration files from `build/conf/` to `conf/` directory
 - Updated GitHub workflow files to reflect changes to build process
 - **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames
 - Cleaned up build process to remove duplicate packaging steps and reorganized directory structure
@@ -144,4 +131,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Element management system
 - Simple CSV export
 
-
+## Planned features
+- GUI interface for easier user interaction
+- Database integration for local data storage
+- Enhanced data validation and error reporting
+- Real-time spectral analysis tools
+- Data compression and export options
+- Integration with additional spectroscopic databases
+- Advanced filtering and search capabilities
+- Batch processing capabilities for large-scale data collection
