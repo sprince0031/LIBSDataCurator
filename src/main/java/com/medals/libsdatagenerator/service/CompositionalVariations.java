@@ -2,6 +2,9 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
+import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import com.medals.libsdatagenerator.util.CommonUtils;
@@ -32,33 +35,32 @@ public class CompositionalVariations {
         return instance;
     }
 
-    public List<List<Element>> generateCompositionalVariations(List<Element> originalComposition,
-                                                               double varyBy, double maxDelta, int variationMode,
-                                                               int samples, String overviewGuid) {
+    public List<List<Element>> generateCompositionalVariations(MaterialGrade materialGrade,
+                                                               UserInputConfig config) {
 
         List<List<Element>> compositions = new ArrayList<>();
-        if (originalComposition == null || originalComposition.isEmpty()) {
+        if (materialGrade.getComposition() == null || materialGrade.getComposition().isEmpty()) {
             logger.warning("Original composition is null or empty. Cannot generate variations.");
-            return compositions; // Return empty list, or perhaps add the (empty) originalComposition if that's desired.
+            return compositions; // Return empty list
         }
-        compositions.add(originalComposition); // Adding the original composition
+        compositions.add(materialGrade.getComposition()); // Adding the original composition
 
         boolean allElementsAreFixed = true;
-        for (Element el : originalComposition) {
+        for (Element el : materialGrade.getComposition()) {
             Double minComp = el.getMin();
             Double maxComp = el.getMax();
-            if (!(minComp != null && maxComp != null && minComp.equals(maxComp))) {
+            if (!(minComp != null && minComp.equals(maxComp))) { // No need to check maxComp for null. Handled by equals()
                 allElementsAreFixed = false;
                 break;
             }
         }
 
-        List<Element> effectiveComposition = originalComposition;
+        List<Element> effectiveComposition = materialGrade.getComposition();
         if (allElementsAreFixed) {
-            // originalComposition is not empty here due to the check at the beginning.
+            // materialGrade.getComposition() is not empty here due to the check at the beginning.
             logger.info("All elements in the input composition are fixed. Applying fallback variation logic, ignoring X:X constraints for sampling.");
             effectiveComposition = new ArrayList<>();
-            for (Element el : originalComposition) {
+            for (Element el : materialGrade.getComposition()) {
                 effectiveComposition.add(new Element(
                         el.getName(),
                         el.getSymbol(),
@@ -70,29 +72,29 @@ public class CompositionalVariations {
             }
         }
 
+        materialGrade.setComposition(effectiveComposition);
+
         // Generate all combinations by Uniform distribution
         // System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
         logger.info("\nGenerating different combinations for the input composition (refer log for list)...");
 
-        int numVariationsToGenerate = Math.max(0, samples - 1);
+        int numVariationsToGenerate = Math.max(0, config.numSamples - 1);
 
-        if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_GAUSSIAN_DIST) {
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("maxDelta", maxDelta);
-            GaussianSampler.getInstance().sample(effectiveComposition, numVariationsToGenerate, compositions, metadata);
+        if (config.variationMode == VariationMode.GAUSSIAN) {
+            GaussianSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
 
-        } else if (variationMode == LIBSDataGenConstants.STAT_VAR_MODE_DIRICHLET_DIST) {
+        } else if (config.variationMode == VariationMode.DIRICHLET) {
             Map<String, Object> metadata = new HashMap<>();
-            metadata.put("overviewGuid", overviewGuid);
-            DirichletSampler.getInstance().sample(effectiveComposition, numVariationsToGenerate, compositions, metadata);
+            metadata.put("overviewGuid", materialGrade.getOverviewGUID());
+            DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
 
         } else { // For uniform distribution
             // Start backtracking with an empty "current combo" and a running sum of 0
             CompositionalVariations.getInstance().getUniformDistribution(
                     0,
                     effectiveComposition,
-                    varyBy,
-                    maxDelta, // 'limit'
+                    config.varyBy,
+                    config.maxDelta, // 'limit'
                     0.0,
                     new ArrayList<Element>(),
                     compositions);

@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.sampler;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.util.CommonUtils;
 
@@ -24,8 +25,8 @@ public class GaussianSampler implements Sampler {
         return instance;
     }
 
-    public void sample(List<Element> baseComp, int numSamples,
-                       List<List<Element>> variations, Map<String, Object> metadata) {
+    public void sample(MaterialGrade materialGrade, int numSamples,
+                       List<List<Element>> variations) {
 
         Random rand = new Random();
 
@@ -33,12 +34,12 @@ public class GaussianSampler implements Sampler {
         // TODO: load from a properties file.
         Map<String, Double> stdDevs = LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK;
 
-        while (variations.size() < numSamples) {
+        while (variations.size() <= numSamples) {
             List<Element> newVariation = new ArrayList<>();
             double totalPercentage = 0;
 
             // First pass: Generate new values for all elements
-            for (Element baseElement : baseComp) {
+            for (Element baseElement : materialGrade.getComposition()) {
                 double mu = baseElement.getPercentageComposition();
                 Double min = baseElement.getMin();
                 Double max = baseElement.getMax();
