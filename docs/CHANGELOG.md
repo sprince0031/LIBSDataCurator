@@ -53,6 +53,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Migrated build system to use custom JRE creation
 - Updated release workflow for multiplatform package creation
 
+## [0.7.0] - 2025-03-15
+### Added
+- Dirichlet sampling for compositional variations with improved statistical modeling
+- Series statistics extraction for better parameter estimation
+- Enhanced compositional variation generation with concentration parameter estimation
+- Support for processing steel series from materials catalogue
+- Improved MatWeb integration with series data analysis
+
+### Enhanced
+- Better statistical sampling methods for more realistic compositional variations
+- Enhanced variation mode support with both Dirichlet and Gaussian sampling options
+- Improved parameter estimation for concentration distributions
+
+### Changed
+- Default sampling method changed to Dirichlet for more realistic compositional variations
+- Enhanced variation generation with statistical modeling based on series data
+
 ## [0.6.0] - 2025-02-04
 ### Added
 - Initial release with core functionality
@@ -91,9 +108,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Removed backward compatibility for reading legacy CSV files with colon-based filenames. The application now only generates and reads CSV files using the new cross-platform compatible filename format with hyphens instead of colons (e.g., `C-0.26;Fe-99.74` instead of `C:0.26;Fe:99.74`). Existing legacy files will no longer be recognized or read by the system.
 
 ### Planned
-- Dirichlet sampling implementation
-- GUI interface
-- Database integration
-- Enhanced data validation
-- Spectral analysis tools
-- Data compression options
+- GUI interface for easier user interaction
+- Database integration for local data storage
+- Enhanced data validation and error reporting
+- Real-time spectral analysis tools
+- Data compression and export options
+- Integration with additional spectroscopic databases
+- Advanced filtering and search capabilities
