@@ -1,23 +1,11 @@
 # LIBS Data Curator
 
-[![Build](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml)
-[![Release](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml/badge.svg)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml)
+[![Tests](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/build.yml)
+[![Build](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml/badge.svg)](https://github.com/sprince0031/LIBSDataCurator/actions/workflows/release.yml)
 
 A tool for automated generation of Laser-Induced Breakdown Spectroscopy (LIBS) data from the NIST LIBS database. Generate comprehensive spectral datasets for material compositions with statistical compositional variations.
 
 LIBS Data Curator enables systematic generation of synthetic spectral data for any material composition, helping researchers, materials scientists, and engineers gather LIBS reference data efficiently. Generate variations of base compositions to study compositional effects on spectral characteristics.
-
-## Latest Changes
-
-### [0.8.6] - 2025-08-30
-- **Added**: New command-line options for resolution, plasma temperature, electron density, and advanced NIST LIBS parameters
-- **Added**: UserInputConfig class to centralize parameter management
-- **Added**: Support for wavelength units, conditions, ion charge limits, and intensity scale selection
-- **Fixed**: Overview GUID not being passed to Dirichlet sampler (bug #44)
-- **Fixed**: Issue with `-c` option behavior and CSV spectrum data writing
-- **Enhanced**: Input parameter validation with enum-based options
-
-[See full changelog](/docs/CHANGELOG.md) for complete list of changes.
 
 ## Download and Installation
 
@@ -57,6 +45,19 @@ bin\run.bat [options]
 **For building from source**:
 - Java 21 or higher
 - Maven 3.6 or higher
+
+## Latest Changes
+
+### [0.8.6] - 2025-08-30
+- **Added**: New command-line options for resolution, plasma temperature, electron density, and advanced NIST LIBS parameters
+- **Added**: UserInputConfig class to centralize parameter management
+- **Added**: Support for wavelength units, conditions, ion charge limits, and intensity scale selection
+- **Fixed**: Overview GUID not being passed to Dirichlet sampler (bug #44)
+- **Fixed**: Issue with `-c` option behavior and CSV spectrum data writing
+- **Enhanced**: Input parameter validation with enum-based options
+
+[See full changelog](/docs/CHANGELOG.md) for complete list of changes.
+
 
 ## Usage
 
