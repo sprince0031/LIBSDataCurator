@@ -185,6 +185,7 @@ public class InputCompositionProcessor {
                 List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
                 MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid());
                 materialGrade.setMaterialName(matwebService.getDatasheetName());
+                materialGrade.setMaterialAttributes(matwebService.getDatasheetAttributes());
                 materialGrades.add(materialGrade);
 
                 materialsProcessed++;

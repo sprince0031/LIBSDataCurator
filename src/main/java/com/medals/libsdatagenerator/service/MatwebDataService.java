@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,8 @@ public class MatwebDataService {
     private static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
     private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
-    private static String datasheetName = "Unknown name";
+    private static String datasheetName;
+    private static String[] datasheetAttributes;
 
     public static MatwebDataService getInstance() {
         if (instance == null) {
@@ -58,13 +60,13 @@ public class MatwebDataService {
             if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
                 List<List<String>> compositionTableData = fetchCompositionTableData();
                 if (!compositionTableData.isEmpty()) {
+                    datasheetName = extractDatasheetName(false);
                     return parseCompositionData(
                             compositionTableData.get(0), // Element names
                             compositionTableData.get(1), // Metric values (% or range)
                             compositionTableData.get(3) // Comments for average %
                     );
                 }
-                datasheetName = extractDatasheetName(false);
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from matweb.com", e);
@@ -156,18 +158,25 @@ public class MatwebDataService {
     private String extractDatasheetName(boolean isOverviewSheet) {
         try {
             String pageTitle = seleniumUtils.getDriver().getTitle();
+            String overviewPageTitlePrefix = LIBSDataGenConstants.MATWEB_OVERVIEW_DATASHEET_PAGE_TITLE_PREFIX;
 
             if (pageTitle == null) {
                 return "Unknown name";
             }
 
             // Extract series name from title like "Overview of materials for AISI 4000 Series Steel"
-            if (isOverviewSheet && pageTitle.contains("Overview of materials for ")) {
-                String seriesName = pageTitle.substring(pageTitle.indexOf("Overview of materials for ") + 26);
-                return seriesName.trim();
+            if (isOverviewSheet && pageTitle.contains(overviewPageTitlePrefix)) {
+                pageTitle = pageTitle.substring(overviewPageTitlePrefix.length()).trim();
+                datasheetAttributes = null;
+
+            } else {
+                String[] titleParts = pageTitle.split(", ");
+                pageTitle = titleParts[0].trim();
+                datasheetAttributes = Arrays.copyOfRange(titleParts, 1, titleParts.length);
             }
 
-            return pageTitle.trim();
+            logger.info("Page title: " + pageTitle);
+            return pageTitle;
 
         } catch (Exception e) {
             logger.warning("Error extracting datasheet name: " + e.getMessage());
@@ -322,6 +331,10 @@ public class MatwebDataService {
 
     public String getDatasheetName() {
         return datasheetName;
+    }
+
+    public String[] getDatasheetAttributes() {
+        return datasheetAttributes;
     }
 
 }
