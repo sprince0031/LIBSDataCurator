@@ -4,7 +4,9 @@
 # This script creates self-contained packages with bundled JRE
 
 # Change script root directory to project root
-cd ../../
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 set -e  # Exit on any error
 
