@@ -124,7 +124,7 @@ JAVA_OPTS="$JAVA_OPTS -Duser.dir=$MAIN_DIR"
 cd "$MAIN_DIR"
 
 # Run the application
-"$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
+"$JAVA_HOME/bin/java" "$JAVA_OPTS" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
 EOF
 
 chmod +x build/release-package/bin/run.sh

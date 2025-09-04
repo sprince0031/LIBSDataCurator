@@ -186,7 +186,7 @@ echo cd /d "%%MAIN_DIR%%"
 echo.
 echo REM --- Run the Application ---
 echo echo Starting LIBSDataCurator...
-echo "%%JAVA_HOME%%\bin\java.exe" %%JAVA_OPTS%% -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
+echo "%%JAVA_HOME%%\bin\java.exe" "%%JAVA_OPTS%%" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
 ) > build\release-package\bin\run.bat
 
 REM Create README
