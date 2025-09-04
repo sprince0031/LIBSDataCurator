@@ -18,6 +18,7 @@ public class MaterialGrade {
     private String matGUID;
     private String overviewGUID;
     private String materialName;
+    private String[] materialAttributes;
 
     public MaterialGrade(List<Element> composition, String matGUID, String overviewGUID) {
         this.composition = composition;
@@ -56,6 +57,10 @@ public class MaterialGrade {
     public void setMaterialName(String materialName) {
         this.materialName = materialName;
     }
+
+    public String[] getMaterialAttributes() {return materialAttributes;}
+
+    public void setMaterialAttributes(String[] materialAttributes) {this.materialAttributes = materialAttributes;}
 
     @Override
     public String toString() {
