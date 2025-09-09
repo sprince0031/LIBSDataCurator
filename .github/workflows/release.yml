@@ -140,14 +140,13 @@ jobs:
           fi
           
           # Java options for logging configuration
-          JAVA_OPTS="-Djava.util.logging.config.file=$LOG_PROPERTIES"
-          JAVA_OPTS="$JAVA_OPTS -Duser.dir=$MAIN_DIR"
+          JAVA_OPTS=("-Djava.util.logging.config.file=$LOG_PROPERTIES" "-Duser.dir=$MAIN_DIR")
           
           # Change to package directory so application can find conf files
           cd "$MAIN_DIR"
         
           # Run the application
-          "$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
+          "$JAVA_HOME/bin/java" "${JAVA_OPTS[@]}" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
           EOF
           
           chmod +x build/release-package/bin/run.sh
@@ -241,15 +240,15 @@ jobs:
             echo Log path configured successfully.
           )
           
-          set "JAVA_OPTS=-Djava.util.logging.config.file=%LOG_PROPERTIES%"
-          set "JAVA_OPTS=%JAVA_OPTS% -Duser.dir=%MAIN_DIR%"
+          set "JAVA_OPT1=-Djava.util.logging.config.file=%LOG_PROPERTIES%"
+          set "JAVA_OPT2=-Duser.dir=%MAIN_DIR%"
           
           REM --- Change to Application Directory ---
           cd /d "%MAIN_DIR%"
           
           REM --- Run the Application ---
           echo Starting LIBSDataCurator...
-          "%JAVA_HOME%\bin\java.exe" %JAVA_OPTS% -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*  
+          "%JAVA_HOME%\bin\java.exe" "%JAVA_OPT1%" "%JAVA_OPT2%" -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*  
           "@ | Out-File -FilePath "build/release-package/bin/run.bat" -Encoding ASCII
           
           # Create README
