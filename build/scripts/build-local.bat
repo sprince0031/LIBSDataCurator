@@ -178,15 +178,15 @@ echo     move /Y "%%LOG_PROPERTIES%%.tmp" "%%LOG_PROPERTIES%%" ^>nul
 echo     echo Log path configured successfully.
 echo ^)
 echo.
-echo set "JAVA_OPTS=-Djava.util.logging.config.file=%%LOG_PROPERTIES%%"
-echo set "JAVA_OPTS=%%JAVA_OPTS%% -Duser.dir=%%MAIN_DIR%%"
+echo set "JAVA_OPT1=-Djava.util.logging.config.file=%%LOG_PROPERTIES%%"
+echo set "JAVA_OPT2=-Duser.dir=%%MAIN_DIR%%"
 echo.
 echo REM --- Change to Application Directory ---
 echo cd /d "%%MAIN_DIR%%"
 echo.
 echo REM --- Run the Application ---
 echo echo Starting LIBSDataCurator...
-echo "%%JAVA_HOME%%\bin\java.exe" %%JAVA_OPTS%% -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
+echo "%%JAVA_HOME%%\bin\java.exe" "%%JAVA_OPT1%%" "%%JAVA_OPT2%%" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
 ) > build\release-package\bin\run.bat
 
 REM Create README
