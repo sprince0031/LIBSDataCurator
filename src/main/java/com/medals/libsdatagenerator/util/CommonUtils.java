@@ -194,6 +194,12 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_VAR_MODE_DESC);
 
+        // Class label type
+        options.addOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_DESC);
+
         // Overview GUID
         options.addOption(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_LONG,

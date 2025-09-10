@@ -183,7 +183,7 @@ public class InputCompositionProcessor {
                     continue;
                 }
                 List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-                MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid());
+                MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid(), series.getSeriesKey());
                 materialGrade.setMaterialName(matwebService.getDatasheetName());
                 materialGrade.setMaterialAttributes(matwebService.getDatasheetAttributes());
                 materialGrades.add(materialGrade);
@@ -214,11 +214,11 @@ public class InputCompositionProcessor {
         if (COMPOSITION_STRING_PATTERN.matcher(userInput).matches()) {
             compositionArray = userInput.split(",");
             List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-            materialGrade = new MaterialGrade(baseComposition, null, overviewGUID);
+            materialGrade = new MaterialGrade(baseComposition, null, overviewGUID, LIBSDataGenConstants.DIRECT_ENTRY);
         } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
             compositionArray = MatwebDataService.getInstance().getMaterialComposition(userInput);
             List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-            materialGrade = new MaterialGrade(baseComposition, userInput, overviewGUID);
+            materialGrade = new MaterialGrade(baseComposition, userInput, overviewGUID, LIBSDataGenConstants.DIRECT_ENTRY);
         } else {
             throw new IOException("Invalid command line arguments. Aborting.");
         }

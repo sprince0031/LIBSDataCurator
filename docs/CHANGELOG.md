@@ -5,6 +5,23 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2025-09-10
+
+### Added
+- **Class Label Type Selection**: New `-ct, --class-type` option for machine learning dataset generation
+  - Type 1: Composition percentages (default) - Multi-output regression with element weight percentages
+  - Type 2: Material grade name - Multi-class classification with specific material grades (e.g., AISI 4140)
+  - Type 3: Material type - Multi-class classification with broader material categories (e.g., Carbon steel)
+- **Enhanced CSV Output**: Default behavior now includes both `material_grade_name` and `material_type` columns
+- **Selective Class Columns**: When `-ct` flag is specified, only the requested class column is included
+- **General Purpose Design**: Uses "Material" terminology instead of "Steel" for broader applicability
+- **Smart Fallbacks**: Handles missing data gracefully with "Unknown Grade" or "Unknown Type"
+- **Series Processing**: Converts series keys like `aisi.10xx.series` to readable format `aisi 10xx series`
+
+### Changed
+- **Default CSV Output**: Now includes material classification columns by default for enhanced ML capabilities
+- **MaterialGrade Model**: Enhanced to track series information for material type classification
+
 ## [0.8.6] - 2025-08-31
 - New command-line options for resolution, plasma temperature, electron density.
 - Support for wavelength unit selection (Angstrom, Nanometer, Micrometer)

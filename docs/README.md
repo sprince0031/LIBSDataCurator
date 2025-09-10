@@ -13,16 +13,16 @@ LIBS Data Curator enables systematic generation of synthetic spectral data for a
 
 Download the latest version from [GitHub Releases](https://github.com/sprince0031/LIBSDataCurator/releases/latest):
 
-- **Linux/macOS**: `LIBSDataCurator-0.8.6-linux.tar.gz`
-- **Windows**: `LIBSDataCurator-0.8.6-windows.zip`
+- **Linux/macOS**: `LIBSDataCurator-0.8.7-linux.tar.gz`
+- **Windows**: `LIBSDataCurator-0.8.7-windows.zip`
 
 ### Installation
 
 #### Linux/macOS
 ```bash
 # Download and extract
-tar -xzf LIBSDataCurator-0.8.6-linux.tar.gz
-cd LIBSDataCurator-0.8.6/
+tar -xzf LIBSDataCurator-0.8.7-linux.tar.gz
+cd LIBSDataCurator-0.8.7/
 
 # Run the application
 ./bin/run.sh [options]
@@ -47,6 +47,12 @@ bin\run.bat [options]
 - Maven 3.6 or higher
 
 ## Latest Changes
+
+### [0.8.7] - 2025-09-10
+- **New**: Class label type selection for machine learning dataset generation with `-ct, --class-type` option
+- **Enhanced**: Default CSV output now includes both material grade name and material type columns
+- **Improved**: General purpose design using "Material" terminology instead of "Steel" for broader applicability
+- **Added**: Smart fallbacks for missing material data with "Unknown Grade" or "Unknown Type"
 
 ### [0.8.6] - 2025-08-30
 - **Added**: New command-line options for resolution, plasma temperature, electron density, and advanced NIST LIBS parameters
@@ -104,6 +110,32 @@ bin\run.bat [options]
 - `--max-ion-charge`: Maximum ion charge (1: No limit, 2: 2+, 3: 3+, 4: 4+)
 - `--min-relative-intensity`: Minimum intensity (1: No limit, 2: 0.1, 3: 0.01, 4: 0.001)
 - `--intensity-scale`: Scale type (1: Energy flux, 2: Photon flux)
+
+**Machine Learning Dataset Options:**
+- `-ct, --class-type`: Class label type for ML dataset generation:
+  - `1`: Composition percentages (default) - Multi-output regression with element weight percentages
+  - `2`: Material grade name - Multi-class classification with specific material grades
+  - `3`: Material type - Multi-class classification with broader material categories
+
+### Class Label Types
+
+The tool supports different class label formats for machine learning applications:
+
+```bash
+# Default mode: Includes both material grade name and material type columns
+./bin/run.sh -c "Fe-80,C-20"
+
+# Material grade name classification only (e.g., "AISI 4140")
+./bin/run.sh -c "some_matweb_guid" --class-type 2
+
+# Material type classification only (e.g., "aisi 10xx series") 
+./bin/run.sh -s aisi.10xx.series --class-type 3
+
+# Composition percentages only (for multi-output regression)
+./bin/run.sh -c "Fe-80,C-20" --class-type 1
+```
+
+**Default Behavior:** When no `--class-type` is specified, the CSV includes both `material_grade_name` and `material_type` columns alongside element compositions, providing maximum flexibility for different ML approaches.
 
 ### Output
 

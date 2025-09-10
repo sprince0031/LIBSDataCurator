@@ -2,7 +2,9 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
@@ -227,6 +229,10 @@ public class LIBSDataService {
     }
 
     public void generateDataset(List<List<Element>> compositions, UserInputConfig config) {
+        generateDataset(compositions, config, null);
+    }
+
+    public void generateDataset(List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
 
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
@@ -334,6 +340,24 @@ public class LIBSDataService {
         for (String sym : sortedSymbols) { // Now uses STD_ELEMENT_LIST
             header.add(sym);
         }
+        
+        // Add class label columns based on configuration
+        // If user explicitly specified a class type, only add that specific column
+        // Otherwise, add both material grade name and material type columns by default
+        if (config.classLabelTypeExplicitlySet) {
+            // User explicitly selected a class type
+            if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                // Add only the specific class column requested
+                String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+                header.add(classLabelColumnName);
+            }
+            // For composition percentages (type 1), no additional class column is needed
+            // as the individual element columns serve as the class labels
+        } else {
+            // Default behavior: add both material columns
+            header.add("material_grade_name");
+            header.add("material_type");
+        }
 
         // Write out to "master.csv" inside savePath
         Path masterCsvPath = Paths.get(config.csvDirPath, "master_dataset.csv");
@@ -365,6 +389,26 @@ public class LIBSDataService {
                     // Correctly gets 0 if element not in this specific compId's map
                     Double pct = elemMap.getOrDefault(sym, 0.0);
                     row.add(String.valueOf(pct));
+                }
+                
+                // Add class label columns based on configuration
+                // If user explicitly specified a class type, only add that specific column
+                // Otherwise, add both material grade name and material type columns by default
+                if (config.classLabelTypeExplicitlySet) {
+                    // User explicitly selected a class type
+                    if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                        // Add only the specific class column requested
+                        String classLabel = generateClassLabel(config.classLabelType, sourceMaterial, compId);
+                        row.add(classLabel);
+                    }
+                    // For composition percentages (type 1), no additional class column is needed
+                    // as the individual element columns serve as the class labels
+                } else {
+                    // Default behavior: add both material columns
+                    String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial, compId);
+                    String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial, compId);
+                    row.add(gradeLabel);
+                    row.add(typeLabel);
                 }
 
                 printer.printRecord(row);
@@ -407,6 +451,52 @@ public class LIBSDataService {
             }
         }
         return waveMap;
+    }
+
+    /**
+     * Gets the column name for the class label based on the class label type
+     */
+    private String getClassLabelColumnName(ClassLabelType classLabelType) {
+        return switch (classLabelType) {
+            case COMPOSITION_PERCENTAGE -> "class_composition_percentage";
+            case MATERIAL_GRADE_NAME -> "material_grade_name";
+            case MATERIAL_TYPE -> "material_type";
+        };
+    }
+
+    /**
+     * Generates the class label value for a given composition
+     */
+    private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial, String compositionId) {
+        return switch (classLabelType) {
+            case COMPOSITION_PERCENTAGE -> compositionId; // Use composition ID for multi-output regression
+            case MATERIAL_GRADE_NAME -> {
+                if (sourceMaterial != null && sourceMaterial.getMaterialName() != null && !sourceMaterial.getMaterialName().isEmpty()) {
+                    yield sourceMaterial.getMaterialName();
+                } else {
+                    yield "Unknown Grade"; // Fallback for missing material names
+                }
+            }
+            case MATERIAL_TYPE -> {
+                if (sourceMaterial != null && sourceMaterial.getSeriesKey() != null) {
+                    yield processSeriesKeyToMaterialType(sourceMaterial.getSeriesKey());
+                } else {
+                    yield "Unknown Type"; // Fallback for missing series information
+                }
+            }
+        };
+    }
+
+    /**
+     * Converts series key to readable material type by replacing dots and underscores with spaces
+     */
+    private String processSeriesKeyToMaterialType(String seriesKey) {
+        if (seriesKey == null || seriesKey.equals(LIBSDataGenConstants.DIRECT_ENTRY)) {
+            return "Direct Entry";
+        }
+        
+        // Convert dots and underscores to spaces
+        return seriesKey.replace('.', ' ').replace('_', ' ');
     }
 
 }

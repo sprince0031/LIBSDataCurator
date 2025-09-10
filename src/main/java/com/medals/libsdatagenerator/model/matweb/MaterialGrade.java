@@ -19,11 +19,20 @@ public class MaterialGrade {
     private String overviewGUID;
     private String materialName;
     private String[] materialAttributes;
+    private String seriesKey;
 
     public MaterialGrade(List<Element> composition, String matGUID, String overviewGUID) {
         this.composition = composition;
         this.matGUID = matGUID;
         this.overviewGUID = overviewGUID;
+        this.seriesKey = null; // Will be set separately if available
+    }
+
+    public MaterialGrade(List<Element> composition, String matGUID, String overviewGUID, String seriesKey) {
+        this.composition = composition;
+        this.matGUID = matGUID;
+        this.overviewGUID = overviewGUID;
+        this.seriesKey = seriesKey;
     }
 
     public List<Element> getComposition() {
@@ -62,6 +71,14 @@ public class MaterialGrade {
 
     public void setMaterialAttributes(String[] materialAttributes) {this.materialAttributes = materialAttributes;}
 
+    public String getSeriesKey() {
+        return seriesKey;
+    }
+
+    public void setSeriesKey(String seriesKey) {
+        this.seriesKey = seriesKey;
+    }
+  
     @Override
     public String toString() {
         return materialName != null && !materialName.isEmpty() ? materialName : CommonUtils.getInstance().buildCompositionString(composition);

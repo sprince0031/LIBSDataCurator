@@ -138,6 +138,18 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
             "Required for Dirichlet sampling mode (mode 1) to get series average compositions.";
 
+    public static final String CMD_OPT_CLASS_TYPE_SHORT = "ct";
+    public static final String CMD_OPT_CLASS_TYPE_LONG = "class-type";
+    public static final String CMD_OPT_CLASS_TYPE_DESC = """
+            Chooses the class label type for dataset generation: \
+            
+            1 -> Composition percentages (default) - multi-output regression with element weight percentages\
+            
+            2 -> Material grade name - multi-class classification with specific material grades (e.g., AISI 4140)\
+            
+            3 -> Material type - multi-class classification with broader material categories (e.g., Carbon steel)\
+            """;
+
     public static final String CMD_OPT_SERIES_SHORT = "s";
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
