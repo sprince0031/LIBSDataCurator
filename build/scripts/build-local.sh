@@ -4,7 +4,9 @@
 # This script creates self-contained packages with bundled JRE
 
 # Change script root directory to project root
-cd ../../
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+cd "$PROJECT_ROOT"
 
 set -e  # Exit on any error
 
@@ -117,14 +119,13 @@ if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
 fi
 
 # Java options for logging configuration
-JAVA_OPTS="-Djava.util.logging.config.file=$LOG_PROPERTIES"
-JAVA_OPTS="$JAVA_OPTS -Duser.dir=$MAIN_DIR"
+JAVA_OPTS=("-Djava.util.logging.config.file=$LOG_PROPERTIES" "-Duser.dir=$MAIN_DIR")
 
 # Change to package directory so application can find conf files
 cd "$MAIN_DIR"
 
 # Run the application
-"$JAVA_HOME/bin/java" $JAVA_OPTS -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
+"$JAVA_HOME/bin/java" "${JAVA_OPTS[@]}" -jar "$MAIN_DIR/lib/LIBSDataCurator.jar" "$@"
 EOF
 
 chmod +x build/release-package/bin/run.sh

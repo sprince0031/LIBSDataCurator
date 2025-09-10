@@ -138,6 +138,18 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
             "Required for Dirichlet sampling mode (mode 1) to get series average compositions.";
 
+    public static final String CMD_OPT_CLASS_TYPE_SHORT = "ct";
+    public static final String CMD_OPT_CLASS_TYPE_LONG = "class-type";
+    public static final String CMD_OPT_CLASS_TYPE_DESC = """
+            Chooses the class label type for dataset generation: \
+            
+            1 -> Composition percentages (default) - multi-output regression with element weight percentages\
+            
+            2 -> Material grade name - multi-class classification with specific material grades (e.g., AISI 4140)\
+            
+            3 -> Material type - multi-class classification with broader material categories (e.g., Carbon steel)\
+            """;
+
     public static final String CMD_OPT_SERIES_SHORT = "s";
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
@@ -176,8 +188,8 @@ public class LIBSDataGenConstants {
      */
     public static final String MATWEB_HOME_URL = "https://www.matweb.com";
     public static final String MATWEB_DATASHEET_URL_BASE = "https://www.matweb.com/search/DataSheet.aspx";
-    public static final String MATWEB_BACKUP_ARCHIVE_URL = "https://web.archive.org/web/20240907071945/";
     public static final String MATWEB_DATASHEET_PARAM_GUID = "MatGUID";
+    public static final String MATWEB_OVERVIEW_DATASHEET_PAGE_TITLE_PREFIX = "Overview of materials for ";
     public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";
