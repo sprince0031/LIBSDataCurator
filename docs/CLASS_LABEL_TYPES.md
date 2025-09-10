@@ -13,17 +13,17 @@ The LIBS Data Curator now supports different class label types for machine learn
 - **Example values**: `Fe-80.0;C-20.0`, `Fe-75.5;C-18.2;Mn-6.3`
 - **Description**: Uses the composition string as the class label, suitable for predicting element percentages
 
-### 2. Steel Grade Name
+### 2. Material Grade Name
 - **Option**: `--class-type 2`
-- **Use case**: Multi-class classification with specific steel grades
-- **Column name**: `class_steel_grade_name`
+- **Use case**: Multi-class classification with specific material grades
+- **Column name**: `material_grade_name`
 - **Example values**: `AISI 1018 Steel`, `AISI 4140 Steel`, `AISI 316 Stainless Steel`
 - **Description**: Uses the material name scraped from MatWeb datasheets for classifying specific steel grades
 
-### 3. Steel Type
+### 3. Material Type
 - **Option**: `--class-type 3`
-- **Use case**: Multi-class classification with broader steel categories
-- **Column name**: `class_steel_type`
+- **Use case**: Multi-class classification with broader material categories
+- **Column name**: `material_type`
 - **Example values**: `AISI 1000 Series Carbon Steel`, `AISI 4000 Series Chromium-Molybdenum Steel`, `300 Series Austenitic Stainless Steel`
 - **Description**: Uses the series category derived from the materials catalog for classifying broader steel types
 

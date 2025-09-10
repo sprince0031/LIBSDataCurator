@@ -38,6 +38,3 @@ jre-custom/
 release-package/
 LIBSDataCurator-*.tar.gz
 LIBSDataCurator-*.zip
-
-# Demo scripts
-demo_class_labels.sh
