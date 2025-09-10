@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthConditio
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.MaxIonCharge;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.MinRelativeIntensity;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.IntensityScale;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
@@ -26,6 +27,7 @@ public class UserInputConfig {
     public final boolean performVariations;
     public final int numSamples;
     public final VariationMode variationMode;
+    public final ClassLabelType classLabelType;
     @Deprecated public final double varyBy;
     @Deprecated public final double maxDelta;
 
@@ -62,6 +64,7 @@ public class UserInputConfig {
         this.performVariations = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT);
         this.numSamples = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "20"));
         this.variationMode = VariationMode.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, "1")));
+        this.classLabelType = ClassLabelType.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT, "1")));
         this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
         this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
 

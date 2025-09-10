@@ -2,7 +2,9 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.nist.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
@@ -227,6 +229,10 @@ public class LIBSDataService {
     }
 
     public void generateDataset(List<List<Element>> compositions, UserInputConfig config) {
+        generateDataset(compositions, config, null);
+    }
+
+    public void generateDataset(List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
 
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = new TreeSet<>();
@@ -334,6 +340,10 @@ public class LIBSDataService {
         for (String sym : sortedSymbols) { // Now uses STD_ELEMENT_LIST
             header.add(sym);
         }
+        
+        // Add class label column based on configuration
+        String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+        header.add(classLabelColumnName);
 
         // Write out to "master.csv" inside savePath
         Path masterCsvPath = Paths.get(config.csvDirPath, "master_dataset.csv");
@@ -366,6 +376,10 @@ public class LIBSDataService {
                     Double pct = elemMap.getOrDefault(sym, 0.0);
                     row.add(String.valueOf(pct));
                 }
+                
+                // Add class label based on configuration
+                String classLabel = generateClassLabel(config.classLabelType, sourceMaterial, compId);
+                row.add(classLabel);
 
                 printer.printRecord(row);
             }
@@ -407,6 +421,68 @@ public class LIBSDataService {
             }
         }
         return waveMap;
+    }
+
+    /**
+     * Gets the column name for the class label based on the class label type
+     */
+    private String getClassLabelColumnName(ClassLabelType classLabelType) {
+        return switch (classLabelType) {
+            case COMPOSITION_PERCENTAGE -> "class_composition_percentage";
+            case STEEL_GRADE_NAME -> "class_steel_grade_name";
+            case STEEL_TYPE -> "class_steel_type";
+        };
+    }
+
+    /**
+     * Generates the class label value for a given composition
+     */
+    private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial, String compositionId) {
+        return switch (classLabelType) {
+            case COMPOSITION_PERCENTAGE -> compositionId; // Use composition ID for multi-output regression
+            case STEEL_GRADE_NAME -> {
+                if (sourceMaterial != null && sourceMaterial.getMaterialName() != null && !sourceMaterial.getMaterialName().isEmpty()) {
+                    yield sourceMaterial.getMaterialName();
+                } else {
+                    yield "Unknown Grade"; // Fallback for missing material names
+                }
+            }
+            case STEEL_TYPE -> {
+                if (sourceMaterial != null && sourceMaterial.getSeriesKey() != null) {
+                    yield extractSteelTypeFromSeriesKey(sourceMaterial.getSeriesKey());
+                } else {
+                    yield "Unknown Type"; // Fallback for missing series information
+                }
+            }
+        };
+    }
+
+    /**
+     * Extracts steel type name from series key (e.g., "aisi.10xx.series" -> "AISI 10XX Carbon Steel")
+     */
+    private String extractSteelTypeFromSeriesKey(String seriesKey) {
+        if (seriesKey == null || seriesKey.equals(LIBSDataGenConstants.DIRECT_ENTRY)) {
+            return "Direct Entry";
+        }
+        
+        // Map common series patterns to readable steel type names
+        return switch (seriesKey.toLowerCase()) {
+            case "aisi.10xx.series" -> "AISI 1000 Series Carbon Steel";
+            case "aisi.41xx.series" -> "AISI 4000 Series Chromium-Molybdenum Steel";
+            case "t.30x.series" -> "300 Series Austenitic Stainless Steel";
+            case "astm.structural.series" -> "ASTM Structural Steel";
+            default -> {
+                // Generic parsing: convert "aisi.xxxx.series" to "AISI XXXX Series"
+                String[] parts = seriesKey.split("\\.");
+                if (parts.length >= 2) {
+                    String prefix = parts[0].toUpperCase();
+                    String code = parts[1].toUpperCase();
+                    yield prefix + " " + code + " Series Steel";
+                } else {
+                    yield seriesKey; // Return as-is if can't parse
+                }
+            }
+        };
     }
 
 }
