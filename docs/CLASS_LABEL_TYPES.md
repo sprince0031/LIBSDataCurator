@@ -70,10 +70,10 @@ The generated `master_dataset.csv` will include:
 
 ### Series Key Mapping
 The application automatically maps series keys to readable steel types:
-- `aisi.10xx.series` → "AISI 1000 Series Carbon Steel"
-- `aisi.41xx.series` → "AISI 4000 Series Chromium-Molybdenum Steel"
-- `t.30x.series` → "300 Series Austenitic Stainless Steel"
-- `astm.structural.series` → "ASTM Structural Steel"
+- `aisi.10xx.series` → "aisi 10xx series"
+- `aisi.41xx.series` → "aisi 41xx series"
+- `t.30x.series` → "t 30x series"
+- `astm.structural.series` → "astm structural series"
 - Custom parsing for other series formats
 
 ## Machine Learning Use Cases
