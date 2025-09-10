@@ -30,20 +30,20 @@ public class ClassLabelTypeTest {
     void testClassLabelTypeEnumValues() {
         // Test enum values and their properties
         assertEquals(1, ClassLabelType.COMPOSITION_PERCENTAGE.getUserOption());
-        assertEquals(2, ClassLabelType.STEEL_GRADE_NAME.getUserOption());
-        assertEquals(3, ClassLabelType.STEEL_TYPE.getUserOption());
+        assertEquals(2, ClassLabelType.MATERIAL_GRADE_NAME.getUserOption());
+        assertEquals(3, ClassLabelType.MATERIAL_TYPE.getUserOption());
         
         assertEquals("Composition percentages", ClassLabelType.COMPOSITION_PERCENTAGE.getDescription());
-        assertEquals("Steel grade name", ClassLabelType.STEEL_GRADE_NAME.getDescription());
-        assertEquals("Steel type", ClassLabelType.STEEL_TYPE.getDescription());
+        assertEquals("Material grade name", ClassLabelType.MATERIAL_GRADE_NAME.getDescription());
+        assertEquals("Material type", ClassLabelType.MATERIAL_TYPE.getDescription());
     }
 
     @Test
     void testClassLabelTypeFromOption() {
         // Test default behavior
         assertEquals(ClassLabelType.COMPOSITION_PERCENTAGE, ClassLabelType.fromOption(1));
-        assertEquals(ClassLabelType.STEEL_GRADE_NAME, ClassLabelType.fromOption(2));
-        assertEquals(ClassLabelType.STEEL_TYPE, ClassLabelType.fromOption(3));
+        assertEquals(ClassLabelType.MATERIAL_GRADE_NAME, ClassLabelType.fromOption(2));
+        assertEquals(ClassLabelType.MATERIAL_TYPE, ClassLabelType.fromOption(3));
         
         // Test invalid option defaults to COMPOSITION_PERCENTAGE
         assertEquals(ClassLabelType.COMPOSITION_PERCENTAGE, ClassLabelType.fromOption(999));
@@ -57,18 +57,21 @@ public class ClassLabelTypeTest {
         CommandLine cmd1 = commonUtils.getTerminalArgHandler(args1);
         UserInputConfig config1 = new UserInputConfig(cmd1);
         assertEquals(ClassLabelType.COMPOSITION_PERCENTAGE, config1.classLabelType);
+        assertFalse(config1.classLabelTypeExplicitlySet);
 
-        // Test steel grade name (option 2)
+        // Test material grade name (option 2)
         String[] args2 = {"-c", "Fe-80,C-20", "-ct", "2"};
         CommandLine cmd2 = commonUtils.getTerminalArgHandler(args2);
         UserInputConfig config2 = new UserInputConfig(cmd2);
-        assertEquals(ClassLabelType.STEEL_GRADE_NAME, config2.classLabelType);
+        assertEquals(ClassLabelType.MATERIAL_GRADE_NAME, config2.classLabelType);
+        assertTrue(config2.classLabelTypeExplicitlySet);
 
-        // Test steel type (option 3)
+        // Test material type (option 3)
         String[] args3 = {"-c", "Fe-80,C-20", "-ct", "3"};
         CommandLine cmd3 = commonUtils.getTerminalArgHandler(args3);
         UserInputConfig config3 = new UserInputConfig(cmd3);
-        assertEquals(ClassLabelType.STEEL_TYPE, config3.classLabelType);
+        assertEquals(ClassLabelType.MATERIAL_TYPE, config3.classLabelType);
+        assertTrue(config3.classLabelTypeExplicitlySet);
     }
 
     @Test
@@ -100,26 +103,25 @@ public class ClassLabelTypeTest {
     }
 
     @Test
-    void testSteelTypeExtraction() {
-        // Test steel type extraction from series keys (using reflection to access private method)
+    void testMaterialTypeProcessing() {
+        // Test material type processing from series keys (using reflection to access private method)
         try {
-            java.lang.reflect.Method method = LIBSDataService.class.getDeclaredMethod("extractSteelTypeFromSeriesKey", String.class);
+            java.lang.reflect.Method method = LIBSDataService.class.getDeclaredMethod("processSeriesKeyToMaterialType", String.class);
             method.setAccessible(true);
             
-            assertEquals("AISI 1000 Series Carbon Steel", method.invoke(libsDataService, "aisi.10xx.series"));
-            assertEquals("AISI 4000 Series Chromium-Molybdenum Steel", method.invoke(libsDataService, "aisi.41xx.series"));
-            assertEquals("300 Series Austenitic Stainless Steel", method.invoke(libsDataService, "t.30x.series"));
-            assertEquals("ASTM Structural Steel", method.invoke(libsDataService, "astm.structural.series"));
+            assertEquals("aisi 10xx series", method.invoke(libsDataService, "aisi.10xx.series"));
+            assertEquals("aisi 41xx series", method.invoke(libsDataService, "aisi.41xx.series"));
+            assertEquals("t 30x series", method.invoke(libsDataService, "t.30x.series"));
+            assertEquals("astm structural series", method.invoke(libsDataService, "astm.structural.series"));
             assertEquals("Direct Entry", method.invoke(libsDataService, LIBSDataGenConstants.DIRECT_ENTRY));
             assertEquals("Direct Entry", method.invoke(libsDataService, (String)null));
             
-            // Test generic parsing
-            assertEquals("CUSTOM SERIES Series Steel", method.invoke(libsDataService, "custom.series.series"));
-            assertEquals("UNKNOWN FORMAT Series Steel", method.invoke(libsDataService, "unknown.format"));
-            assertEquals("single", method.invoke(libsDataService, "single")); // No dots, returns as-is
+            // Test underscore replacement
+            assertEquals("custom series type", method.invoke(libsDataService, "custom_series_type"));
+            assertEquals("mixed dots and underscores", method.invoke(libsDataService, "mixed.dots_and.underscores"));
             
         } catch (Exception e) {
-            fail("Failed to test steel type extraction: " + e.getMessage());
+            fail("Failed to test material type processing: " + e.getMessage());
         }
     }
 
@@ -139,16 +141,16 @@ public class ClassLabelTypeTest {
             // Test composition percentage mode
             assertEquals(compositionId, method.invoke(libsDataService, ClassLabelType.COMPOSITION_PERCENTAGE, testGrade, compositionId));
             
-            // Test steel grade name mode
-            assertEquals("AISI 1018 Steel", method.invoke(libsDataService, ClassLabelType.STEEL_GRADE_NAME, testGrade, compositionId));
+            // Test material grade name mode
+            assertEquals("AISI 1018 Steel", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, testGrade, compositionId));
             
-            // Test steel type mode
-            assertEquals("AISI 1000 Series Carbon Steel", method.invoke(libsDataService, ClassLabelType.STEEL_TYPE, testGrade, compositionId));
+            // Test material type mode
+            assertEquals("aisi 10xx series", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, testGrade, compositionId));
             
             // Test fallbacks for missing data
             MaterialGrade emptyGrade = new MaterialGrade(composition, "testGuid", "overviewGuid");
-            assertEquals("Unknown Grade", method.invoke(libsDataService, ClassLabelType.STEEL_GRADE_NAME, emptyGrade, compositionId));
-            assertEquals("Unknown Type", method.invoke(libsDataService, ClassLabelType.STEEL_TYPE, emptyGrade, compositionId));
+            assertEquals("Unknown Grade", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, emptyGrade, compositionId));
+            assertEquals("Unknown Type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, emptyGrade, compositionId));
             
         } catch (Exception e) {
             fail("Failed to test class label generation: " + e.getMessage());
@@ -163,8 +165,8 @@ public class ClassLabelTypeTest {
             method.setAccessible(true);
             
             assertEquals("class_composition_percentage", method.invoke(libsDataService, ClassLabelType.COMPOSITION_PERCENTAGE));
-            assertEquals("class_steel_grade_name", method.invoke(libsDataService, ClassLabelType.STEEL_GRADE_NAME));
-            assertEquals("class_steel_type", method.invoke(libsDataService, ClassLabelType.STEEL_TYPE));
+            assertEquals("material_grade_name", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME));
+            assertEquals("material_type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE));
             
         } catch (Exception e) {
             fail("Failed to test class label column name generation: " + e.getMessage());

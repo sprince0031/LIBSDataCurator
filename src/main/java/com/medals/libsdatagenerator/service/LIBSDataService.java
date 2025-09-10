@@ -341,9 +341,23 @@ public class LIBSDataService {
             header.add(sym);
         }
         
-        // Add class label column based on configuration
-        String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
-        header.add(classLabelColumnName);
+        // Add class label columns based on configuration
+        // If user explicitly specified a class type, only add that specific column
+        // Otherwise, add both material grade name and material type columns by default
+        if (config.classLabelTypeExplicitlySet) {
+            // User explicitly selected a class type
+            if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                // Add only the specific class column requested
+                String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+                header.add(classLabelColumnName);
+            }
+            // For composition percentages (type 1), no additional class column is needed
+            // as the individual element columns serve as the class labels
+        } else {
+            // Default behavior: add both material columns
+            header.add("material_grade_name");
+            header.add("material_type");
+        }
 
         // Write out to "master.csv" inside savePath
         Path masterCsvPath = Paths.get(config.csvDirPath, "master_dataset.csv");
@@ -377,9 +391,25 @@ public class LIBSDataService {
                     row.add(String.valueOf(pct));
                 }
                 
-                // Add class label based on configuration
-                String classLabel = generateClassLabel(config.classLabelType, sourceMaterial, compId);
-                row.add(classLabel);
+                // Add class label columns based on configuration
+                // If user explicitly specified a class type, only add that specific column
+                // Otherwise, add both material grade name and material type columns by default
+                if (config.classLabelTypeExplicitlySet) {
+                    // User explicitly selected a class type
+                    if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                        // Add only the specific class column requested
+                        String classLabel = generateClassLabel(config.classLabelType, sourceMaterial, compId);
+                        row.add(classLabel);
+                    }
+                    // For composition percentages (type 1), no additional class column is needed
+                    // as the individual element columns serve as the class labels
+                } else {
+                    // Default behavior: add both material columns
+                    String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial, compId);
+                    String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial, compId);
+                    row.add(gradeLabel);
+                    row.add(typeLabel);
+                }
 
                 printer.printRecord(row);
             }
@@ -429,8 +459,8 @@ public class LIBSDataService {
     private String getClassLabelColumnName(ClassLabelType classLabelType) {
         return switch (classLabelType) {
             case COMPOSITION_PERCENTAGE -> "class_composition_percentage";
-            case STEEL_GRADE_NAME -> "class_steel_grade_name";
-            case STEEL_TYPE -> "class_steel_type";
+            case MATERIAL_GRADE_NAME -> "material_grade_name";
+            case MATERIAL_TYPE -> "material_type";
         };
     }
 
@@ -440,16 +470,16 @@ public class LIBSDataService {
     private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial, String compositionId) {
         return switch (classLabelType) {
             case COMPOSITION_PERCENTAGE -> compositionId; // Use composition ID for multi-output regression
-            case STEEL_GRADE_NAME -> {
+            case MATERIAL_GRADE_NAME -> {
                 if (sourceMaterial != null && sourceMaterial.getMaterialName() != null && !sourceMaterial.getMaterialName().isEmpty()) {
                     yield sourceMaterial.getMaterialName();
                 } else {
                     yield "Unknown Grade"; // Fallback for missing material names
                 }
             }
-            case STEEL_TYPE -> {
+            case MATERIAL_TYPE -> {
                 if (sourceMaterial != null && sourceMaterial.getSeriesKey() != null) {
-                    yield extractSteelTypeFromSeriesKey(sourceMaterial.getSeriesKey());
+                    yield processSeriesKeyToMaterialType(sourceMaterial.getSeriesKey());
                 } else {
                     yield "Unknown Type"; // Fallback for missing series information
                 }
@@ -458,31 +488,15 @@ public class LIBSDataService {
     }
 
     /**
-     * Extracts steel type name from series key (e.g., "aisi.10xx.series" -> "AISI 10XX Carbon Steel")
+     * Converts series key to readable material type by replacing dots and underscores with spaces
      */
-    private String extractSteelTypeFromSeriesKey(String seriesKey) {
+    private String processSeriesKeyToMaterialType(String seriesKey) {
         if (seriesKey == null || seriesKey.equals(LIBSDataGenConstants.DIRECT_ENTRY)) {
             return "Direct Entry";
         }
         
-        // Map common series patterns to readable steel type names
-        return switch (seriesKey.toLowerCase()) {
-            case "aisi.10xx.series" -> "AISI 1000 Series Carbon Steel";
-            case "aisi.41xx.series" -> "AISI 4000 Series Chromium-Molybdenum Steel";
-            case "t.30x.series" -> "300 Series Austenitic Stainless Steel";
-            case "astm.structural.series" -> "ASTM Structural Steel";
-            default -> {
-                // Generic parsing: convert "aisi.xxxx.series" to "AISI XXXX Series"
-                String[] parts = seriesKey.split("\\.");
-                if (parts.length >= 2) {
-                    String prefix = parts[0].toUpperCase();
-                    String code = parts[1].toUpperCase();
-                    yield prefix + " " + code + " Series Steel";
-                } else {
-                    yield seriesKey; // Return as-is if can't parse
-                }
-            }
-        };
+        // Convert dots and underscores to spaces
+        return seriesKey.replace('.', ' ').replace('_', ' ');
     }
 
 }

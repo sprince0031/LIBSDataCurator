@@ -166,8 +166,8 @@ public class NistUrlOptions {
 
     public enum ClassLabelType implements UserSelectable {
         COMPOSITION_PERCENTAGE(1, "Composition percentages"), // Default - multi-output regression
-        STEEL_GRADE_NAME(2, "Steel grade name"), // Multi-class classification with specific grades
-        STEEL_TYPE(3, "Steel type"); // Multi-class classification with broader categories
+        MATERIAL_GRADE_NAME(2, "Material grade name"), // Multi-class classification with specific grades
+        MATERIAL_TYPE(3, "Material type"); // Multi-class classification with broader categories
 
         private final int userOption;
         private final String description;

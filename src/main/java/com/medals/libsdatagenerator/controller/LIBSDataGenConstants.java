@@ -145,9 +145,9 @@ public class LIBSDataGenConstants {
             
             1 -> Composition percentages (default) - multi-output regression with element weight percentages\
             
-            2 -> Steel grade name - multi-class classification with specific steel grades (e.g., AISI 4140)\
+            2 -> Material grade name - multi-class classification with specific material grades (e.g., AISI 4140)\
             
-            3 -> Steel type - multi-class classification with broader steel categories (e.g., Carbon steel)\
+            3 -> Material type - multi-class classification with broader material categories (e.g., Carbon steel)\
             """;
 
     public static final String CMD_OPT_SERIES_SHORT = "s";

@@ -28,6 +28,7 @@ public class UserInputConfig {
     public final int numSamples;
     public final VariationMode variationMode;
     public final ClassLabelType classLabelType;
+    public final boolean classLabelTypeExplicitlySet;
     @Deprecated public final double varyBy;
     @Deprecated public final double maxDelta;
 
@@ -64,6 +65,7 @@ public class UserInputConfig {
         this.performVariations = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT);
         this.numSamples = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "20"));
         this.variationMode = VariationMode.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, "1")));
+        this.classLabelTypeExplicitlySet = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT);
         this.classLabelType = ClassLabelType.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT, "1")));
         this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
         this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
