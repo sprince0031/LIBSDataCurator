@@ -163,4 +163,27 @@ public class NistUrlOptions {
         }
 
     }
+
+    public enum ClassLabelType implements UserSelectable {
+        COMPOSITION_PERCENTAGE(1, "Composition percentages"), // Default - multi-output regression
+        MATERIAL_GRADE_NAME(2, "Material grade name"), // Multi-class classification with specific grades
+        MATERIAL_TYPE(3, "Material type"); // Multi-class classification with broader categories
+
+        private final int userOption;
+        private final String description;
+
+        ClassLabelType(int userOption, String description) {
+            this.userOption = userOption;
+            this.description = description;
+        }
+
+        @Override
+        public int getUserOption() { return userOption; }
+
+        public String getDescription() { return description; }
+
+        public static ClassLabelType fromOption(int option) {
+            return NistUrlOptions.fromOption(values(), option, COMPOSITION_PERCENTAGE);
+        }
+    }
 }

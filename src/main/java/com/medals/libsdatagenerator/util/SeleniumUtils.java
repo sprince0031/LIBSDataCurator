@@ -58,7 +58,6 @@ public class SeleniumUtils {
     /**
      * Connects to the url provided
      * @param url Base URL string
-     * @param queryParams Map of all URL query parameters
      * @return True if connection established, false otherwise
      * @throws URISyntaxException
      */

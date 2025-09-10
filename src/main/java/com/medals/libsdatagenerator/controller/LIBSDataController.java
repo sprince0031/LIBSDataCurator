@@ -80,7 +80,7 @@ public class LIBSDataController {
                             .generateCompositionalVariations(materialGrade, userInputs);
 
                     if (compositions != null && !compositions.isEmpty()) {
-                        libsDataService.generateDataset(compositions, userInputs);
+                        libsDataService.generateDataset(compositions, userInputs, materialGrade);
                         logger.info("Successfully generated dataset for composition: " + materialGrade);
                     } else {
                         logger.warning("No compositions generated for input: " + materialGrade);
