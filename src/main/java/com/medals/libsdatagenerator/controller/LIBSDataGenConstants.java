@@ -188,8 +188,8 @@ public class LIBSDataGenConstants {
      */
     public static final String MATWEB_HOME_URL = "https://www.matweb.com";
     public static final String MATWEB_DATASHEET_URL_BASE = "https://www.matweb.com/search/DataSheet.aspx";
-    public static final String MATWEB_BACKUP_ARCHIVE_URL = "https://web.archive.org/web/20240907071945/";
     public static final String MATWEB_DATASHEET_PARAM_GUID = "MatGUID";
+    public static final String MATWEB_OVERVIEW_DATASHEET_PAGE_TITLE_PREFIX = "Overview of materials for ";
     public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";

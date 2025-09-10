@@ -18,6 +18,7 @@ public class MaterialGrade {
     private String matGUID;
     private String overviewGUID;
     private String materialName;
+    private String[] materialAttributes;
     private String seriesKey;
 
     public MaterialGrade(List<Element> composition, String matGUID, String overviewGUID) {
@@ -66,6 +67,10 @@ public class MaterialGrade {
         this.materialName = materialName;
     }
 
+    public String[] getMaterialAttributes() {return materialAttributes;}
+
+    public void setMaterialAttributes(String[] materialAttributes) {this.materialAttributes = materialAttributes;}
+
     public String getSeriesKey() {
         return seriesKey;
     }
@@ -73,7 +78,7 @@ public class MaterialGrade {
     public void setSeriesKey(String seriesKey) {
         this.seriesKey = seriesKey;
     }
-
+  
     @Override
     public String toString() {
         return materialName != null && !materialName.isEmpty() ? materialName : CommonUtils.getInstance().buildCompositionString(composition);
