@@ -67,9 +67,13 @@ public class MaterialGrade {
         this.materialName = materialName;
     }
 
-    public String[] getMaterialAttributes() {return materialAttributes;}
+    public String[] getMaterialAttributes() {
+        return materialAttributes == null ? null : java.util.Arrays.copyOf(materialAttributes, materialAttributes.length);
+    }
 
-    public void setMaterialAttributes(String[] materialAttributes) {this.materialAttributes = materialAttributes;}
+    public void setMaterialAttributes(String[] materialAttributes) {
+        this.materialAttributes = materialAttributes == null ? null : java.util.Arrays.copyOf(materialAttributes, materialAttributes.length);
+    }
 
     public String getSeriesKey() {
         return seriesKey;

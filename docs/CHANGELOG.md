@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smart Fallbacks**: Handles missing data gracefully with "Unknown Grade" or "Unknown Type"
 - **Series Processing**: Converts series keys like `aisi.10xx.series` to readable format `aisi 10xx series`
 
+### Fixed
+- **File Paths with Spaces** ([#50](https://github.com/sprince0031/LIBSDataCurator/issues/50)): Fixed tool installation unable to handle spaces in file paths by properly quoting Java options in build scripts
+- **Material Name Reading** ([#48](https://github.com/sprince0031/LIBSDataCurator/issues/48)): Fixed material name not being read from MatWeb datasheet for individual materials, ensuring proper material classification
+
 ### Changed
 - **Default CSV Output**: Now includes material classification columns by default for enhanced ML capabilities
 - **MaterialGrade Model**: Enhanced to track series information for material type classification
