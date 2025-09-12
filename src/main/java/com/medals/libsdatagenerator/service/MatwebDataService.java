@@ -29,8 +29,8 @@ public class MatwebDataService {
     private static MatwebDataService instance = null;
     private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
     private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
-    private static String datasheetName;
-    private static String[] datasheetAttributes;
+    private String datasheetName;
+    private String[] datasheetAttributes;
 
     public static MatwebDataService getInstance() {
         if (instance == null) {
