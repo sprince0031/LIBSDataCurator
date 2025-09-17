@@ -296,7 +296,9 @@ public class MatwebDataService {
             } else if (composition.startsWith(">=")) { // Min percentage ">=X"
                 String val = composition.substring(2).trim();
                 parsedCompositionValue = val + ":100"; // Assumes max is 100
-            } else if (i < comments.size() && comments.get(i).contains("remainder")) { // Remainder, check before single value
+            } else if (i < comments.size() && (
+                    comments.get(i).toLowerCase().contains("remainder") ||
+                            comments.get(i).toLowerCase().contains("balance"))) { // Remainder, check before single value
                 parsedCompositionValue = "#";
             } else { // Single value "X" (e.g., "0.5", "12.3")
                 // Treat as a fixed point: min = X, max = X
