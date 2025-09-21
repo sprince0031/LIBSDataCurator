@@ -5,7 +5,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @author Siddharth Prince | 12/17/24 11:58 AM
+ * All constants used throughout the codebase.
+ *
+ * @author Siddharth Prince | 12/17/24 11:58 AM
  */
 
 public class LIBSDataGenConstants {
@@ -192,7 +194,8 @@ public class LIBSDataGenConstants {
     public static final String MATWEB_OVERVIEW_DATASHEET_PAGE_TITLE_PREFIX = "Overview of materials for ";
     public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
-    public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";
+    public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
+    public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
 
     /**
      * #### Archive.org Constants ####
@@ -205,15 +208,6 @@ public class LIBSDataGenConstants {
      */
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
-    public static final int STAT_VAR_MODE_UNIFORM_DIST = 0; // Uniform distribution mode (longest and unnecessary)
-    public static final int STAT_VAR_MODE_DIRICHLET_DIST = 1; // Dirichlet sampling mode
-    public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 2; // Gaussian sampling mode
-
-    // Default concentration parameter for Dirichlet distribution. Higher = less variance.
-    public static final double DIRICHLET_BASE_CONCENTRATION = 100.0;
-
-    // Default alpha value for elements missing an average in the overview sheet
-    public static final double DIRICHLET_DEFAULT_ALPHA = 0.5; // Low value to allow wide variance
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",

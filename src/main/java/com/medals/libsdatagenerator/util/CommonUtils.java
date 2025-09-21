@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 
 public class CommonUtils {
 
-    private static Logger logger = Logger.getLogger(CommonUtils.class.getName());
+    private static final Logger logger = Logger.getLogger(CommonUtils.class.getName());
 
     public static final String HOME_PATH = System.getProperty("user.dir");
     public static final String CONF_PATH = CommonUtils.HOME_PATH + File.separator + "conf";

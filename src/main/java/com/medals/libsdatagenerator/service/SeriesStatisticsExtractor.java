@@ -1,5 +1,6 @@
 package com.medals.libsdatagenerator.service;
 
+import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.ElementStatistics;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
 
@@ -16,13 +17,11 @@ public class SeriesStatisticsExtractor {
     private static final Logger logger = Logger.getLogger(SeriesStatisticsExtractor.class.getName());
 
     // Pattern to match "Average value: X.XX % Grade Count:NNN" or "Average value: X.XX unit Grade Count:NNN"
-    private static final Pattern AVERAGE_PATTERN =
-            Pattern.compile("Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)",
+    private static final Pattern AVERAGE_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_AVG_REGEX,
                     Pattern.CASE_INSENSITIVE);
 
     // Alternative pattern for cases where format might vary slightly
-    private static final Pattern ALTERNATIVE_PATTERN =
-            Pattern.compile("Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)",
+    private static final Pattern ALTERNATIVE_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_ALT_AVG_REGEX,
                     Pattern.CASE_INSENSITIVE);
 
     /**
