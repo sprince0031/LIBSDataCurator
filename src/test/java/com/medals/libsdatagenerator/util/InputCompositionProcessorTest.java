@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -529,5 +530,154 @@ class InputCompositionProcessorTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("valid.series", result.get(0).getSeriesKey());
+    }
+
+    // ===== COATING TESTS =====
+
+    @Test
+    void testParseSeriesEntry_coatedSeries() throws Exception {
+        Method parseMethod = InputCompositionProcessor.class.getDeclaredMethod("parseSeriesEntry", String.class, String.class);
+        parseMethod.setAccessible(true);
+        
+        String entry = "3a9cc570fbb24d119f08db22a53e2421,a2eed65d6e5e4b66b7315a1b30f4b391,og-81a26031d1b44cbb911f70ab863281f5";
+        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "coated.Zn-2.5.aisi.10xx.series", entry);
+        
+        assertNotNull(result);
+        assertEquals("coated.Zn-2.5.aisi.10xx.series", result.getSeriesKey());
+        assertEquals(2, result.getIndividualMaterialGuids().size());
+        assertEquals("81a26031d1b44cbb911f70ab863281f5", result.getOverviewGuid());
+        assertTrue(result.isCoated());
+        assertEquals("Zn", result.getCoatingElement());
+        assertEquals(2.5, result.getCoatingPercentage(), 0.001);
+    }
+
+    @Test
+    void testParseSeriesEntry_coatedSeriesInvalidFormat() throws Exception {
+        Method parseMethod = InputCompositionProcessor.class.getDeclaredMethod("parseSeriesEntry", String.class, String.class);
+        parseMethod.setAccessible(true);
+        
+        String entry = "3a9cc570fbb24d119f08db22a53e2421,og-81a26031d1b44cbb911f70ab863281f5";
+        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "coated.invalid.format", entry);
+        
+        assertNotNull(result);
+        assertEquals("coated.invalid.format", result.getSeriesKey());
+        assertFalse(result.isCoated());
+        assertNull(result.getCoatingElement());
+        assertNull(result.getCoatingPercentage());
+    }
+
+    @Test
+    void testParseSeriesEntry_coatedSeriesInvalidPercentage() throws Exception {
+        Method parseMethod = InputCompositionProcessor.class.getDeclaredMethod("parseSeriesEntry", String.class, String.class);
+        parseMethod.setAccessible(true);
+        
+        String entry = "3a9cc570fbb24d119f08db22a53e2421,og-81a26031d1b44cbb911f70ab863281f5";
+        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "coated.Zn-invalid.aisi.10xx.series", entry);
+        
+        assertNotNull(result);
+        assertEquals("coated.Zn-invalid.aisi.10xx.series", result.getSeriesKey());
+        assertFalse(result.isCoated());
+        assertNull(result.getCoatingElement());
+        assertNull(result.getCoatingPercentage());
+    }
+
+    @Test
+    void testApplyCoating_newElement() throws Exception {
+        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class);
+        applyCoatingMethod.setAccessible(true);
+        
+        // Create base composition: Fe-80, C-20
+        List<Element> baseComposition = new ArrayList<>();
+        baseComposition.add(new Element("Iron", "Fe", 80.0, null, null, null));
+        baseComposition.add(new Element("Carbon", "C", 20.0, null, null, null));
+        
+        // Apply 2.5% Zinc coating
+        @SuppressWarnings("unchecked")
+        List<Element> result = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Zn", 2.5);
+        
+        assertNotNull(result);
+        assertEquals(3, result.size());
+        
+        // Check that Fe and C are scaled down
+        Element fe = result.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElse(null);
+        Element c = result.stream().filter(e -> e.getSymbol().equals("C")).findFirst().orElse(null);
+        Element zn = result.stream().filter(e -> e.getSymbol().equals("Zn")).findFirst().orElse(null);
+        
+        assertNotNull(fe);
+        assertNotNull(c);
+        assertNotNull(zn);
+        
+        // Fe should be 80 * 0.975 = 78.0
+        assertEquals(78.0, fe.getPercentageComposition(), 0.01);
+        // C should be 20 * 0.975 = 19.5
+        assertEquals(19.5, c.getPercentageComposition(), 0.01);
+        // Zn should be 2.5
+        assertEquals(2.5, zn.getPercentageComposition(), 0.01);
+        
+        // Total should be ~100%
+        double total = result.stream().mapToDouble(Element::getPercentageComposition).sum();
+        assertEquals(100.0, total, 0.1);
+    }
+
+    @Test
+    void testApplyCoating_existingElement() throws Exception {
+        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class);
+        applyCoatingMethod.setAccessible(true);
+        
+        // Create base composition: Fe-80, C-18, Cr-2
+        List<Element> baseComposition = new ArrayList<>();
+        baseComposition.add(new Element("Iron", "Fe", 80.0, null, null, null));
+        baseComposition.add(new Element("Carbon", "C", 18.0, null, null, null));
+        baseComposition.add(new Element("Chromium", "Cr", 2.0, null, null, null));
+        
+        // Apply 1.0% Chromium coating (Cr already exists)
+        @SuppressWarnings("unchecked")
+        List<Element> result = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Cr", 1.0);
+        
+        assertNotNull(result);
+        assertEquals(3, result.size()); // Should still be 3 elements
+        
+        Element fe = result.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElse(null);
+        Element c = result.stream().filter(e -> e.getSymbol().equals("C")).findFirst().orElse(null);
+        Element cr = result.stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElse(null);
+        
+        assertNotNull(fe);
+        assertNotNull(c);
+        assertNotNull(cr);
+        
+        // Fe should be 80 * 0.99 = 79.2
+        assertEquals(79.2, fe.getPercentageComposition(), 0.01);
+        // C should be 18 * 0.99 = 17.82
+        assertEquals(17.82, c.getPercentageComposition(), 0.01);
+        // Cr should be (2 * 0.99) + 1.0 = 2.98
+        assertEquals(2.98, cr.getPercentageComposition(), 0.01);
+        
+        // Total should be ~100%
+        double total = result.stream().mapToDouble(Element::getPercentageComposition).sum();
+        assertEquals(100.0, total, 0.1);
+    }
+
+    @Test
+    void testApplyCoating_invalidParameters() throws Exception {
+        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class);
+        applyCoatingMethod.setAccessible(true);
+        
+        List<Element> baseComposition = new ArrayList<>();
+        baseComposition.add(new Element("Iron", "Fe", 100.0, null, null, null));
+        
+        // Test with null coating element
+        @SuppressWarnings("unchecked")
+        List<Element> result1 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, null, 2.5);
+        assertEquals(baseComposition, result1); // Should return original composition
+        
+        // Test with invalid coating element
+        @SuppressWarnings("unchecked")
+        List<Element> result2 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "InvalidElement", 2.5);
+        assertEquals(baseComposition, result2); // Should return original composition
+        
+        // Test with zero coating percentage
+        @SuppressWarnings("unchecked")
+        List<Element> result3 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Zn", 0.0);
+        assertEquals(baseComposition, result3); // Should return original composition
     }
 }

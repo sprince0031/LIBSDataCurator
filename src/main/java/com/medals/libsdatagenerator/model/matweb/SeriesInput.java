@@ -10,11 +10,23 @@ public class SeriesInput {
     private String seriesKey;
     private List<String> individualMaterialGuids;
     private String overviewGuid;
+    private String coatingElement;
+    private Double coatingPercentage;
 
     public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid) {
         this.seriesKey = seriesKey;
         this.individualMaterialGuids = individualMaterialGuids;
         this.overviewGuid = overviewGuid;
+        this.coatingElement = null;
+        this.coatingPercentage = null;
+    }
+
+    public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid, String coatingElement, Double coatingPercentage) {
+        this.seriesKey = seriesKey;
+        this.individualMaterialGuids = individualMaterialGuids;
+        this.overviewGuid = overviewGuid;
+        this.coatingElement = coatingElement;
+        this.coatingPercentage = coatingPercentage;
     }
 
     public String getSeriesKey() {
@@ -39,6 +51,26 @@ public class SeriesInput {
 
     public void setOverviewGuid(String overviewGuid) {
         this.overviewGuid = overviewGuid;
+    }
+
+    public String getCoatingElement() {
+        return coatingElement;
+    }
+
+    public void setCoatingElement(String coatingElement) {
+        this.coatingElement = coatingElement;
+    }
+
+    public Double getCoatingPercentage() {
+        return coatingPercentage;
+    }
+
+    public void setCoatingPercentage(Double coatingPercentage) {
+        this.coatingPercentage = coatingPercentage;
+    }
+
+    public boolean isCoated() {
+        return coatingElement != null && coatingPercentage != null;
     }
 
 }
