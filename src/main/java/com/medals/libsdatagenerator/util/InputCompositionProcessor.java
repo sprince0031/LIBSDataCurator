@@ -12,6 +12,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -174,19 +175,30 @@ public class InputCompositionProcessor {
             for (String individualGuid : series.getIndividualMaterialGuids()) {
                 logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
 
-                String[] compositionArray = matwebService.getMaterialComposition(individualGuid);
+                // Check if this GUID has already been processed
+                MaterialGrade cachedMaterial = findMaterialByGuid(materialGrades, individualGuid);
+                if (cachedMaterial != null) {
+                    logger.info("Material GUID: " + individualGuid + " already processed. Using cached data.");
+                    // Create a new MaterialGrade with the cached composition but current series context
+                    MaterialGrade materialGrade = new MaterialGrade(cachedMaterial.getComposition(), individualGuid, series.getOverviewGuid(), series.getSeriesKey());
+                    materialGrade.setMaterialName(cachedMaterial.getMaterialName());
+                    materialGrade.setMaterialAttributes(cachedMaterial.getMaterialAttributes());
+                    materialGrades.add(materialGrade);
+                } else {
+                    String[] compositionArray = matwebService.getMaterialComposition(individualGuid);
 
-                if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
-                    materialsProcessed++;
-                    // Update progress bar even for failed materials
-                    CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
-                    continue;
+                    if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
+                        materialsProcessed++;
+                        // Update progress bar even for failed materials
+                        CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
+                        continue;
+                    }
+                    List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
+                    MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid(), series.getSeriesKey());
+                    materialGrade.setMaterialName(matwebService.getDatasheetName());
+                    materialGrade.setMaterialAttributes(matwebService.getDatasheetAttributes());
+                    materialGrades.add(materialGrade);
                 }
-                List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-                MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid(), series.getSeriesKey());
-                materialGrade.setMaterialName(matwebService.getDatasheetName());
-                materialGrade.setMaterialAttributes(matwebService.getDatasheetAttributes());
-                materialGrades.add(materialGrade);
 
                 materialsProcessed++;
 
@@ -223,6 +235,26 @@ public class InputCompositionProcessor {
             throw new IOException("Invalid command line arguments. Aborting.");
         }
         return materialGrade;
+    }
+
+    /**
+     * Helper method to find a MaterialGrade by GUID in the cached materials list
+     * @param materialGrades List of already processed MaterialGrade objects
+     * @param guid Material GUID to search for
+     * @return MaterialGrade if found, null otherwise
+     */
+    private MaterialGrade findMaterialByGuid(List<MaterialGrade> materialGrades, String guid) {
+        // If GUID is null, we can't find a meaningful match
+        if (guid == null) {
+            return null;
+        }
+        
+        for (MaterialGrade material : materialGrades) {
+            if (guid.equals(material.getMatGUID())) {
+                return material;
+            }
+        }
+        return null;
     }
 
 }
