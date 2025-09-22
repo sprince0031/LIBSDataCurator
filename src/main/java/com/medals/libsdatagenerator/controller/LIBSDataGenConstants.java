@@ -212,7 +212,7 @@ public class LIBSDataGenConstants {
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",
             "Ti", "Nb", "Co", "W", "Sn", "Pb", "B", "As", "Zr", "Bi", "Cd",
-            "Se", "Fe"
+            "Se", "Fe", "Zn", "N"
     };
 
     // Fallback to use if Gaussian sampling chosen over Dirichlet sampling.
