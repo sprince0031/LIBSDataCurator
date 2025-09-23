@@ -20,8 +20,8 @@ This feature is especially useful for:
 Consider processing multiple steel series where some materials overlap:
 
 ```bash
-# This command might process the same base steel in multiple series
-java -jar LIBSDataCurator.jar -s "aisi.10xx.series,aisi.41xx.series,t.30x.series"
+# This command will process the same base steel in multiple series if using the out-of-box materials catalogue file
+./run.sh -s "Zn-5.0.coated.steels,Sn-1.2.coated.steels"
 ```
 
 **Without caching**: Each duplicate GUID triggers a new MatWeb request
@@ -30,8 +30,8 @@ java -jar LIBSDataCurator.jar -s "aisi.10xx.series,aisi.41xx.series,t.30x.series
 ## Log Output
 When caching is active, you'll see log messages like:
 ```
-INFO: Processing material GUID: 3a9cc570fbb24d119f08db22a53e2421 from series: aisi.10xx.series
-INFO: Material GUID: 3a9cc570fbb24d119f08db22a53e2421 already processed. Using cached data.
+INFO: Processing material GUID: b76f3b18bd814e449d3a8b4a906af771 from series: Zn-5.0.coated.steels
+INFO: Material GUID: b76f3b18bd814e449d3a8b4a906af771 already processed. Using cached data.
 ```
 
 ## Technical Details
