@@ -3,10 +3,9 @@ package com.medals.libsdatagenerator.controller;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
-import com.medals.libsdatagenerator.model.nist.UserInputConfig;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
-import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
@@ -15,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
  * @author Siddharth Prince | 16/12/24 18:22

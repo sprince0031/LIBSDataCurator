@@ -1,4 +1,4 @@
-package com.medals.libsdatagenerator.model.nist;
+package com.medals.libsdatagenerator.model;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;

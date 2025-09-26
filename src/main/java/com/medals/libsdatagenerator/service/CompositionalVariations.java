@@ -1,10 +1,9 @@
 package com.medals.libsdatagenerator.service;
 
-import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
-import com.medals.libsdatagenerator.model.nist.UserInputConfig;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import com.medals.libsdatagenerator.util.CommonUtils;
