@@ -23,7 +23,7 @@ public class InputCompositionProcessor {
     private static final Logger logger = Logger.getLogger(InputCompositionProcessor.class.getName());
     private static final Pattern MATWEB_GUID_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_GUID_REGEX);
     private static final Pattern COMPOSITION_STRING_PATTERN = Pattern.compile(LIBSDataGenConstants.INPUT_COMPOSITION_STRING_REGEX);
-    private static final Pattern COATED_SERIES_PATTERN = Pattern.compile("coated\\.([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.(.*?)");
+    private static final Pattern COATED_SERIES_PATTERN = Pattern.compile(LIBSDataGenConstants.COATED_SERIES_KEY_PATTERN);
     private static boolean hasIndividualGuidsToProcess = false;
 
     private static InputCompositionProcessor instance = null;
@@ -47,21 +47,21 @@ public class InputCompositionProcessor {
         Double coatingPercentage = null;
 
         // Check if this is a coated material series
-        if (key.startsWith("coated.")) {
+        if (key.contains("coated.")) {
             // Use regex to extract coating information from the key
-            // Expected format: coated.element-percentage.series.name
-            // Example: coated.Zn-2.5.aisi.10xx.series
+            // Expected format: element-percentage.coated.series.name
+            // Example: Sn-1.2.coated.steels
             Matcher matcher = COATED_SERIES_PATTERN.matcher(key);
             if (matcher.matches()) {
                 try {
-                    coatingElement = matcher.group(1); // "Zn"
-                    coatingPercentage = Double.parseDouble(matcher.group(2)); // 2.5
+                    coatingElement = matcher.group(1); // "Sn"
+                    coatingPercentage = Double.parseDouble(matcher.group(2)); // 1.2
                     logger.info("Detected coating material: " + coatingElement + " at " + coatingPercentage + "% for series: " + key);
                 } catch (NumberFormatException e) {
                     logger.warning("Invalid coating percentage format in series key: " + key + ". Coating: " + matcher.group(2));
                 }
             } else {
-                logger.warning("Invalid coated series key format: " + key + ". Expected format: coated.Element-Percentage.series.name");
+                logger.warning("Invalid coated series key format: " + key + ". Expected format: Element-Percentage.coated.series.name");
             }
         }
 
@@ -109,7 +109,7 @@ public class InputCompositionProcessor {
         // If no individual GUIDs are present, SeriesInput object will be created with empty list
         // If no Overview GUID present, SeriesInput object will be created with null OG.
 
-        return new SeriesInput(key, individualGuids, overviewGuid);
+        return new SeriesInput(key, individualGuids, overviewGuid, coatingElement, coatingPercentage);
     }
 
     private List<SeriesInput> processSeriesList(List<String> seriesKeys, Properties catalogue) {
@@ -299,14 +299,15 @@ public class InputCompositionProcessor {
      * @param coatingPercentage The percentage of coating to apply
      * @return Updated composition with coating applied
      */
-    private List<Element> applyCoating(List<Element> baseComposition, String coatingElement, Double coatingPercentage) {
+    private List<Element> applyCoating(List<Element> baseComposition, String coatingElement, Double coatingPercentage,
+                                       Boolean scaleMode) {
         if (coatingElement == null || coatingPercentage == null || coatingPercentage <= 0) {
             logger.warning("Invalid coating parameters. Returning original composition.");
             return baseComposition;
         }
 
         // Validate coating element
-        if (!com.medals.libsdatagenerator.util.PeriodicTable.isValidElement(coatingElement)) {
+        if (!PeriodicTable.isValidElement(coatingElement)) {
             logger.warning("Invalid coating element: " + coatingElement + ". Returning original composition.");
             return baseComposition;
         }
@@ -315,6 +316,15 @@ public class InputCompositionProcessor {
 
         List<Element> coatedComposition = new ArrayList<>();
 
+        if (!scaleMode) {
+            Element maxPercentElement = baseComposition.get(0);
+            for (Element element : baseComposition) {
+                if (element.getPercentageComposition() > maxPercentElement.getPercentageComposition()) {
+                    maxPercentElement = element;
+                }
+            }
+            
+        }
         // Scale down existing elements by (100 - coatingPercentage) / 100
         double scaleFactor = (100.0 - coatingPercentage) / 100.0;
 
@@ -352,7 +362,7 @@ public class InputCompositionProcessor {
         // If coating element doesn't exist in base composition, add it as new element
         if (!coatingElementExists) {
             Element coatingElementObj = new Element(
-                com.medals.libsdatagenerator.util.PeriodicTable.getElementName(coatingElement),
+                PeriodicTable.getElementName(coatingElement),
                 coatingElement,
                 coatingPercentage,
                 null,

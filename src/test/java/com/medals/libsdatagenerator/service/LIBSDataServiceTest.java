@@ -4,7 +4,7 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
-import com.medals.libsdatagenerator.model.nist.UserInputConfig;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.Test;
