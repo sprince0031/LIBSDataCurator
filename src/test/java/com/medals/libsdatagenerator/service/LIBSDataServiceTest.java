@@ -67,7 +67,7 @@ class LIBSDataServiceTest {
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "A-50,B-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1",
                 "-"+LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "5.0",
-                "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.GAUSSIAN),
+                "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.GAUSSIAN.getUserOption()),
                 "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
         UserInputConfig config = new UserInputConfig(cmd);
         // samples = 10, so 1 original + 10 variations expected if fallback works
@@ -101,7 +101,7 @@ class LIBSDataServiceTest {
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "Cr-25:35,Fe-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.5", // varyBy=0.5
                 "-"+LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "2.0", // limit=2 for Cr
-                "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.GAUSSIAN),
+                "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.GAUSSIAN.getUserOption()),
                 "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
         UserInputConfig config = new UserInputConfig(cmd);
         List<List<Element>> compositions = compVariations.generateCompositionalVariations(materialGrade, config);

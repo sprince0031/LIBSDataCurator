@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
@@ -52,7 +53,7 @@ public class LIBSDataController {
             if (userInputs.isSeriesMode) {
                 // Process input for -s (series) option
                 logger.info("Processing with -s (series) option.");
-                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput);
+                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput, userInputs.scaleCoating);
             }
 
             if (userInputs.isCompositionMode) {
@@ -78,6 +79,10 @@ public class LIBSDataController {
                             .generateCompositionalVariations(materialGrade, userInputs);
 
                     if (compositions != null && !compositions.isEmpty()) {
+                        // TODO: Apply coating if this is a coated series
+//                        if (series.isCoated()) {
+//                            baseComposition = applyCoating(baseComposition, series.getCoatingElement(), series.getCoatingPercentage(), scaleCoating);
+//                        }
                         libsDataService.generateDataset(compositions, userInputs, materialGrade);
                         logger.info("Successfully generated dataset for composition: " + materialGrade);
                     } else {
