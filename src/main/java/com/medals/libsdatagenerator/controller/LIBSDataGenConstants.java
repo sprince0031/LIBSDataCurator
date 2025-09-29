@@ -114,6 +114,10 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_FORCE_FETCH_LONG = "force-fetch";
     public static final String CMD_OPT_FORCE_FETCH_DESC = "Will force re-downloading of individual spectrum data " +
             "for every composition even if data is available locally in the /data directory.";
+    public static final String CMD_OPT_SCALE_COATING_SHORT = "sc";
+    public static final String CMD_OPT_SCALE_COATING_LONG = "scale-coating";
+    public static final String CMD_OPT_SCALE_COATING_DESC = "Will scale down all other elements in the composition rather " +
+            "than subtracting the coating element percentage from the dominant element's percentage. Disabled by default.";
     @Deprecated
     public static final String CMD_OPT_VARY_BY_SHORT = "vb";
     @Deprecated

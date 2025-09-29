@@ -168,7 +168,7 @@ public class InputCompositionProcessor {
         return processedSeries;
     }
 
-    public List<MaterialGrade> getMaterialsList(String userInput) throws IOException {
+    public List<MaterialGrade> getMaterialsList(String userInput, boolean scaleCoating) throws IOException {
 
         MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
 
@@ -223,10 +223,8 @@ public class InputCompositionProcessor {
                     materialName = matwebService.getDatasheetName();
                     materialAttributes = matwebService.getDatasheetAttributes();
                 }
-                // Apply coating if this is a coated series
-                if (series.isCoated()) {
-                    baseComposition = applyCoating(baseComposition, series.getCoatingElement(), series.getCoatingPercentage());
-                }
+                // TODO: Check if removing call to applyCoating() here and moving to Controller needs further cleanup
+
 
                 MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series.getOverviewGuid(), series.getSeriesKey());
                 materialGrade.setMaterialName(materialName);
@@ -297,10 +295,13 @@ public class InputCompositionProcessor {
      * @param baseComposition The original material composition
      * @param coatingElement The element symbol for the coating (e.g., "Zn" for galvanized)
      * @param coatingPercentage The percentage of coating to apply
+     * @param scaleCoating Boolean to determine if the coating element application scales down all elements or
+     *                     just subtracts from dominant element
      * @return Updated composition with coating applied
      */
     private List<Element> applyCoating(List<Element> baseComposition, String coatingElement, Double coatingPercentage,
-                                       Boolean scaleMode) {
+                                       Boolean scaleCoating) {
+        double defaultCoatingElementDelta = 0.2; // TODO: Make value user configurable
         if (coatingElement == null || coatingPercentage == null || coatingPercentage <= 0) {
             logger.warning("Invalid coating parameters. Returning original composition.");
             return baseComposition;
@@ -316,68 +317,99 @@ public class InputCompositionProcessor {
 
         List<Element> coatedComposition = new ArrayList<>();
 
-        if (!scaleMode) {
-            Element maxPercentElement = baseComposition.get(0);
-            for (Element element : baseComposition) {
+        if (!scaleCoating) {
+            coatedComposition.addAll(baseComposition);
+            Element maxPercentElement = coatedComposition.getFirst();
+            int indexOfCoatingElement = -1;
+            for (Element element : coatedComposition) {
                 if (element.getPercentageComposition() > maxPercentElement.getPercentageComposition()) {
                     maxPercentElement = element;
                 }
-            }
-            
-        }
-        // Scale down existing elements by (100 - coatingPercentage) / 100
-        double scaleFactor = (100.0 - coatingPercentage) / 100.0;
 
-        // Check if coating element already exists in base composition
-        boolean coatingElementExists = false;
-        for (Element element : baseComposition) {
-            if (element.getSymbol().equals(coatingElement)) {
-                // Coating element exists, add coating percentage to it and scale
-                double newPercentage = (element.getPercentageComposition() * scaleFactor) + coatingPercentage;
-                Element modifiedElement = new Element(
-                    element.getName(),
-                    element.getSymbol(),
-                    newPercentage,
-                    element.getMin(),
-                    element.getMax(),
-                    element.getAverageComposition()
-                );
-                coatedComposition.add(modifiedElement);
-                coatingElementExists = true;
+                if (element.getSymbol().equals(coatingElement)) {
+                    indexOfCoatingElement =  coatedComposition.indexOf(element);
+                }
+            }
+
+            int indexOfMaxElement = coatedComposition.indexOf(maxPercentElement);
+            Double reducedPercentage = maxPercentElement.getPercentageComposition() -  coatingPercentage;
+            maxPercentElement.setPercentageComposition(reducedPercentage);
+            maxPercentElement.setMin(maxPercentElement.getMin() > reducedPercentage ? reducedPercentage : maxPercentElement.getMin());
+            maxPercentElement.setMax(maxPercentElement.getMax() - coatingPercentage);
+            coatedComposition.set(indexOfMaxElement, maxPercentElement);
+
+            if (indexOfCoatingElement >= 0) {
+                Element coatedElement = coatedComposition.get(indexOfCoatingElement);
+                Double increasedPercentage = coatedElement.getPercentageComposition() + coatingPercentage;
+                coatedElement.setPercentageComposition(increasedPercentage);
+                coatedElement.setMax(coatedElement.getMax() < increasedPercentage ? increasedPercentage : coatedElement.getMax());
+                coatedElement.setMin(coatedElement.getMin() + coatingPercentage);
+                coatedComposition.set(indexOfCoatingElement, coatedElement);
             } else {
-                // Scale down other elements
-                double newPercentage = element.getPercentageComposition() * scaleFactor;
-                Element scaledElement = new Element(
-                    element.getName(),
-                    element.getSymbol(),
-                    newPercentage,
-                    element.getMin(),
-                    element.getMax(),
-                    element.getAverageComposition()
-                );
-                coatedComposition.add(scaledElement);
+                Element coatedElement = new Element(PeriodicTable.getElementName(coatingElement), coatingElement,
+                        coatingPercentage, coatingPercentage - defaultCoatingElementDelta,
+                        coatingPercentage + defaultCoatingElementDelta, null);
+                coatedComposition.add(coatedElement);
             }
-        }
+            logger.info("Coated composition created: " + CommonUtils.getInstance().buildCompositionString(coatedComposition));
+            return coatedComposition;
+        } else {
 
-        // If coating element doesn't exist in base composition, add it as new element
-        if (!coatingElementExists) {
-            Element coatingElementObj = new Element(
-                PeriodicTable.getElementName(coatingElement),
-                coatingElement,
-                coatingPercentage,
-                null,
-                null,
-                null
-            );
-            coatedComposition.add(coatingElementObj);
+            // Scale down existing elements by (100 - coatingPercentage) / 100
+            double scaleFactor = (100.0 - coatingPercentage) / 100.0;
+
+            // Check if coating element already exists in base composition
+            boolean coatingElementExists = false;
+            for (Element element : baseComposition) {
+                if (element.getSymbol().equals(coatingElement)) {
+                    // Coating element exists, add coating percentage to it and scale
+                    double newPercentage = (element.getPercentageComposition() * scaleFactor) + coatingPercentage;
+                    Element modifiedElement = new Element(
+                            element.getName(),
+                            element.getSymbol(),
+                            newPercentage,
+                            element.getMin(),
+                            element.getMax(),
+                            element.getAverageComposition()
+                    );
+                    coatedComposition.add(modifiedElement);
+                    coatingElementExists = true;
+                } else {
+                    // Scale down other elements
+                    double newPercentage = element.getPercentageComposition() * scaleFactor;
+                    Element scaledElement = new Element(
+                            element.getName(),
+                            element.getSymbol(),
+                            newPercentage,
+                            element.getMin(),
+                            element.getMax(),
+                            element.getAverageComposition()
+                    );
+                    coatedComposition.add(scaledElement);
+                }
+            }
+
+            // If coating element doesn't exist in base composition, add it as new element
+            if (!coatingElementExists) {
+                Element coatingElementObj = new Element(
+                        PeriodicTable.getElementName(coatingElement),
+                        coatingElement,
+                        coatingPercentage,
+                        null,
+                        null,
+                        null
+                );
+                coatedComposition.add(coatingElementObj);
+            }
         }
 
         // Log the coating application
         double totalPercentage = coatedComposition.stream()
-            .mapToDouble(Element::getPercentageComposition)
-            .sum();
+                .mapToDouble(Element::getPercentageComposition)
+                .sum();
         logger.info("Coating applied successfully. Total composition: " +
-            String.format("%.3f", totalPercentage) + "%");
+                String.format("%.3f", totalPercentage) + "%");
+        logger.info("Coating composition created: " + CommonUtils.getInstance().buildCompositionString(coatedComposition));
 
         return coatedComposition;
     }

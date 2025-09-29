@@ -540,10 +540,10 @@ class InputCompositionProcessorTest {
         parseMethod.setAccessible(true);
         
         String entry = "3a9cc570fbb24d119f08db22a53e2421,a2eed65d6e5e4b66b7315a1b30f4b391,og-81a26031d1b44cbb911f70ab863281f5";
-        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "coated.Zn-2.5.aisi.10xx.series", entry);
+        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "Zn-2.5.coated.aisi.10xx.series", entry);
         
         assertNotNull(result);
-        assertEquals("coated.Zn-2.5.aisi.10xx.series", result.getSeriesKey());
+        assertEquals("Zn-2.5.coated.aisi.10xx.series", result.getSeriesKey());
         assertEquals(2, result.getIndividualMaterialGuids().size());
         assertEquals("81a26031d1b44cbb911f70ab863281f5", result.getOverviewGuid());
         assertTrue(result.isCoated());
@@ -557,10 +557,10 @@ class InputCompositionProcessorTest {
         parseMethod.setAccessible(true);
         
         String entry = "3a9cc570fbb24d119f08db22a53e2421,og-81a26031d1b44cbb911f70ab863281f5";
-        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "coated.invalid.format", entry);
+        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "invalid.coated.format", entry);
         
         assertNotNull(result);
-        assertEquals("coated.invalid.format", result.getSeriesKey());
+        assertEquals("invalid.coated.format", result.getSeriesKey());
         assertFalse(result.isCoated());
         assertNull(result.getCoatingElement());
         assertNull(result.getCoatingPercentage());
@@ -572,10 +572,10 @@ class InputCompositionProcessorTest {
         parseMethod.setAccessible(true);
         
         String entry = "3a9cc570fbb24d119f08db22a53e2421,og-81a26031d1b44cbb911f70ab863281f5";
-        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "coated.Zn-invalid.aisi.10xx.series", entry);
+        SeriesInput result = (SeriesInput) parseMethod.invoke(processor, "Zn-invalid.coated.aisi.10xx.series", entry);
         
         assertNotNull(result);
-        assertEquals("coated.Zn-invalid.aisi.10xx.series", result.getSeriesKey());
+        assertEquals("Zn-invalid.coated.aisi.10xx.series", result.getSeriesKey());
         assertFalse(result.isCoated());
         assertNull(result.getCoatingElement());
         assertNull(result.getCoatingPercentage());
@@ -583,7 +583,7 @@ class InputCompositionProcessorTest {
 
     @Test
     void testApplyCoating_newElement() throws Exception {
-        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class);
+        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class, Boolean.class);
         applyCoatingMethod.setAccessible(true);
         
         // Create base composition: Fe-80, C-20
@@ -593,7 +593,7 @@ class InputCompositionProcessorTest {
         
         // Apply 2.5% Zinc coating
         @SuppressWarnings("unchecked")
-        List<Element> result = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Zn", 2.5);
+        List<Element> result = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Zn", 2.5, true);
         
         assertNotNull(result);
         assertEquals(3, result.size());
@@ -621,7 +621,7 @@ class InputCompositionProcessorTest {
 
     @Test
     void testApplyCoating_existingElement() throws Exception {
-        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class);
+        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class, Boolean.class);
         applyCoatingMethod.setAccessible(true);
         
         // Create base composition: Fe-80, C-18, Cr-2
@@ -632,7 +632,7 @@ class InputCompositionProcessorTest {
         
         // Apply 1.0% Chromium coating (Cr already exists)
         @SuppressWarnings("unchecked")
-        List<Element> result = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Cr", 1.0);
+        List<Element> result = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Cr", 1.0, true);
         
         assertNotNull(result);
         assertEquals(3, result.size()); // Should still be 3 elements
@@ -659,7 +659,7 @@ class InputCompositionProcessorTest {
 
     @Test
     void testApplyCoating_invalidParameters() throws Exception {
-        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class);
+        Method applyCoatingMethod = InputCompositionProcessor.class.getDeclaredMethod("applyCoating", List.class, String.class, Double.class, Boolean.class);
         applyCoatingMethod.setAccessible(true);
         
         List<Element> baseComposition = new ArrayList<>();
@@ -667,17 +667,17 @@ class InputCompositionProcessorTest {
         
         // Test with null coating element
         @SuppressWarnings("unchecked")
-        List<Element> result1 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, null, 2.5);
+        List<Element> result1 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, null, 2.5, false);
         assertEquals(baseComposition, result1); // Should return original composition
         
         // Test with invalid coating element
         @SuppressWarnings("unchecked")
-        List<Element> result2 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "InvalidElement", 2.5);
+        List<Element> result2 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "InvalidElement", 2.5, false);
         assertEquals(baseComposition, result2); // Should return original composition
         
         // Test with zero coating percentage
         @SuppressWarnings("unchecked")
-        List<Element> result3 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Zn", 0.0);
+        List<Element> result3 = (List<Element>) applyCoatingMethod.invoke(processor, baseComposition, "Zn", 0.0, false);
         assertEquals(baseComposition, result3); // Should return original composition
     }
 }

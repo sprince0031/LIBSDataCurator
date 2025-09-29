@@ -32,6 +32,7 @@ target/
 src/test/resources/test_elements.properties
 docs/assets/
 docs/Common Steel Grades in Steel Scrap.md
+data/
 
 # Build and packaging artifacts
 jre-custom/

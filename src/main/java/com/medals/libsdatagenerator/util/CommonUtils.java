@@ -170,6 +170,12 @@ public class CommonUtils {
                 false,
                 LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_DESC);
 
+        // Scale coating
+        options.addOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT,
+                LIBSDataGenConstants.CMD_OPT_SCALE_COATING_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_SCALE_COATING_DESC);
+
         // Append mode
         options.addOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT,
                 LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_LONG,
