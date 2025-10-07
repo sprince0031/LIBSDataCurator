@@ -175,7 +175,7 @@ public class InputCompositionProcessor {
         return processedSeries;
     }
 
-    public List<MaterialGrade> getMaterialsList(String userInput, boolean scaleCoating) throws IOException {
+    public List<MaterialGrade> getMaterialsList(String userInput) throws IOException {
 
         MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
 
@@ -230,8 +230,6 @@ public class InputCompositionProcessor {
                     materialName = matwebService.getDatasheetName();
                     materialAttributes = matwebService.getDatasheetAttributes();
                 }
-                // TODO: Check if removing call to applyCoating() here and moving to Controller needs further cleanup
-
 
                 MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
                 materialGrade.setMaterialName(materialName);
@@ -254,7 +252,7 @@ public class InputCompositionProcessor {
     /**
      * Parses only single composition
      * @param userInput either a direct composition string or a single matGUID
-     * @param overviewGUID overviewGUID if given, null if not
+     * @param overviewGUID user provided overviewGUID value, null if not provided
      * @return materialGrade
      * @throws IOException Exception for invalid command line arguments
      */

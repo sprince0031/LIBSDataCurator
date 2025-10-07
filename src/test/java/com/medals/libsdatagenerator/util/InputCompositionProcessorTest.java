@@ -657,7 +657,6 @@ class InputCompositionProcessorTest {
         assertNotNull(result);
         assertEquals(1, result.size()); // Should still be 1 composition
         List<Element> coatedElements = result.getFirst();
-        System.out.println(coatedElements);
         assertEquals(3, coatedElements.size()); // Should still be 3 elements
 
         Element fe = coatedElements.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElse(null);
