@@ -66,7 +66,7 @@ public class InputCompositionProcessor {
             }
 
             if (PeriodicTable.getElementName(coatingElementName) != null) {
-                coatingElement = new Element(coatingElementName, PeriodicTable.getElementName(coatingElementName),
+                coatingElement = new Element(PeriodicTable.getElementName(coatingElementName), coatingElementName,
                         coatingPercentage, null, null, null);
             }
 
@@ -308,13 +308,13 @@ public class InputCompositionProcessor {
      * @return Updated composition with coating applied
      */
     public List<List<Element>> applyCoating(List<List<Element>> baseCompositions, Element coatingElement, Boolean scaleCoating) {
-        double coatingPercentage = coatingElement.getPercentageComposition();
 
         if (coatingElement == null || coatingElement.getPercentageComposition() <= 0) {
             logger.warning("Invalid coating parameters. Returning original composition.");
             return baseCompositions;
         }
 
+        double coatingPercentage = coatingElement.getPercentageComposition();
         logger.info("Applying coating: " + coatingElement + " at " + coatingPercentage + "% to base compositions");
 
         List<List<Element>> coatedCompositions = new ArrayList<>();
@@ -342,16 +342,20 @@ public class InputCompositionProcessor {
                 int indexOfMaxElement = coatedComposition.indexOf(maxPercentElement);
                 Double reducedPercentage = maxPercentElement.getPercentageComposition() - coatingPercentage;
                 maxPercentElement.setPercentageComposition(reducedPercentage);
-                maxPercentElement.setMin(maxPercentElement.getMin() > reducedPercentage ? reducedPercentage : maxPercentElement.getMin());
-                maxPercentElement.setMax(maxPercentElement.getMax() - coatingPercentage);
+                if (maxPercentElement.getMax() != null && maxPercentElement.getMin() != null) {
+                    maxPercentElement.setMin(maxPercentElement.getMin() > reducedPercentage ? reducedPercentage : maxPercentElement.getMin());
+                    maxPercentElement.setMax(maxPercentElement.getMax() - coatingPercentage);
+                }
                 coatedComposition.set(indexOfMaxElement, maxPercentElement);
 
                 if (indexOfCoatingElement >= 0) {
                     Element coatedElement = coatedComposition.get(indexOfCoatingElement);
                     Double increasedPercentage = coatedElement.getPercentageComposition() + coatingPercentage;
                     coatedElement.setPercentageComposition(increasedPercentage);
-                    coatedElement.setMax(coatedElement.getMax() < increasedPercentage ? increasedPercentage : coatedElement.getMax());
-                    coatedElement.setMin(coatedElement.getMin() + coatingPercentage);
+                    if (maxPercentElement.getMax() != null && maxPercentElement.getMin() != null) {
+                        coatedElement.setMax(coatedElement.getMax() < increasedPercentage ? increasedPercentage : coatedElement.getMax());
+                        coatedElement.setMin(coatedElement.getMin() + coatingPercentage);
+                    }
                     coatedComposition.set(indexOfCoatingElement, coatedElement);
                 } else {
                     coatedComposition.add(coatingElement);
@@ -385,12 +389,11 @@ public class InputCompositionProcessor {
                         );
                         coatedComposition.add(scaledElement);
                     }
+                }
 
-
-                    // If coating element doesn't exist in base composition, add it as new element
-                    if (!coatingElementExists) {
-                        coatedComposition.add(coatingElement);
-                    }
+                // If coating element doesn't exist in base composition, add it as new element
+                if (!coatingElementExists) {
+                    coatedComposition.add(coatingElement);
                 }
             }
             coatedCompositions.add(coatedComposition);

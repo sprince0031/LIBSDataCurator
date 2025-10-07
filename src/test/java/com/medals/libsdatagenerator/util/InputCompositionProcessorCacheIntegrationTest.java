@@ -125,7 +125,7 @@ public class InputCompositionProcessorCacheIntegrationTest {
         // Verify the new material has the cached composition but different context
         assertEquals(sharedGuid, newMaterial.getMatGUID(), "New material should have same GUID");
         assertEquals("overview2", newMaterial.getParentSeries().getOverviewGuid(), "New material should have different overview GUID");
-        assertEquals("series2", newMaterial.getParentSeries(), "New material should have different series key");
+        assertEquals("series2", newMaterial.getParentSeries().getSeriesKey(), "New material should have different series key");
         assertEquals("Base Steel", newMaterial.getMaterialName(), "New material should have cached name");
         
         // Verify composition is preserved

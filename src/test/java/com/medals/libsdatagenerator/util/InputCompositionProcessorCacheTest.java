@@ -2,11 +2,13 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,13 +35,15 @@ public class InputCompositionProcessorCacheTest {
         
         // Create a test MaterialGrade with a specific GUID
         String testGuid = "12345ABC";
-        MaterialGrade testGrade = new MaterialGrade(testComposition, testGuid, "overviewGuid", "seriesKey");
+        SeriesInput series1 = new SeriesInput("seriesKey", Arrays.asList(testGuid), "overviewGuid");
+        MaterialGrade testGrade = new MaterialGrade(testComposition, testGuid, series1);
         testGrade.setMaterialName("Test Material");
         testGrade.setMaterialAttributes(new String[]{"Attribute1", "Attribute2"});
         materialGrades.add(testGrade);
 
         // Add another material with different GUID
-        MaterialGrade otherGrade = new MaterialGrade(testComposition, "67890XYZ", "overviewGuid2", "seriesKey2");
+        SeriesInput series2 = new SeriesInput("seriesKey2", Arrays.asList("67890XYZ"), "overviewGuid2");
+        MaterialGrade otherGrade = new MaterialGrade(testComposition, "67890XYZ", series2);
         materialGrades.add(otherGrade);
 
         // Use reflection to access the private method
@@ -61,7 +65,8 @@ public class InputCompositionProcessorCacheTest {
         List<Element> testComposition = createTestComposition();
         
         // Create a test MaterialGrade with a specific GUID
-        MaterialGrade testGrade = new MaterialGrade(testComposition, "12345ABC", "overviewGuid", "seriesKey");
+        SeriesInput series1 = new SeriesInput("seriesKey", Arrays.asList("12345ABC"), "overviewGuid");
+        MaterialGrade testGrade = new MaterialGrade(testComposition, "12345ABC", series1);
         materialGrades.add(testGrade);
 
         // Use reflection to access the private method
@@ -92,7 +97,8 @@ public class InputCompositionProcessorCacheTest {
         List<Element> testComposition = createTestComposition();
         
         // Create a test MaterialGrade with a non-null GUID
-        MaterialGrade testGrade = new MaterialGrade(testComposition, "12345ABC", "overviewGuid", "seriesKey");
+        SeriesInput series1 = new SeriesInput("seriesKey", Arrays.asList("12345ABC"), "overviewGuid");
+        MaterialGrade testGrade = new MaterialGrade(testComposition, "12345ABC", series1);
         materialGrades.add(testGrade);
 
         // Use reflection to access the private method
@@ -111,7 +117,8 @@ public class InputCompositionProcessorCacheTest {
         List<Element> testComposition = createTestComposition();
         
         // Create a test MaterialGrade with null GUID (edge case)
-        MaterialGrade testGrade = new MaterialGrade(testComposition, null, "overviewGuid", "seriesKey");
+        SeriesInput series1 = new SeriesInput("seriesKey", null, "overviewGuid");
+        MaterialGrade testGrade = new MaterialGrade(testComposition, null, series1);
         materialGrades.add(testGrade);
 
         // Use reflection to access the private method
