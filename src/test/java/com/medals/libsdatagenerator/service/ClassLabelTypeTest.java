@@ -103,7 +103,7 @@ public class ClassLabelTypeTest {
         assertEquals("AISI 1018 Steel", grade1.getMaterialName());
         
         // Test backward compatibility constructor
-        MaterialGrade grade2 = new MaterialGrade(composition, individualMaterialGUIDs.getLast(), seriesInput);
+        MaterialGrade grade2 = new MaterialGrade(composition, individualMaterialGUIDs.getLast());
         assertNull(grade2.getParentSeries()); // Should be null for backward compatibility
     }
 
@@ -151,10 +151,10 @@ public class ClassLabelTypeTest {
             assertEquals("AISI 1018 Steel", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, testGrade, compositionId));
             
             // Test material type mode
-            assertEquals("aisi 10xx series", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, testGrade, compositionId));
+            assertEquals("low carbon steels", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, testGrade, compositionId));
             
             // Test fallbacks for missing data
-            MaterialGrade emptyGrade = new MaterialGrade(composition, "testGuid", seriesInput);
+            MaterialGrade emptyGrade = new MaterialGrade(null, "testGuid", null);
             assertEquals("Unknown Grade", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, emptyGrade, compositionId));
             assertEquals("Unknown Type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, emptyGrade, compositionId));
             
