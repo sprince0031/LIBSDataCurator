@@ -41,7 +41,7 @@ public class DirichletSampler implements Sampler {
                        List<List<Element>> variations) {
 
         List<Element> baseComp = materialGrade.getComposition();
-        String overviewGuid = materialGrade.getOverviewGUID();
+        String overviewGuid = materialGrade.getParentSeries().getOverviewGuid();
 
         logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
 
