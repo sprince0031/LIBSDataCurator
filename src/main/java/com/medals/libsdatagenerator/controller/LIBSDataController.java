@@ -53,7 +53,7 @@ public class LIBSDataController {
             if (userInputs.isSeriesMode) {
                 // Process input for -s (series) option
                 logger.info("Processing with -s (series) option.");
-                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput, userInputs.scaleCoating);
+                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput);
             }
 
             if (userInputs.isCompositionMode) {
