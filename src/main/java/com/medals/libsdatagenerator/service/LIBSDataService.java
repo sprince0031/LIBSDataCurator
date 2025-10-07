@@ -5,7 +5,7 @@ import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
-import com.medals.libsdatagenerator.model.nist.UserInputConfig;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
@@ -478,8 +478,8 @@ public class LIBSDataService {
                 }
             }
             case MATERIAL_TYPE -> {
-                if (sourceMaterial != null && sourceMaterial.getSeriesKey() != null) {
-                    yield processSeriesKeyToMaterialType(sourceMaterial.getSeriesKey());
+                if (sourceMaterial != null && sourceMaterial.getParentSeries() != null) {
+                    yield processSeriesKeyToMaterialType(sourceMaterial.getParentSeries().getSeriesKey());
                 } else {
                     yield "Unknown Type"; // Fallback for missing series information
                 }

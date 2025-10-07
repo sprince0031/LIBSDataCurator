@@ -5,11 +5,9 @@ import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -66,9 +64,10 @@ public class InputCompositionProcessorCacheIntegrationTest {
         
         MaterialGrade cachedMaterial = (MaterialGrade) findMethod.invoke(processor, materialGrades, duplicateGuid);
         assertNull(cachedMaterial, "First lookup should return null (not cached)");
-        
+
+        SeriesInput series1 = new SeriesInput("series1", Arrays.asList(duplicateGuid), "overview1");
         // Add the material to simulate it being processed and cached
-        MaterialGrade firstMaterial = new MaterialGrade(testComposition, duplicateGuid, "overview1", "series1");
+        MaterialGrade firstMaterial = new MaterialGrade(testComposition, duplicateGuid, series1);
         firstMaterial.setMaterialName("Test Steel Grade");
         firstMaterial.setMaterialAttributes(new String[]{"Test", "Attributes"});
         materialGrades.add(firstMaterial);
@@ -100,9 +99,10 @@ public class InputCompositionProcessorCacheIntegrationTest {
         
         List<MaterialGrade> materialGrades = new ArrayList<>();
         String sharedGuid = "SHARED456DEF";
-        
+
+        SeriesInput series1 = new SeriesInput("series1", Arrays.asList(sharedGuid), "overview1");
         // Add a material from first series
-        MaterialGrade firstMaterial = new MaterialGrade(testComposition, sharedGuid, "overview1", "series1");
+        MaterialGrade firstMaterial = new MaterialGrade(testComposition, sharedGuid, series1);
         firstMaterial.setMaterialName("Base Steel");
         firstMaterial.setMaterialAttributes(new String[]{"Standard", "Grade"});
         materialGrades.add(firstMaterial);
@@ -117,20 +117,15 @@ public class InputCompositionProcessorCacheIntegrationTest {
         assertNotNull(cachedMaterial, "Should find cached material");
         
         // Simulate creating a new MaterialGrade for different series context
-        // (this is what happens in the actual implementation)
-        MaterialGrade newMaterial = new MaterialGrade(
-            cachedMaterial.getComposition(), 
-            sharedGuid, 
-            "overview2",  // Different overview GUID
-            "series2"     // Different series key
-        );
+        SeriesInput series2 = new SeriesInput("series2", Arrays.asList(sharedGuid), "overview2");
+        MaterialGrade newMaterial = new MaterialGrade(cachedMaterial.getComposition(), sharedGuid, series2);
         newMaterial.setMaterialName(cachedMaterial.getMaterialName());
         newMaterial.setMaterialAttributes(cachedMaterial.getMaterialAttributes());
         
         // Verify the new material has the cached composition but different context
         assertEquals(sharedGuid, newMaterial.getMatGUID(), "New material should have same GUID");
-        assertEquals("overview2", newMaterial.getOverviewGUID(), "New material should have different overview GUID");
-        assertEquals("series2", newMaterial.getSeriesKey(), "New material should have different series key");
+        assertEquals("overview2", newMaterial.getParentSeries().getOverviewGuid(), "New material should have different overview GUID");
+        assertEquals("series2", newMaterial.getParentSeries().getSeriesKey(), "New material should have different series key");
         assertEquals("Base Steel", newMaterial.getMaterialName(), "New material should have cached name");
         
         // Verify composition is preserved

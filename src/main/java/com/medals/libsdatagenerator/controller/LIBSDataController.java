@@ -2,11 +2,11 @@ package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
-import com.medals.libsdatagenerator.model.nist.UserInputConfig;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
-import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 
 /**
  * @author Siddharth Prince | 16/12/24 18:22
@@ -69,7 +68,7 @@ public class LIBSDataController {
                 if (userInputs.performVariations) {
                     VariationMode variationMode = userInputs.variationMode;
                     if (variationMode == VariationMode.DIRICHLET) {
-                        if (materialGrade.getOverviewGUID() == null) {
+                        if (materialGrade.getParentSeries().getOverviewGuid() == null) {
                             logger.severe("Overview GUID not present for Dirichlet sampling for "
                                     + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
                             continue;
@@ -80,6 +79,12 @@ public class LIBSDataController {
                             .generateCompositionalVariations(materialGrade, userInputs);
 
                     if (compositions != null && !compositions.isEmpty()) {
+                        // Apply coating to all variations of material if this is a coated series
+                        if (materialGrade.getParentSeries().isCoated()) {
+                            SeriesInput series = materialGrade.getParentSeries();
+                            compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
+                                    series.getCoatingElement(), userInputs.scaleCoating);
+                        }
                         libsDataService.generateDataset(compositions, userInputs, materialGrade);
                         logger.info("Successfully generated dataset for composition: " + materialGrade);
                     } else {
