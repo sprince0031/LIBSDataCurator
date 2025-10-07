@@ -68,7 +68,7 @@ public class LIBSDataController {
                 if (userInputs.performVariations) {
                     VariationMode variationMode = userInputs.variationMode;
                     if (variationMode == VariationMode.DIRICHLET) {
-                        if (materialGrade.getOverviewGUID() == null) {
+                        if (materialGrade.getParentSeries().getOverviewGuid() == null) {
                             logger.severe("Overview GUID not present for Dirichlet sampling for "
                                     + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
                             continue;
@@ -79,10 +79,12 @@ public class LIBSDataController {
                             .generateCompositionalVariations(materialGrade, userInputs);
 
                     if (compositions != null && !compositions.isEmpty()) {
-                        // TODO: Apply coating if this is a coated series
-//                        if (series.isCoated()) {
-//                            baseComposition = applyCoating(baseComposition, series.getCoatingElement(), series.getCoatingPercentage(), scaleCoating);
-//                        }
+                        // Apply coating to all variations of material if this is a coated series
+                        if (materialGrade.getParentSeries().isCoated()) {
+                            SeriesInput series = materialGrade.getParentSeries();
+                            compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
+                                    series.getCoatingElement(), userInputs.scaleCoating);
+                        }
                         libsDataService.generateDataset(compositions, userInputs, materialGrade);
                         logger.info("Successfully generated dataset for composition: " + materialGrade);
                     } else {

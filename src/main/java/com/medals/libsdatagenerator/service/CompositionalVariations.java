@@ -84,7 +84,7 @@ public class CompositionalVariations {
 
         } else if (config.variationMode == VariationMode.DIRICHLET) {
             Map<String, Object> metadata = new HashMap<>();
-            metadata.put("overviewGuid", materialGrade.getOverviewGUID());
+            metadata.put("overviewGuid", materialGrade.getParentSeries().getOverviewGuid());
             DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
 
         } else { // For uniform distribution

@@ -134,7 +134,7 @@ class InputCompositionProcessorTest {
         
         assertNotNull(result);
 
-        assertEquals(overviewGuid, result.getOverviewGUID());
+        assertEquals(overviewGuid, result.getParentSeries().getOverviewGuid());
         assertNull(result.getMatGUID());
     }
 

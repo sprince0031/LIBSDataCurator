@@ -478,8 +478,8 @@ public class LIBSDataService {
                 }
             }
             case MATERIAL_TYPE -> {
-                if (sourceMaterial != null && sourceMaterial.getSeriesKey() != null) {
-                    yield processSeriesKeyToMaterialType(sourceMaterial.getSeriesKey());
+                if (sourceMaterial != null && sourceMaterial.getParentSeries() != null) {
+                    yield processSeriesKeyToMaterialType(sourceMaterial.getParentSeries().getSeriesKey());
                 } else {
                     yield "Unknown Type"; // Fallback for missing series information
                 }

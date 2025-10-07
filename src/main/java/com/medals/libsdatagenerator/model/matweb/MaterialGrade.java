@@ -16,23 +16,20 @@ public class MaterialGrade {
 
     private List<Element> composition;
     private String matGUID;
-    private String overviewGUID;
     private String materialName;
     private String[] materialAttributes;
-    private String seriesKey;
+    private SeriesInput ParentSeries;
 
-    public MaterialGrade(List<Element> composition, String matGUID, String overviewGUID) {
+    public MaterialGrade(List<Element> composition, String matGUID) {
         this.composition = composition;
         this.matGUID = matGUID;
-        this.overviewGUID = overviewGUID;
-        this.seriesKey = null; // Will be set separately if available
+        this.ParentSeries = null; // Will be set separately if available
     }
 
-    public MaterialGrade(List<Element> composition, String matGUID, String overviewGUID, String seriesKey) {
+    public MaterialGrade(List<Element> composition, String matGUID, SeriesInput ParentSeries) {
         this.composition = composition;
         this.matGUID = matGUID;
-        this.overviewGUID = overviewGUID;
-        this.seriesKey = seriesKey;
+        this.ParentSeries = ParentSeries;
     }
 
     public List<Element> getComposition() {
@@ -51,14 +48,6 @@ public class MaterialGrade {
         this.matGUID = matGUID;
     }
 
-    public String getOverviewGUID() {
-        return overviewGUID;
-    }
-
-    public void setOverviewGUID(String overviewGUID) {
-        this.overviewGUID = overviewGUID;
-    }
-
     public String getMaterialName() {
         return materialName;
     }
@@ -75,12 +64,12 @@ public class MaterialGrade {
         this.materialAttributes = materialAttributes == null ? null : java.util.Arrays.copyOf(materialAttributes, materialAttributes.length);
     }
 
-    public String getSeriesKey() {
-        return seriesKey;
+    public SeriesInput getParentSeries() {
+        return ParentSeries;
     }
 
-    public void setSeriesKey(String seriesKey) {
-        this.seriesKey = seriesKey;
+    public void setParentSeries(SeriesInput parentSeries) {
+        this.ParentSeries = parentSeries;
     }
   
     @Override

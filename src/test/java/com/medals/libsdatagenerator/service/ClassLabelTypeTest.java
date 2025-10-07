@@ -3,6 +3,7 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
@@ -88,9 +89,13 @@ public class ClassLabelTypeTest {
     void testMaterialGradeWithSeriesKey() {
         // Test MaterialGrade constructor with series key
         List<Element> composition = createTestComposition();
-        MaterialGrade grade1 = new MaterialGrade(composition, "testGuid", "overviewGuid", "aisi.10xx.series");
+        List<String> individualMaterialGUIDs = new ArrayList<>();
+        individualMaterialGUIDs.add("9d1e943f7daf49ef92e1d8261a8c6fc6");
+        individualMaterialGUIDs.add("025d4a04c2c640c9b0eaaef28318d761");
+        SeriesInput seriesInput = new SeriesInput("low.carbon.steels", individualMaterialGUIDs, "034970339dd14349a8297d2c83134649");
+        MaterialGrade grade1 = new MaterialGrade(composition, individualMaterialGUIDs.getFirst(), seriesInput);
         
-        assertEquals("aisi.10xx.series", grade1.getSeriesKey());
+        assertEquals("low.carbon.steels", grade1.getParentSeries().getSeriesKey());
         assertNull(grade1.getMaterialName()); // Initially null
         
         // Test setter
@@ -98,8 +103,8 @@ public class ClassLabelTypeTest {
         assertEquals("AISI 1018 Steel", grade1.getMaterialName());
         
         // Test backward compatibility constructor
-        MaterialGrade grade2 = new MaterialGrade(composition, "testGuid", "overviewGuid");
-        assertNull(grade2.getSeriesKey()); // Should be null for backward compatibility
+        MaterialGrade grade2 = new MaterialGrade(composition, individualMaterialGUIDs.getLast(), seriesInput);
+        assertNull(grade2.getParentSeries()); // Should be null for backward compatibility
     }
 
     @Test
@@ -134,7 +139,8 @@ public class ClassLabelTypeTest {
             method.setAccessible(true);
             
             List<Element> composition = createTestComposition();
-            MaterialGrade testGrade = new MaterialGrade(composition, "testGuid", "overviewGuid", "aisi.10xx.series");
+            SeriesInput seriesInput = createTestSeriesInput();
+            MaterialGrade testGrade = new MaterialGrade(composition, seriesInput.getIndividualMaterialGuids().getFirst(), seriesInput);
             testGrade.setMaterialName("AISI 1018 Steel");
             String compositionId = "Fe-80;C-20";
             
@@ -148,7 +154,7 @@ public class ClassLabelTypeTest {
             assertEquals("aisi 10xx series", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, testGrade, compositionId));
             
             // Test fallbacks for missing data
-            MaterialGrade emptyGrade = new MaterialGrade(composition, "testGuid", "overviewGuid");
+            MaterialGrade emptyGrade = new MaterialGrade(composition, "testGuid", seriesInput);
             assertEquals("Unknown Grade", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, emptyGrade, compositionId));
             assertEquals("Unknown Type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, emptyGrade, compositionId));
             
@@ -173,6 +179,12 @@ public class ClassLabelTypeTest {
         }
     }
 
+    private SeriesInput createTestSeriesInput() {
+        List<String> individualMaterialGUIDs = new ArrayList<>();
+        individualMaterialGUIDs.add("9d1e943f7daf49ef92e1d8261a8c6fc6");
+        individualMaterialGUIDs.add("025d4a04c2c640c9b0eaaef28318d761");
+        return new SeriesInput("low.carbon.steels", individualMaterialGUIDs, "034970339dd14349a8297d2c83134649");
+    }
     private List<Element> createTestComposition() {
         List<Element> composition = new ArrayList<>();
         composition.add(new Element("Iron", "Fe", 80.0, 0.0, 0.0, null));

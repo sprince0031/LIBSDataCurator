@@ -1,5 +1,7 @@
 package com.medals.libsdatagenerator.model.matweb;
 
+import com.medals.libsdatagenerator.model.Element;
+
 import java.util.List;
 
 /**
@@ -10,23 +12,20 @@ public class SeriesInput {
     private String seriesKey;
     private List<String> individualMaterialGuids;
     private String overviewGuid;
-    private String coatingElement;
-    private Double coatingPercentage;
+    private Element coatingElement;
 
     public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid) {
         this.seriesKey = seriesKey;
         this.individualMaterialGuids = individualMaterialGuids;
         this.overviewGuid = overviewGuid;
         this.coatingElement = null;
-        this.coatingPercentage = null;
     }
 
-    public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid, String coatingElement, Double coatingPercentage) {
+    public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid, Element coatingElement) {
         this.seriesKey = seriesKey;
         this.individualMaterialGuids = individualMaterialGuids;
         this.overviewGuid = overviewGuid;
         this.coatingElement = coatingElement;
-        this.coatingPercentage = coatingPercentage;
     }
 
     public String getSeriesKey() {
@@ -53,24 +52,16 @@ public class SeriesInput {
         this.overviewGuid = overviewGuid;
     }
 
-    public String getCoatingElement() {
+    public Element getCoatingElement() {
         return coatingElement;
     }
 
-    public void setCoatingElement(String coatingElement) {
+    public void setCoatingElement(Element coatingElement) {
         this.coatingElement = coatingElement;
     }
 
-    public Double getCoatingPercentage() {
-        return coatingPercentage;
-    }
-
-    public void setCoatingPercentage(Double coatingPercentage) {
-        this.coatingPercentage = coatingPercentage;
-    }
-
     public boolean isCoated() {
-        return coatingElement != null && coatingPercentage != null;
+        return coatingElement != null;
     }
 
 }
