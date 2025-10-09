@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * All constants used throughout the codebase.
  *
- * @author Siddharth Prince | 12/17/24 11:58 AM
+ * @author Siddharth Prince | 12/17/24 11:58
  */
 
 public class LIBSDataGenConstants {
@@ -165,7 +165,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_GEN_STATS_DESC = "Generate and save statistics (mean, std dev) for the dataset.";
 
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
-    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_statistics.json";
+    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
     /**
      * #### NIST LIBS Constants ####
