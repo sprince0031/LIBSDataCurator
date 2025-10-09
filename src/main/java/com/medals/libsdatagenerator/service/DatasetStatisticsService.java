@@ -28,7 +28,7 @@ public class DatasetStatisticsService {
     private static final int HISTOGRAM_BINS = 20; // Number of bins for the histogram
 
     public void calculateAndSaveStatistics(String csvDirPath) {
-        Path masterCsvPath = Paths.get(csvDirPath, "master_dataset.csv");
+        Path masterCsvPath = Paths.get(csvDirPath, LIBSDataGenConstants.MASTER_DATASET_FILENAME);
 
         try {
             List<CSVRecord> records = CSVUtils.readCsvWithHeader(masterCsvPath);
@@ -50,7 +50,7 @@ public class DatasetStatisticsService {
                             elementStats.get(element).addValue(value);
                             elementValues.get(element).add(value);
                         } catch (NumberFormatException e) {
-                            // Ignore non-numeric values
+                            logger.log(Level.FINE, "Non-numeric value for element '" + element + "': '" + record.get(element) + "'", e);
                         }
                     }
                 }
