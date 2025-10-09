@@ -262,6 +262,8 @@ public class MatwebDataService {
     private String[] parseCompositionData(List<String> elementList, List<String> compositionList,
                                           List<String> comments) {
         String[] parsedElementString = new String[elementList.size()];
+        boolean hasRemainderElement = false;
+        
         for (int i = 0; i < elementList.size(); i++) {
             String elementString = elementList.get(i);
             logger.info("Scraped matweb table output: " + elementString);
@@ -300,11 +302,58 @@ public class MatwebDataService {
                     comments.get(i).toLowerCase().contains("remainder") ||
                             comments.get(i).toLowerCase().contains("balance"))) { // Remainder, check before single value
                 parsedCompositionValue = "#";
+                hasRemainderElement = true;
             } else { // Single value "X" (e.g., "0.5", "12.3")
                 // Treat as a fixed point: min = X, max = X
                 parsedCompositionValue = composition.trim() + ":" + composition.trim();
             }
             parsedElementString[i] = element + "-" + parsedCompositionValue;
+        }
+
+        // If no remainder element was found, automatically mark the element with the highest percentage
+        if (!hasRemainderElement) {
+            int maxIndex = -1;
+            double maxPercentage = -1.0;
+            
+            for (int i = 0; i < parsedElementString.length; i++) {
+                String[] parts = parsedElementString[i].split("-");
+                if (parts.length >= 2) {
+                    String percentageStr = parts[1];
+                    double percentage = 0.0;
+                    
+                    // Calculate average percentage from range or single value
+                    if (percentageStr.contains(":")) {
+                        String[] range = percentageStr.split(":");
+                        try {
+                            double min = Double.parseDouble(range[0]);
+                            double max = Double.parseDouble(range[1]);
+                            percentage = (min + max) / 2.0;
+                        } catch (NumberFormatException e) {
+                            // Skip if parsing fails
+                            continue;
+                        }
+                    } else {
+                        try {
+                            percentage = Double.parseDouble(percentageStr);
+                        } catch (NumberFormatException e) {
+                            // Skip if parsing fails
+                            continue;
+                        }
+                    }
+                    
+                    if (percentage > maxPercentage) {
+                        maxPercentage = percentage;
+                        maxIndex = i;
+                    }
+                }
+            }
+            
+            // Mark the element with highest percentage as remainder
+            if (maxIndex >= 0) {
+                String[] parts = parsedElementString[maxIndex].split("-");
+                parsedElementString[maxIndex] = parts[0] + "-#";
+                logger.info("Automatically marked element " + parts[0] + " as remainder (highest percentage: " + maxPercentage + "%)");
+            }
         }
 
         return parsedElementString;

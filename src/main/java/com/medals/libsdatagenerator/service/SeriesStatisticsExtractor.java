@@ -3,6 +3,7 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.ElementStatistics;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
+import com.medals.libsdatagenerator.util.PeriodicTable;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -80,27 +81,48 @@ public class SeriesStatisticsExtractor {
 
     /**
      * Extracts element symbol from element string (handles "Element, Symbol" format)
+     * Returns null if the extracted symbol is not a valid single element (e.g., compounds like "WC", "Al2O3")
      */
     private String extractElementSymbol(String elementString) {
         if (elementString == null || elementString.trim().isEmpty()) {
             return null;
         }
 
+        String candidateSymbol = null;
+        
         // Handle "Element, Symbol" format
         if (elementString.contains(",")) {
             String[] parts = elementString.split(",");
             if (parts.length >= 2) {
-                return parts[1].trim();
+                candidateSymbol = parts[1].trim();
+            }
+        } else {
+            // Handle "Element Symbol" format - take the last word
+            String[] parts = elementString.trim().split("\\s+");
+            if (parts.length > 0) {
+                candidateSymbol = parts[parts.length - 1];
             }
         }
-
-        // Handle "Element Symbol" format - take the last word
-        String[] parts = elementString.trim().split("\\s+");
-        if (parts.length > 0) {
-            return parts[parts.length - 1];
+        
+        // Validate that the extracted symbol is a valid single element
+        // Filter out compounds like "WC", "Al2O3", or combined entries like "Co + Ni"
+        if (candidateSymbol == null || candidateSymbol.isEmpty()) {
+            return null;
+        }
+        
+        // Check for compound indicators: "+", digits (for oxides like Al2O3), or multiple capital letters (for compounds like WC)
+        if (candidateSymbol.contains("+") || candidateSymbol.matches(".*\\d+.*")) {
+            logger.info("Skipping compound entry: " + elementString);
+            return null;
+        }
+        
+        // Check if it's a valid element in the periodic table
+        if (!PeriodicTable.isValidElement(candidateSymbol)) {
+            logger.info("Skipping invalid or compound element: " + elementString + " (extracted: " + candidateSymbol + ")");
+            return null;
         }
 
-        return null;
+        return candidateSymbol;
     }
 
     /**
