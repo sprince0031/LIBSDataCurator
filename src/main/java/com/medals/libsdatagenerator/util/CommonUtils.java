@@ -212,6 +212,12 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_DESC);
 
+        // Generate statistics
+        options.addOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT,
+                LIBSDataGenConstants.CMD_OPT_GEN_STATS_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_GEN_STATS_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 

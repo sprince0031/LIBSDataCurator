@@ -50,6 +50,7 @@ public class UserInputConfig {
     public final String csvDirPath;
     public final boolean appendMode;
     public final boolean forceFetch;
+    public final boolean genStats;
 
     /**
      * Constructs the configuration object by parsing the command-line arguments.
@@ -89,6 +90,7 @@ public class UserInputConfig {
         this.csvDirPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT, CommonUtils.DATA_PATH);
         this.appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
         this.forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
+        this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
     }
 
 }

@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
+import com.medals.libsdatagenerator.service.DatasetStatisticsService;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
@@ -97,6 +98,14 @@ public class LIBSDataController {
                     logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
                 }
             }
+
+            // After dataset generation, calculate statistics if requested
+            if (userInputs.genStats) {
+                logger.info("Calculating dataset statistics...");
+                DatasetStatisticsService statsService = new DatasetStatisticsService();
+                statsService.calculateAndSaveStatistics(userInputs.csvDirPath);
+            }
+
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Exception occurred!", e);
             System.out.println("Error occurred: " + e);

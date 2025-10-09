@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * All constants used throughout the codebase.
  *
- * @author Siddharth Prince | 12/17/24 11:58 AM
+ * @author Siddharth Prince | 12/17/24 11:58
  */
 
 public class LIBSDataGenConstants {
@@ -160,7 +160,12 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
 
+    public static final String CMD_OPT_GEN_STATS_SHORT = "gs";
+    public static final String CMD_OPT_GEN_STATS_LONG = "gen-stats";
+    public static final String CMD_OPT_GEN_STATS_DESC = "Generate and save statistics (mean, std dev) for the dataset.";
+
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
+    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
     /**
      * #### NIST LIBS Constants ####
@@ -210,6 +215,7 @@ public class LIBSDataGenConstants {
     /**
      * #### Miscellaneous Constants ####
      */
+    public static final String MASTER_DATASET_FILENAME = "master_dataset.csv";
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
     public static final String COATED_SERIES_KEY_PATTERN = "([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.coated\\.(.*?)";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option

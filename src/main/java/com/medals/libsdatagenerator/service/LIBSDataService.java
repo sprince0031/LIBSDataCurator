@@ -360,7 +360,7 @@ public class LIBSDataService {
         }
 
         // Write out to "master.csv" inside savePath
-        Path masterCsvPath = Paths.get(config.csvDirPath, "master_dataset.csv");
+        Path masterCsvPath = Paths.get(config.csvDirPath, LIBSDataGenConstants.MASTER_DATASET_FILENAME);
         // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
 
         String[] headerArray = header.toArray(new String[0]);
