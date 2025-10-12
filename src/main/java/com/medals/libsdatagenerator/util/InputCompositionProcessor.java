@@ -276,10 +276,19 @@ public class InputCompositionProcessor {
     }
 
     /**
-     * Helper method to find a MaterialGrade by GUID in the cached materials list
-     * @param materialGrades List of already processed MaterialGrade objects
-     * @param guid Material GUID to search for
-     * @return MaterialGrade if found, null otherwise
+     * Searches the provided list of cached {@link MaterialGrade} objects for a material with the specified GUID.
+     * <p>
+     * This method is a key part of the caching feature: it allows efficient lookup of a material by its unique identifier
+     * within the already-processed (cached) materials list, avoiding redundant data retrieval or processing.
+     * </p>
+     *
+     * <b>Caching strategy:</b> The method assumes that {@code materialGrades} is a cache of previously processed materials.
+     * It performs a linear search for the given {@code guid}. If {@code guid} is {@code null}, the method returns {@code null}
+     * immediately, as no valid match can be found.
+     *
+     * @param materialGrades the list of cached {@link MaterialGrade} objects to search
+     * @param guid the material GUID to search for; if {@code null}, no match is possible
+     * @return the {@link MaterialGrade} with the matching GUID if found; {@code null} otherwise
      */
     private MaterialGrade findMaterialByGuid(List<MaterialGrade> materialGrades, String guid) {
         // If GUID is null, we can't find a meaningful match
