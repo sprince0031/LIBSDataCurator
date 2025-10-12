@@ -305,14 +305,34 @@ public class InputCompositionProcessor {
     }
 
     /**
-     * Applies coating composition to the base material composition.
-     * The coating percentage is added as a new element, and existing elements are scaled down proportionally.
+     * Applies a coating composition to each base material composition in the provided list.
+     * <p>
+     * There are two strategies for applying the coating:
+     * <ul>
+     *   <li><b>Scaling strategy</b> (<code>scaleCoating == true</code>): The coating percentage is added as a new element,
+     *       and all existing elements' percentage compositions are scaled down proportionally so that the total composition
+     *       (including the coating) sums to 100%.</li>
+     *   <li><b>Subtraction from dominant element</b> (<code>scaleCoating == false</code>): The coating percentage is added as a new element,
+     *       and the percentage is subtracted only from the element with the highest composition (the dominant element),
+     *       leaving other elements unchanged.</li>
+     * </ul>
+     * <p>
+     * <b>Expected input formats:</b>
+     * <ul>
+     *   <li><code>baseCompositions</code>: A list of material compositions, where each composition is a <code>List&lt;Element&gt;</code>
+     *       representing the elements and their percentage compositions. Each <code>Element</code> should have a valid symbol and percentage.</li>
+     *   <li><code>coatingElement</code>: An <code>Element</code> object representing the coating to apply (e.g., symbol "Zn" and percentage 5.0).</li>
+     *   <li><code>scaleCoating</code>: Boolean flag to select the coating strategy (see above).</li>
+     * </ul>
+     * <p>
+     * <b>Side effects:</b>
+     * This method does <i>not</i> mutate the original <code>baseCompositions</code> or their contained <code>Element</code> objects.
+     * It returns a new <code>List&lt;List&lt;Element&gt;&gt;</code> with updated compositions.
      *
-     * @param baseCompositions List of original material compositions
-     * @param coatingElement The element symbol for the coating (e.g., "Zn" for galvanized)
-     * @param scaleCoating Boolean to determine if the coating element application scales down all elements or
-     *                     just subtracts from dominant element
-     * @return Updated composition with coating applied
+     * @param baseCompositions List of original material compositions; each is a list of {@link Element} objects with percentage compositions.
+     * @param coatingElement The {@link Element} representing the coating to apply (e.g., symbol "Zn", percentage 5.0).
+     * @param scaleCoating If true, scales down all elements proportionally; if false, subtracts coating percentage from dominant element only.
+     * @return A new list of compositions with the coating applied according to the selected strategy.
      */
     public List<List<Element>> applyCoating(List<List<Element>> baseCompositions, Element coatingElement, Boolean scaleCoating) {
 
