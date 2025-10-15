@@ -49,7 +49,7 @@ bin\run.bat [options]
 ## Latest Changes
 
 ### [0.8.9] - 2025-10-12
-- **New**: Dataset statistics generation with `-gs, --gen-stats` option for automatic calculation of mean and standard deviation
+- **New**: Dataset statistics generation with `-gs, --gen-stats` option for automatic calculation of mean, standard deviation and element-wise distribution; saved to `data/dataset_stats.json`
 - **Added**: DatasetStatisticsService for computing statistical measures across generated datasets
 
 ### [0.8.8] - 2025-10-12

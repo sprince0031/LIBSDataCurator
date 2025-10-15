@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.9] - 2025-10-12
 
 ### Added
-- **Dataset Statistics Generation**: New `-gs, --gen-stats` command-line option to automatically calculate and save dataset statistics (mean, standard deviation) after dataset creation
+- **Dataset Statistics Generation**: New `-gs, --gen-stats` command-line option to automatically calculate and save dataset statistics (mean, standard deviation, element-wise distribution stats) after dataset creation
+  - Stats saved to `data/dataset_stats.json` after generation of `master_dataset.csv`
 - **DatasetStatisticsService**: New service class for computing statistical measures across generated datasets
 - **Enhanced Test Coverage**: Added comprehensive unit tests for dataset statistics functionality
 
@@ -18,18 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.8] - 2025-10-12
 
 ### Added
-- **MatWeb Composition Data Caching**: Introduced in-memory caching mechanism to avoid redundant network requests for previously processed MatWeb material GUIDs
-  - Significantly improves performance for coated materials and cross-series materials
-  - Cache operates per application run with GUID-based keys
-  - Documentation added in `docs/CACHING.md`
-- **Coating Scaling Mode**: New `-sc, --scale-coating` command-line option to control how coating percentages are applied:
-  - Default mode: Subtracts coating percentage from dominant element
-  - Scale mode: Scales down all other elements proportionally
 - **Expanded Materials Catalogue**: Overhauled `conf/materials_catalogue.properties` with broader support for:
-  - Steel series (carbon, alloy, stainless, tool steels)
-  - Coated material series with special key format support
-  - Alloyed and tramp material series
-  - Updated GUIDs and detailed documentation for each series
+    - Steel series (carbon, alloy, stainless, tool steels)
+    - Coated material series with special key format support
+    - Alloyed and tramp material series
+    - Updated GUIDs and detailed documentation for each series
+- **Coating Scaling Mode**: New `-sc, --scale-coating` command-line option to control how coating percentages are applied:
+    - Default mode (subject to change): Subtracts coating percentage from dominant element
+    - Scale mode: Scales down all other elements proportionally
+- **New logic to add coating material to compositions**
+    - Coating applied after variations generated for each input material
+    - Will either subtract from dominant element or scale all elements according to user input flag `--scale-coating`
+- **MatWeb Composition Data Caching**: Introduced in-memory caching mechanism to avoid redundant network requests for previously processed MatWeb material GUIDs
+      - Significantly improves performance for coated materials and cross-series materials
+      - Cache operates per application run with GUID-based keys
+      - Documentation added in `docs/CACHING.md`
 - **Enhanced Test Coverage**: Added comprehensive test suites for:
   - Caching functionality (unit and integration tests)
   - MatWeb data service operations
