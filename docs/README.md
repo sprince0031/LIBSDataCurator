@@ -13,16 +13,16 @@ LIBS Data Curator enables systematic generation of synthetic spectral data for a
 
 Download the latest version from [GitHub Releases](https://github.com/sprince0031/LIBSDataCurator/releases/latest):
 
-- **Linux/macOS**: `LIBSDataCurator-0.8.7-linux.tar.gz`
-- **Windows**: `LIBSDataCurator-0.8.7-windows.zip`
+- **Linux/macOS**: `LIBSDataCurator-0.8.9-linux.tar.gz`
+- **Windows**: `LIBSDataCurator-0.8.9-windows.zip`
 
 ### Installation
 
 #### Linux/macOS
 ```bash
 # Download and extract
-tar -xzf LIBSDataCurator-0.8.7-linux.tar.gz
-cd LIBSDataCurator-0.8.7/
+tar -xzf LIBSDataCurator-0.8.9-linux.tar.gz
+cd LIBSDataCurator-0.8.9/
 
 # Run the application
 ./bin/run.sh [options]
@@ -48,19 +48,21 @@ bin\run.bat [options]
 
 ## Latest Changes
 
+### [0.8.9] - 2025-10-12
+- **New**: Dataset statistics generation with `-gs, --gen-stats` option for automatic calculation of mean, standard deviation and element-wise distribution; saved to `data/dataset_stats.json`
+- **Added**: DatasetStatisticsService for computing statistical measures across generated datasets
+
+### [0.8.8] - 2025-10-12
+- **New**: MatWeb composition data caching to avoid redundant network requests (see [CACHING.md](/docs/CACHING.md))
+- **New**: Coating scaling mode with `-sc, --scale-coating` option to control coating percentage application
+- **Expanded**: Materials catalogue with broader support for steel, coated, and alloyed material series
+- **Enhanced**: Test coverage for caching, MatWeb operations, and series statistics
+
 ### [0.8.7] - 2025-09-10
 - **New**: Class label type selection for machine learning dataset generation with `-ct, --class-type` option
 - **Enhanced**: Default CSV output now includes both material grade name and material type columns
 - **Improved**: General purpose design using "Material" terminology instead of "Steel" for broader applicability
 - **Added**: Smart fallbacks for missing material data with "Unknown Grade" or "Unknown Type"
-
-### [0.8.6] - 2025-08-30
-- **Added**: New command-line options for resolution, plasma temperature, electron density, and advanced NIST LIBS parameters
-- **Added**: UserInputConfig class to centralize parameter management
-- **Added**: Support for wavelength units, conditions, ion charge limits, and intensity scale selection
-- **Fixed**: Overview GUID not being passed to Dirichlet sampler (bug #44)
-- **Fixed**: Issue with `-c` option behavior and CSV spectrum data writing
-- **Enhanced**: Input parameter validation with enum-based options
 
 [See full changelog](/docs/CHANGELOG.md) for complete list of changes.
 
@@ -116,6 +118,10 @@ bin\run.bat [options]
   - `1`: Composition percentages (default) - Multi-output regression with element weight percentages
   - `2`: Material grade name - Multi-class classification with specific material grades
   - `3`: Material type - Multi-class classification with broader material categories
+- `-gs, --gen-stats`: Generate and save dataset statistics (mean, standard deviation)
+
+**Materials Processing Options:**
+- `-sc, --scale-coating`: Scale down all elements proportionally when applying coating percentages (default: subtract from dominant element)
 
 ### Class Label Types
 

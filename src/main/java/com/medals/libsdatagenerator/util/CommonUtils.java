@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 
 public class CommonUtils {
 
-    private static Logger logger = Logger.getLogger(CommonUtils.class.getName());
+    private static final Logger logger = Logger.getLogger(CommonUtils.class.getName());
 
     public static final String HOME_PATH = System.getProperty("user.dir");
     public static final String CONF_PATH = CommonUtils.HOME_PATH + File.separator + "conf";
@@ -170,6 +170,12 @@ public class CommonUtils {
                 false,
                 LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_DESC);
 
+        // Scale coating
+        options.addOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT,
+                LIBSDataGenConstants.CMD_OPT_SCALE_COATING_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_SCALE_COATING_DESC);
+
         // Append mode
         options.addOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT,
                 LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_LONG,
@@ -205,6 +211,12 @@ public class CommonUtils {
                 LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_LONG,
                 true,
                 LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_DESC);
+
+        // Generate statistics
+        options.addOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT,
+                LIBSDataGenConstants.CMD_OPT_GEN_STATS_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_GEN_STATS_DESC);
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();

@@ -5,7 +5,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * @author Siddharth Prince | 12/17/24 11:58 AM
+ * All constants used throughout the codebase.
+ *
+ * @author Siddharth Prince | 12/17/24 11:58
  */
 
 public class LIBSDataGenConstants {
@@ -112,6 +114,10 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_FORCE_FETCH_LONG = "force-fetch";
     public static final String CMD_OPT_FORCE_FETCH_DESC = "Will force re-downloading of individual spectrum data " +
             "for every composition even if data is available locally in the /data directory.";
+    public static final String CMD_OPT_SCALE_COATING_SHORT = "sc";
+    public static final String CMD_OPT_SCALE_COATING_LONG = "scale-coating";
+    public static final String CMD_OPT_SCALE_COATING_DESC = "Will scale down all other elements in the composition rather " +
+            "than subtracting the coating element percentage from the dominant element's percentage. Disabled by default.";
     @Deprecated
     public static final String CMD_OPT_VARY_BY_SHORT = "vb";
     @Deprecated
@@ -154,7 +160,12 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
 
+    public static final String CMD_OPT_GEN_STATS_SHORT = "gs";
+    public static final String CMD_OPT_GEN_STATS_LONG = "gen-stats";
+    public static final String CMD_OPT_GEN_STATS_DESC = "Generate and save statistics (mean, std dev) for the dataset.";
+
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
+    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
     /**
      * #### NIST LIBS Constants ####
@@ -192,7 +203,8 @@ public class LIBSDataGenConstants {
     public static final String MATWEB_OVERVIEW_DATASHEET_PAGE_TITLE_PREFIX = "Overview of materials for ";
     public static final String MATWEB_GUID_REGEX = "^[0-9a-fA-F]{32}$"; // Regex to check a 32 bit GUID string
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
-    public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d*\\.?\\d*)\\s*%";
+    public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
+    public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
 
     /**
      * #### Archive.org Constants ####
@@ -203,22 +215,15 @@ public class LIBSDataGenConstants {
     /**
      * #### Miscellaneous Constants ####
      */
+    public static final String MASTER_DATASET_FILENAME = "master_dataset.csv";
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
+    public static final String COATED_SERIES_KEY_PATTERN = "([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.coated\\.(.*?)";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
-    public static final int STAT_VAR_MODE_UNIFORM_DIST = 0; // Uniform distribution mode (longest and unnecessary)
-    public static final int STAT_VAR_MODE_DIRICHLET_DIST = 1; // Dirichlet sampling mode
-    public static final int STAT_VAR_MODE_GAUSSIAN_DIST = 2; // Gaussian sampling mode
-
-    // Default concentration parameter for Dirichlet distribution. Higher = less variance.
-    public static final double DIRICHLET_BASE_CONCENTRATION = 100.0;
-
-    // Default alpha value for elements missing an average in the overview sheet
-    public static final double DIRICHLET_DEFAULT_ALPHA = 0.5; // Low value to allow wide variance
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",
             "Ti", "Nb", "Co", "W", "Sn", "Pb", "B", "As", "Zr", "Bi", "Cd",
-            "Se", "Fe"
+            "Se", "Fe", "Zn", "N"
     };
 
     // Fallback to use if Gaussian sampling chosen over Dirichlet sampling.

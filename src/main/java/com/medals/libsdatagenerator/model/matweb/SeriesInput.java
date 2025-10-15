@@ -1,5 +1,7 @@
 package com.medals.libsdatagenerator.model.matweb;
 
+import com.medals.libsdatagenerator.model.Element;
+
 import java.util.List;
 
 /**
@@ -10,11 +12,20 @@ public class SeriesInput {
     private String seriesKey;
     private List<String> individualMaterialGuids;
     private String overviewGuid;
+    private Element coatingElement;
 
     public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid) {
         this.seriesKey = seriesKey;
         this.individualMaterialGuids = individualMaterialGuids;
         this.overviewGuid = overviewGuid;
+        this.coatingElement = null;
+    }
+
+    public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid, Element coatingElement) {
+        this.seriesKey = seriesKey;
+        this.individualMaterialGuids = individualMaterialGuids;
+        this.overviewGuid = overviewGuid;
+        this.coatingElement = coatingElement;
     }
 
     public String getSeriesKey() {
@@ -39,6 +50,18 @@ public class SeriesInput {
 
     public void setOverviewGuid(String overviewGuid) {
         this.overviewGuid = overviewGuid;
+    }
+
+    public Element getCoatingElement() {
+        return coatingElement;
+    }
+
+    public void setCoatingElement(Element coatingElement) {
+        this.coatingElement = coatingElement;
+    }
+
+    public boolean isCoated() {
+        return coatingElement != null;
     }
 
 }
