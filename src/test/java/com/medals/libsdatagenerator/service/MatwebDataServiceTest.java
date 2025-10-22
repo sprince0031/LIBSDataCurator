@@ -55,7 +55,7 @@ class MatwebDataServiceTest {
         
         assertNotNull(result);
         assertEquals(3, result.length);
-        assertEquals("Cu-#", result[0]); // Cu has highest percentage, should be marked as remainder
+        assertEquals("Cu-85.0:85.0-#", result[0]); // Cu has highest percentage, should be marked as remainder
         assertEquals("Zn-10.0:10.0", result[1]);
         assertEquals("Pb-0.5:0.5", result[2]);
     }
@@ -72,7 +72,7 @@ class MatwebDataServiceTest {
         assertNotNull(result);
         assertEquals(3, result.length);
         // Cu has highest average percentage (88.85%), should be marked as remainder
-        assertEquals("Cu-#", result[0]);
+        assertEquals("Cu-78.8:98.9-#", result[0]);
         assertEquals("Zn-0.250:18.0", result[1]);
         assertEquals("Pb-0.05:0.40", result[2]);
     }
@@ -103,7 +103,7 @@ class MatwebDataServiceTest {
         
         assertNotNull(result);
         assertEquals(3, result.length);
-        assertEquals("Fe-#", result[0]); // Fe has highest percentage, should be marked as remainder
+        assertEquals("Fe-98.0:98.0-#", result[0]); // Fe has highest percentage, should be marked as remainder
         assertEquals("C-0:0.5", result[1]); // <= format
         assertEquals("Mn-0.5:1.5", result[2]); // Range format
     }
