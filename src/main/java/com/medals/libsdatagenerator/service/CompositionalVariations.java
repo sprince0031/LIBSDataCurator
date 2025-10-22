@@ -20,7 +20,7 @@ public class CompositionalVariations {
     private final Logger logger = Logger.getLogger(CompositionalVariations.class.getName());
     private static CompositionalVariations instance = null;
     private final CommonUtils commonUtils;
-    private static final double POST_NORM_CHECK_DELTA = 0.0001;
+    public static final double POST_NORM_CHECK_DELTA = 0.0001;
     private static final double FINAL_SUM_TOLERANCE = 0.1;
 
     public CompositionalVariations() {

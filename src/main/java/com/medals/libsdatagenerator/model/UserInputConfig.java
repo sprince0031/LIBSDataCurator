@@ -69,7 +69,7 @@ public class UserInputConfig {
         this.variationMode = VariationMode.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, "1")));
         this.classLabelTypeExplicitlySet = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT);
         this.classLabelType = ClassLabelType.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT, "1")));
-        this.scaleCoating = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT);
+        this.scaleCoating = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT);
         this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
         this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
 

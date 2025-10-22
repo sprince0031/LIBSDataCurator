@@ -185,10 +185,11 @@ public class LIBSDataService {
     public List<Element> generateElementsList(String[] composition) throws IOException {
         List<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;
-        for (String elementString : composition) {
+        String remainderElementData = "";
+        for (int i = 0; i < composition.length; i++) {
             // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
             // composition
-            String[] elementNamePercent = elementString.split("-");
+            String[] elementNamePercent = composition[i].split("-");
 
             // Check if the current input element exists in the periodic table
             if (!PeriodicTable.isValidElement(elementNamePercent[0])) {
@@ -196,35 +197,61 @@ public class LIBSDataService {
                 throw new IOException("Invalid element " + elementNamePercent[0] + " given as input");
             }
 
-            double currentPercentage;
-            double minPercentage = 0;
-            double maxPercentage = 0;
-            if (elementNamePercent[1].contains(":")) {
-                String[] compositionRange = elementNamePercent[1].split(":");
+            double currentPercentage = -1;
+            double minPercentage = -1;
+            double maxPercentage = -1;
+            // If the element percentage value is "#", consider as the remaining percentage
+            // composition
+            if (!composition[i].contains("#")) {
+                if (elementNamePercent[1].contains(":")) {
+                    String[] compositionRange = elementNamePercent[1].split(":");
+                    minPercentage = Double.parseDouble(compositionRange[0]);
+                    maxPercentage = Double.parseDouble(compositionRange[1]);
+                } else {
+                    minPercentage = Double.parseDouble(elementNamePercent[1]);
+                    maxPercentage = minPercentage;
+                }
+                currentPercentage = (minPercentage + maxPercentage) / 2;
+                totalPercentage += currentPercentage;
+
+                Element element = new Element(
+                        PeriodicTable.getElementName(elementNamePercent[0]),
+                        elementNamePercent[0],
+                        currentPercentage,
+                        minPercentage,
+                        maxPercentage,
+                        currentPercentage);
+                elementsList.add(element);
+            } else {
+                remainderElementData = composition[i];
+            }
+        }
+
+        // Handle dominant/remainder element composition
+        if  (!remainderElementData.isEmpty()) {
+            double currentPercentage = 100 - totalPercentage;
+            String[] data =  remainderElementData.split("-");
+            double minPercentage;
+            double maxPercentage;
+            if (data.length == 2) {
+                minPercentage = currentPercentage - CompositionalVariations.POST_NORM_CHECK_DELTA;
+                maxPercentage = currentPercentage + CompositionalVariations.POST_NORM_CHECK_DELTA;
+            } else {
+                String[] compositionRange = data[1].split(":");
                 minPercentage = Double.parseDouble(compositionRange[0]);
                 maxPercentage = Double.parseDouble(compositionRange[1]);
             }
-            // If the element percentage value is "#", consider as the remaining percentage
-            // composition
-            if (!elementNamePercent[1].equals("#")) {
-                if (minPercentage == 0 && maxPercentage == 0) {
-                    currentPercentage = Double.parseDouble(elementNamePercent[1]);
-                } else {
-                    currentPercentage = (minPercentage + maxPercentage) / 2;
-                }
-                totalPercentage += currentPercentage;
-            } else {
-                currentPercentage = 100 - totalPercentage;
-            }
+
             Element element = new Element(
-                    PeriodicTable.getElementName(elementNamePercent[0]),
-                    elementNamePercent[0],
+                    PeriodicTable.getElementName(data[0]),
+                    data[0],
                     currentPercentage,
                     minPercentage,
                     maxPercentage,
-                    null);
+                    (minPercentage + maxPercentage) / 2);
             elementsList.add(element);
         }
+
         return elementsList;
     }
 

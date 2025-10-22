@@ -350,9 +350,9 @@ public class MatwebDataService {
 
         // If no remainder element was found, automatically mark the element with the highest percentage
         if (!hasRemainderElement && maxIndex >= 0) {
-            String[] parts = parsedElementString[maxIndex].split("-");
-            parsedElementString[maxIndex] = parts[0] + "-#";
-            logger.info("Automatically marked element " + parts[0] + " as remainder (highest percentage: " + maxPercentage + "%)");
+            parsedElementString[maxIndex] += "-#";
+            logger.info("Automatically marked element " + parsedElementString[maxIndex].split("-")[0]
+                    + " as remainder (highest percentage: " + maxPercentage + "%)");
         }
 
         return parsedElementString;
