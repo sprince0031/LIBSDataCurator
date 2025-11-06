@@ -30,6 +30,7 @@ public class UserInputConfig {
     public final ClassLabelType classLabelType;
     public final boolean classLabelTypeExplicitlySet;
     public final boolean scaleCoating;
+    public final Long seed;
     @Deprecated public final double varyBy;
     @Deprecated public final double maxDelta;
 
@@ -70,6 +71,12 @@ public class UserInputConfig {
         this.classLabelTypeExplicitlySet = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT);
         this.classLabelType = ClassLabelType.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT, "1")));
         this.scaleCoating = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT);
+        // Parse seed if present
+        if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SEED_SHORT)) {
+            this.seed = Long.parseLong(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_SEED_SHORT));
+        } else {
+            this.seed = null;
+        }
         this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
         this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
 

@@ -218,6 +218,12 @@ public class CommonUtils {
                 false,
                 LIBSDataGenConstants.CMD_OPT_GEN_STATS_DESC);
 
+        // RNG Seed
+        options.addOption(LIBSDataGenConstants.CMD_OPT_SEED_SHORT,
+                LIBSDataGenConstants.CMD_OPT_SEED_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_SEED_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 
