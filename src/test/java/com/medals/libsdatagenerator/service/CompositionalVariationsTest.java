@@ -16,6 +16,7 @@ class CompositionalVariationsTest {
 
     private final CompositionalVariations cv = CompositionalVariations.getInstance();
     private static final double DELTA = 0.001; // For floating point comparisons
+    private static final Long SEED = 42L;
 
     private double sumComposition(List<Element> composition) {
         double sum = 0;
@@ -46,7 +47,7 @@ class CompositionalVariationsTest {
 
         MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
         List<List<Element>> variations = new ArrayList<>();
-        GaussianSampler.getInstance().sample(materialGrade, 100, variations);
+        GaussianSampler.getInstance().sample(materialGrade, 100, variations, SEED);
 
         assertEquals(100, variations.size(), "Should generate the requested number of samples");
 
@@ -89,7 +90,7 @@ class CompositionalVariationsTest {
 
         MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
         List<List<Element>> variations = new ArrayList<>();
-        GaussianSampler.getInstance().sample(materialGrade, 50, variations);
+        GaussianSampler.getInstance().sample(materialGrade, 50, variations, SEED);
 
         assertEquals(50, variations.size());
         for (List<Element> variant : variations) {

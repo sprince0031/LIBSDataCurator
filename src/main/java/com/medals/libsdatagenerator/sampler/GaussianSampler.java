@@ -25,8 +25,9 @@ public class GaussianSampler implements Sampler {
         return instance;
     }
 
+    @Override
     public void sample(MaterialGrade materialGrade, int numSamples,
-                       List<List<Element>> variations) {
+                       List<List<Element>> variations, Long seed) {
 
         Random rand = new Random();
 

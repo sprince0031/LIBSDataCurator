@@ -155,15 +155,15 @@ public class LIBSDataGenConstants {
             
             3 -> Material type - multi-class classification with broader material categories (e.g., Carbon steel)\
             """;
-
     public static final String CMD_OPT_SERIES_SHORT = "s";
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
-
     public static final String CMD_OPT_GEN_STATS_SHORT = "gs";
     public static final String CMD_OPT_GEN_STATS_LONG = "gen-stats";
     public static final String CMD_OPT_GEN_STATS_DESC = "Generate and save statistics (mean, std dev) for the dataset.";
-
+    public static final String CMD_OPT_SEED_SHORT = "sd";
+    public static final String CMD_OPT_SEED_LONG = "seed";
+    public static final String CMD_OPT_SEED_DESC = "Seed for the samplers to ensure reproducibility.";
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
     public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
