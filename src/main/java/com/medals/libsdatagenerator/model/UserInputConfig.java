@@ -73,7 +73,11 @@ public class UserInputConfig {
         this.scaleCoating = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT);
         // Parse seed if present
         if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SEED_SHORT)) {
-            this.seed = Long.parseLong(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_SEED_SHORT));
+            try {
+                this.seed = Long.parseLong(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_SEED_SHORT));
+            } catch (NumberFormatException e) {
+                throw new IllegalArgumentException("Invalid seed value. Must be a valid long integer.", e);
+            }
         } else {
             this.seed = null;
         }
