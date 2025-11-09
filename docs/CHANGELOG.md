@@ -5,6 +5,18 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9.2] - 2025-11-09
+
+### Changed
+- **Refactored Gaussian Sampler**: Converted `GaussianSampler` from using Java's built-in `Random.nextGaussian()` to Apache Commons RNG `ZigguratSampler.NormalizedGaussian` for better performance and consistency with `DirichletSampler`
+- **Enhanced Seeding Support**: Updated `GaussianSampler` to properly use the provided seed parameter for reproducible random sampling
+- **Improved Logging**: Added informative logging to `GaussianSampler` to indicate whether seeded or random sampling is being used
+
+### Added
+- **Test Coverage for Seeding**: Added two new test cases to verify reproducibility:
+  - `testGaussianSampling_reproducibilityWithSeed`: Ensures same seed produces identical results
+  - `testGaussianSampling_differentSeedsProduceDifferentResults`: Ensures different seeds produce different results
+
 ## [0.8.9] - 2025-10-12
 
 ### Added
