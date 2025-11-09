@@ -5,11 +5,14 @@ import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.util.CommonUtils;
+import org.apache.commons.rng.UniformRandomProvider;
+import org.apache.commons.rng.sampling.distribution.ContinuousSampler;
+import org.apache.commons.rng.sampling.distribution.ZigguratSampler;
+import org.apache.commons.rng.simple.RandomSource;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.logging.Logger;
 
 public class GaussianSampler implements Sampler {
@@ -29,7 +32,12 @@ public class GaussianSampler implements Sampler {
     public void sample(MaterialGrade materialGrade, int numSamples,
                        List<List<Element>> variations, Long seed) {
 
-        Random rand = new Random();
+        // Initialize random number generator with seed if provided
+        UniformRandomProvider rng = seed != null ?
+                RandomSource.XO_RO_SHI_RO_128_PP.create(seed) :
+                RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+        logger.info("Starting Gaussian sampling with " + (seed != null ? "seed: " + seed : "random seed"));
 
         // A map to store the standard deviations
         // TODO: load from a properties file.
@@ -53,7 +61,11 @@ public class GaussianSampler implements Sampler {
                     maxDelta = mu * 0.1; // e.g., 10% of the base value
                 }
                 double stdDev = stdDevs.getOrDefault(baseElement.getSymbol(), 0.1); // Default to 0.1 if not in map
-                double delta = rand.nextGaussian() * stdDev;
+                
+                // Create a Gaussian sampler with mean 0 and standard deviation from the map
+                ContinuousSampler gaussianSampler = 
+                    ZigguratSampler.NormalizedGaussian.of(rng);
+                double delta = gaussianSampler.sample() * stdDev;
 
                 // Clamping delta within allowed ranges
                 delta = Math.max(-maxDelta, Math.min(delta, maxDelta));
