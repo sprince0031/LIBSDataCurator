@@ -49,6 +49,12 @@ public class LIBSDataController {
            // Read and build user input configuration
             UserInputConfig userInputs = new UserInputConfig(cmd);
 
+            if (userInputs.seed != null) {
+                logger.info("Seed: " + userInputs.seed);
+            } else {
+                logger.log(Level.WARNING, "No seed specified.");
+            }
+
             List<MaterialGrade> materialGrades = new ArrayList<>();
 
             if (userInputs.isSeriesMode) {
