@@ -125,14 +125,6 @@ public class LIBSDataService {
             spectra = String.join(",", spectra, element.getSymbol() + "0-2");
         }
 
-        // Adding remaining elements from full composition list
-        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
-            if (!composition.contains(element)) {
-                composition = String.join(";", composition, element + ":0");
-                spectra = String.join(",", spectra, element + "0-2");
-            }
-        }
-
         // Add composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
 
