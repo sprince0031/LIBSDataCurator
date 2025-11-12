@@ -193,6 +193,11 @@ public class LIBSDataGenConstants {
     public static final String NIST_LIBS_QUERY_PARAM_LIBS = "libs";
 
     public static final String NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT = "ViewDataCSV";
+    
+    // HTML element selectors for recalculation form
+    public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
+    public static final String NIST_LIBS_RECALC_BUTTON_VALUE = "Recalculate";
+    public static final String NIST_LIBS_RECALC_ELEMENT_PREFIX = "myperc";  // For element percentage inputs
 
     /**
      * #### Matweb Constants ####
