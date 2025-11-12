@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ class CompositionalVariationsTest {
 
     private final CompositionalVariations cv = CompositionalVariations.getInstance();
     private static final double DELTA = 0.001; // For floating point comparisons
+    private static final Long SEED = 42L;
 
     private double sumComposition(List<Element> composition) {
         double sum = 0;
@@ -46,7 +48,7 @@ class CompositionalVariationsTest {
 
         MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
         List<List<Element>> variations = new ArrayList<>();
-        GaussianSampler.getInstance().sample(materialGrade, 100, variations);
+        GaussianSampler.getInstance().sample(materialGrade, 100, variations, SEED);
 
         assertEquals(100, variations.size(), "Should generate the requested number of samples");
 
@@ -89,7 +91,7 @@ class CompositionalVariationsTest {
 
         MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
         List<List<Element>> variations = new ArrayList<>();
-        GaussianSampler.getInstance().sample(materialGrade, 50, variations);
+        GaussianSampler.getInstance().sample(materialGrade, 50, variations, SEED);
 
         assertEquals(50, variations.size());
         for (List<Element> variant : variations) {
@@ -192,5 +194,195 @@ class CompositionalVariationsTest {
         cv.getUniformDistribution(0, originalComp, 0.1, 3.0, 0.0, new ArrayList<>(), results);
 
         assertEquals(0, results.size(), "Should generate no results due to conflicting constraints for uniform distribution.");
+    }
+
+    @Test
+    void testGaussianSampling_reproducibilityWithSeed() {
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("Fe"),
+            "Skipping test: Symbol 'Fe' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("C"),
+            "Skipping test: Symbol 'C' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("Fe", "Fe", 80.0, 75.0, 85.0, 80.0));
+        baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
+
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
+        
+        // First run with seed
+        List<List<Element>> variations1 = new ArrayList<>();
+        GaussianSampler.getInstance().sample(materialGrade, 10, variations1, SEED);
+        
+        // Second run with same seed
+        List<List<Element>> variations2 = new ArrayList<>();
+        GaussianSampler.getInstance().sample(materialGrade, 10, variations2, SEED);
+        
+        // Both runs should produce identical results
+        assertEquals(variations1.size(), variations2.size(), "Both runs should generate the same number of samples");
+        
+        for (int i = 0; i < variations1.size(); i++) {
+            List<Element> var1 = variations1.get(i);
+            List<Element> var2 = variations2.get(i);
+            
+            assertEquals(var1.size(), var2.size(), "Sample " + i + " should have same number of elements");
+            
+            for (int j = 0; j < var1.size(); j++) {
+                Element el1 = var1.get(j);
+                Element el2 = var2.get(j);
+                
+                assertEquals(el1.getSymbol(), el2.getSymbol(), "Sample " + i + " element " + j + " should have same symbol");
+                assertEquals(el1.getPercentageComposition(), el2.getPercentageComposition(), DELTA,
+                    "Sample " + i + " element " + el1.getSymbol() + " should have same percentage");
+            }
+        }
+    }
+
+    @Test
+    void testGaussianSampling_differentSeedsProduceDifferentResults() {
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("Fe"),
+            "Skipping test: Symbol 'Fe' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("C"),
+            "Skipping test: Symbol 'C' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("Fe", "Fe", 80.0, 75.0, 85.0, 80.0));
+        baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
+
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
+        
+        // First run with seed 42
+        List<List<Element>> variations1 = new ArrayList<>();
+        GaussianSampler.getInstance().sample(materialGrade, 10, variations1, 42L);
+        
+        // Second run with seed 123
+        List<List<Element>> variations2 = new ArrayList<>();
+        GaussianSampler.getInstance().sample(materialGrade, 10, variations2, 123L);
+        
+        // At least one sample should be different
+        boolean foundDifference = false;
+        for (int i = 0; i < Math.min(variations1.size(), variations2.size()); i++) {
+            List<Element> var1 = variations1.get(i);
+            List<Element> var2 = variations2.get(i);
+            
+            for (int j = 0; j < var1.size(); j++) {
+                Element el1 = var1.get(j);
+                Element el2 = var2.get(j);
+                
+                if (Math.abs(el1.getPercentageComposition() - el2.getPercentageComposition()) > DELTA) {
+                    foundDifference = true;
+                    break;
+                }
+            }
+            if (foundDifference) break;
+        }
+        
+        assertTrue(foundDifference, "Different seeds should produce different results");
+    }
+
+    @Test
+    void testDirichletSampling_reproducibilityWithSeed() {
+        // Note: This test verifies seeding behavior when Dirichlet sampler falls back to Gaussian
+        // since we don't have series statistics available in the test environment.
+        // The seed propagation through Dirichlet -> Gaussian is tested here.
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("Fe"),
+            "Skipping test: Symbol 'Fe' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("C"),
+            "Skipping test: Symbol 'C' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("Fe", "Fe", 80.0, 75.0, 85.0, 80.0));
+        baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
+
+        // Create MaterialGrade with null parent series (will trigger fallback to Gaussian)
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
+        
+        // First run with seed
+        List<List<Element>> variations1 = new ArrayList<>();
+        DirichletSampler.getInstance().sample(materialGrade, 10, variations1, SEED);
+        
+        // Second run with same seed
+        List<List<Element>> variations2 = new ArrayList<>();
+        DirichletSampler.getInstance().sample(materialGrade, 10, variations2, SEED);
+        
+        // Both runs should produce identical results due to seed propagation
+        assertEquals(variations1.size(), variations2.size(), "Both runs should generate the same number of samples");
+        
+        for (int i = 0; i < variations1.size(); i++) {
+            List<Element> var1 = variations1.get(i);
+            List<Element> var2 = variations2.get(i);
+            
+            assertEquals(var1.size(), var2.size(), "Sample " + i + " should have same number of elements");
+            
+            for (int j = 0; j < var1.size(); j++) {
+                Element el1 = var1.get(j);
+                Element el2 = var2.get(j);
+                
+                assertEquals(el1.getSymbol(), el2.getSymbol(), "Sample " + i + " element " + j + " should have same symbol");
+                assertEquals(el1.getPercentageComposition(), el2.getPercentageComposition(), DELTA,
+                    "Sample " + i + " element " + el1.getSymbol() + " should have same percentage");
+            }
+        }
+    }
+
+    @Test
+    void testDirichletSampling_differentSeedsProduceDifferentResults() {
+        // Note: This test verifies seeding behavior when Dirichlet sampler falls back to Gaussian
+        // since we don't have series statistics available in the test environment.
+        // The seed propagation through Dirichlet -> Gaussian is tested here.
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("Fe"),
+            "Skipping test: Symbol 'Fe' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        Assumptions.assumeTrue(
+            com.medals.libsdatagenerator.controller.LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK.containsKey("C"),
+            "Skipping test: Symbol 'C' not in ELEMENT_STD_DEVS_FALLBACK map."
+        );
+        
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("Fe", "Fe", 80.0, 75.0, 85.0, 80.0));
+        baseComp.add(new Element("C", "C", 20.0, 15.0, 25.0, 20.0));
+
+        // Create MaterialGrade with null parent series (will trigger fallback to Gaussian)
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, null, null);
+        
+        // First run with seed 42
+        List<List<Element>> variations1 = new ArrayList<>();
+        DirichletSampler.getInstance().sample(materialGrade, 10, variations1, 42L);
+        
+        // Second run with seed 123
+        List<List<Element>> variations2 = new ArrayList<>();
+        DirichletSampler.getInstance().sample(materialGrade, 10, variations2, 123L);
+        
+        // At least one sample should be different
+        boolean foundDifference = false;
+        for (int i = 0; i < Math.min(variations1.size(), variations2.size()); i++) {
+            List<Element> var1 = variations1.get(i);
+            List<Element> var2 = variations2.get(i);
+            
+            for (int j = 0; j < var1.size(); j++) {
+                Element el1 = var1.get(j);
+                Element el2 = var2.get(j);
+                
+                if (Math.abs(el1.getPercentageComposition() - el2.getPercentageComposition()) > DELTA) {
+                    foundDifference = true;
+                    break;
+                }
+            }
+            if (foundDifference) break;
+        }
+        
+        assertTrue(foundDifference, "Different seeds should produce different results");
     }
 }
