@@ -52,7 +52,7 @@ public class LIBSDataController {
             if (userInputs.seed != null) {
                 logger.info("Seed: " + userInputs.seed);
             } else {
-                logger.log(Level.WARNING, "No seed specified.");
+                logger.info("No seed specified.");
             }
 
             List<MaterialGrade> materialGrades = new ArrayList<>();
