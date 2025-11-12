@@ -9,13 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Refactored Gaussian Sampler**: Converted `GaussianSampler` from using Java's built-in `Random.nextGaussian()` to Apache Commons RNG `ZigguratSampler.NormalizedGaussian` for better performance and consistency with `DirichletSampler`
-- **Enhanced Seeding Support**: Updated `GaussianSampler` to properly use the provided seed parameter for reproducible random sampling
-- **Improved Logging**: Added informative logging to `GaussianSampler` to indicate whether seeded or random sampling is being used
+- **Enhanced Seeding Support for Gaussian Sampler**: Updated `GaussianSampler` to properly use the provided seed parameter for reproducible random sampling
+- **Enhanced Seeding Support for Dirichlet Sampler**: Updated `DirichletSampler` to use Apache Commons RNG with seed parameter for reproducible sampling
+  - Uses `RandomSource.XO_RO_SHI_RO_128_PP.create(seed)` to initialize the RNG when seed is provided
+  - Falls back to unseeded RNG when no seed is specified
+- **Improved Logging**: Added informative logging to both `GaussianSampler` and `DirichletSampler` to indicate whether seeded or random sampling is being used
 
 ### Added
-- **Test Coverage for Seeding**: Added two new test cases to verify reproducibility:
+- **Test Coverage for Gaussian Sampling with Seeding**: Added test cases to verify reproducibility:
   - `testGaussianSampling_reproducibilityWithSeed`: Ensures same seed produces identical results
   - `testGaussianSampling_differentSeedsProduceDifferentResults`: Ensures different seeds produce different results
+- **Test Coverage for Dirichlet Sampling with Seeding**: Added test cases to verify reproducibility:
+  - `testDirichletSampling_reproducibilityWithSeed`: Ensures same seed produces identical results for Dirichlet sampling
+  - `testDirichletSampling_differentSeedsProduceDifferentResults`: Ensures different seeds produce different results for Dirichlet sampling
+
+### Fixed
+- **Dirichlet Sampler Null Pointer Exception**: Added null check for `parentSeries` in `DirichletSampler` to gracefully fall back to Gaussian sampling when no parent series is available, preventing `NullPointerException`
 
 ## [0.8.9] - 2025-10-12
 

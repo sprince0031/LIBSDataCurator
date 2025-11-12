@@ -41,6 +41,14 @@ public class DirichletSampler implements Sampler {
                        List<List<Element>> variations, Long seed) {
 
         List<Element> baseComp = baseMaterialGrade.getComposition();
+        
+        // Check if parent series is available, fall back to Gaussian if not
+        if (baseMaterialGrade.getParentSeries() == null) {
+            logger.info("No parent series available. Falling back to Gaussian sampling.");
+            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
+            return;
+        }
+        
         String overviewGuid = baseMaterialGrade.getParentSeries().getOverviewGuid();
 
         logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
