@@ -56,6 +56,17 @@ public class LIBSDataService {
      * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
     public String fetchLIBSData(List<Element> elements, UserInputConfig config) {
+        return fetchLIBSData(elements, config, true);
+    }
+    
+    /**
+     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
+     * @param elements list of Elements in composition
+     * @param config User input configuration object containing all user input data
+     * @param quitDriver whether to quit the Selenium driver after fetching (false to keep session alive)
+     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     */
+    public String fetchLIBSData(List<Element> elements, UserInputConfig config, boolean quitDriver) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
@@ -64,6 +75,9 @@ public class LIBSDataService {
                     commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
             );
 
+            // Perform client-side recalculation with user's desired resolution
+            performRecalculation(seleniumUtils, config.resolution);
+            
             WebElement csvButton = seleniumUtils.getDriver()
                     .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
             csvButton.click();
@@ -104,7 +118,9 @@ public class LIBSDataService {
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
         } finally {
-            seleniumUtils.quitSelenium();
+            if (quitDriver) {
+                seleniumUtils.quitSelenium();
+            }
         }
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
@@ -276,47 +292,66 @@ public class LIBSDataService {
 
         PrintStream out = System.out;
 
-        // For each composition, fetch the CSV, parse it, store data
-        for (List<Element> composition : compositions) {
+        // Get selenium instance for reuse across variations
+        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+        boolean firstComposition = true;
 
-            // Build a string like "Cu-50;Fe-50" for cross-platform compatible filename
-            String compositionId = commonUtils.buildCompositionStringForFilename(composition);
+        try {
+            // For each composition, fetch the CSV, parse it, store data
+            for (List<Element> composition : compositions) {
 
-            // Sleep for 5 seconds after every 5 requests to the NIST LIBS server
-            if (compositionsProcessed % 5 == 0) {
-                try {
-                    Thread.sleep(5000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                // Build a string like "Cu-50;Fe-50" for cross-platform compatible filename
+                String compositionId = commonUtils.buildCompositionStringForFilename(composition);
+
+                // Fetch CSV data from NIST
+                String csvData;
+                String compositionFileName = "composition_" + compositionId + ".csv";
+                Path compositionFilePath = Paths.get(config.csvDirPath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
+                        compositionFileName);
+                
+                logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
+                boolean compositionFileExists = Files.exists(compositionFilePath);
+                
+                if (config.forceFetch || !compositionFileExists) {
+                    logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + config.forceFetch + ", fileExists=" + compositionFileExists + ")");
+                    
+                    if (firstComposition) {
+                        // First composition: make initial server request and keep browser session alive
+                        csvData = fetchLIBSData(composition, config, false);
+                        firstComposition = false;
+                        logger.info("First composition fetched - browser session kept alive for variations");
+                    } else {
+                        // Subsequent compositions: use client-side recalculation with existing browser session
+                        if (seleniumUtils.isDriverOnline()) {
+                            csvData = fetchLIBSDataFromLoadedPage(composition, config, seleniumUtils);
+                            logger.info("Variation fetched using client-side recalculation");
+                        } else {
+                            // Fallback: if driver is not online for some reason, fetch normally
+                            logger.warning("Driver not online - falling back to server request");
+                            csvData = fetchLIBSData(composition, config, false);
+                        }
+                        
+                        // Small delay between variations to avoid overwhelming the browser
+                        try {
+                            Thread.sleep(500);
+                        } catch (InterruptedException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                } else {
+                    logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
+                    try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
+                        csvData = csvReader.lines().collect(Collectors.joining("\n")); // Ensure newlines are preserved
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-            }
 
-            // Fetch CSV data from NIST
-            String csvData;
-            String compositionFileName = "composition_" + compositionId + ".csv";
-            Path compositionFilePath = Paths.get(config.csvDirPath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR,
-                    compositionFileName);
-            
-            logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
-            boolean compositionFileExists = Files.exists(compositionFilePath);
-            
-            if (config.forceFetch || !compositionFileExists) {
-                logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + config.forceFetch + ", fileExists=" + compositionFileExists + ")");
-                csvData = fetchLIBSData(composition, config);
-            } else {
-                logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
-                try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
-                    csvData = csvReader.lines().collect(Collectors.joining("\n")); // Ensure newlines are preserved
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
+                // If fetch failed, skip
+                if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+                    logger.severe("Failed to fetch data for composition " + compositionId);
+                    continue;
                 }
-            }
-
-            // If fetch failed, skip
-            if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
-                logger.severe("Failed to fetch data for composition " + compositionId);
-                continue;
-            }
 
             // Parse wave->intensity
             Map<Double, Double> waveMap;
@@ -446,6 +481,13 @@ public class LIBSDataService {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Error writing master dataset CSV", e);
         }
+        } finally {
+            // Clean up: close the browser session if it's still open
+            if (seleniumUtils.isDriverOnline()) {
+                seleniumUtils.quitSelenium();
+                logger.info("Browser session closed after processing all compositions");
+            }
+        }
     }
 
     /**
@@ -524,6 +566,146 @@ public class LIBSDataService {
         
         // Convert dots and underscores to spaces
         return seriesKey.replace('.', ' ').replace('_', ' ');
+    }
+    
+    /**
+     * Updates the resolution field in the recalculation form and clicks recalculate button
+     * @param seleniumUtils SeleniumUtils instance with active driver
+     * @param resolution desired resolution value
+     * @throws Exception if unable to interact with form elements
+     */
+    private void performRecalculation(SeleniumUtils seleniumUtils, String resolution) throws Exception {
+        logger.info("Performing client-side recalculation with resolution: " + resolution);
+        
+        // Wait for the resolution input field to be present
+        WebElement resolutionInput = seleniumUtils.waitForElementPresent(
+            By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME)
+        );
+        
+        // Clear existing value and enter new resolution
+        resolutionInput.clear();
+        resolutionInput.sendKeys(resolution);
+        logger.info("Updated resolution field to: " + resolution);
+        
+        // Find and click the Recalculate button
+        WebElement recalcButton = seleniumUtils.waitForElementClickable(
+            By.xpath("//input[@type='button' and @value='" + LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_VALUE + "']")
+        );
+        recalcButton.click();
+        logger.info("Clicked Recalculate button");
+        
+        // Wait for recalculation to complete - wait for the CSV button to be present again
+        // This indicates the page has reloaded with new data
+        Thread.sleep(2000); // Brief pause to allow recalculation to start
+        seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+        logger.info("Recalculation completed");
+    }
+    
+    /**
+     * Updates element percentages in the recalculation form
+     * @param seleniumUtils SeleniumUtils instance with active driver
+     * @param elements list of elements with their percentages
+     * @throws Exception if unable to update form elements
+     */
+    private void updateElementPercentages(SeleniumUtils seleniumUtils, List<Element> elements) throws Exception {
+        logger.info("Updating element percentages in recalculation form");
+        
+        // Find all myperc[] input fields
+        List<WebElement> percentInputs = seleniumUtils.getDriver().findElements(
+            By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_PREFIX + "[]")
+        );
+        
+        // Find all mytext[] fields to match elements
+        List<WebElement> elementInputs = seleniumUtils.getDriver().findElements(
+            By.name("mytext[]")
+        );
+        
+        // Create a map of element symbol to percentage for easy lookup
+        Map<String, Double> elementPercentageMap = new HashMap<>();
+        for (Element elem : elements) {
+            elementPercentageMap.put(elem.getSymbol(), elem.getPercentageComposition());
+        }
+        
+        // Update each percentage field based on matching element
+        for (int i = 0; i < elementInputs.size() && i < percentInputs.size(); i++) {
+            String elementSymbol = elementInputs.get(i).getAttribute("value");
+            if (elementPercentageMap.containsKey(elementSymbol)) {
+                WebElement percentInput = percentInputs.get(i);
+                percentInput.clear();
+                percentInput.sendKeys(String.valueOf(elementPercentageMap.get(elementSymbol)));
+                logger.fine("Updated " + elementSymbol + " to " + elementPercentageMap.get(elementSymbol) + "%");
+            }
+        }
+        
+        logger.info("Element percentages updated");
+    }
+    
+    /**
+     * Fetches LIBS data from an already-loaded NIST LIBS result page by updating composition and recalculating.
+     * This is used for compositional variations to avoid making new server requests.
+     * @param elements list of Elements in composition
+     * @param config User input configuration object containing all user input data
+     * @param seleniumUtils SeleniumUtils instance with active driver on NIST LIBS result page
+     * @return csv data as string if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     */
+    private String fetchLIBSDataFromLoadedPage(List<Element> elements, UserInputConfig config, SeleniumUtils seleniumUtils) {
+        try {
+            // Update element percentages in the form
+            updateElementPercentages(seleniumUtils, elements);
+            
+            // Click recalculate button to trigger client-side recalculation
+            WebElement recalcButton = seleniumUtils.waitForElementClickable(
+                By.xpath("//input[@type='button' and @value='" + LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_VALUE + "']")
+            );
+            recalcButton.click();
+            logger.info("Clicked Recalculate button for variation");
+            
+            // Wait for recalculation to complete
+            Thread.sleep(2000); // Brief pause to allow recalculation to start
+            seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+            logger.info("Variation recalculation completed");
+            
+            // Download CSV
+            WebElement csvButton = seleniumUtils.getDriver()
+                    .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+            csvButton.click();
+
+            // Switch to the new tab/window
+            String originalWindow = seleniumUtils.getDriver().getWindowHandle();
+            for (String windowHandle : seleniumUtils.getDriver().getWindowHandles()) {
+                if (!windowHandle.equals(originalWindow)) {
+                    seleniumUtils.getDriver().switchTo().window(windowHandle);
+                    break;
+                }
+            }
+
+            // Grab the CSV content
+            String csvData = seleniumUtils.getDriver().findElement(By.tagName("pre")).getText();
+
+            // Create data folder if it doesn't exist
+            Path dataPath = Paths.get(config.csvDirPath, "NIST LIBS");
+            if (!Files.exists(dataPath)) {
+                Files.createDirectories(dataPath);
+            }
+
+            // Save to a file with a unique name
+            String compositionId = commonUtils.buildCompositionStringForFilename(elements);
+            String filename = "composition_" + compositionId + ".csv";
+            Path csvPath = Paths.get(String.valueOf(dataPath), filename);
+            logger.info("Saving fetched LIBS data to: " + csvPath.toAbsolutePath());
+            Files.write(csvPath, csvData.getBytes());
+            logger.info("Saved: " + csvPath);
+
+            // Close the CSV tab
+            seleniumUtils.getDriver().close();
+            // Switch back to the original window
+            seleniumUtils.getDriver().switchTo().window(originalWindow);
+            
+            return csvData;
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
+        }
+        return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
 }
