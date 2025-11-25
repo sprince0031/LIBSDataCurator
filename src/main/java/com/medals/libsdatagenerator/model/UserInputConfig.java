@@ -86,8 +86,8 @@ public class UserInputConfig {
 
 
         // NIST API parameters
-        this.minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "200");
-        this.maxWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "800");
+        this.minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "240");
+        this.maxWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "420");
         this.resolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
         this.plasmaTemp = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT, "1");
         this.electronDensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT, "1e17");
