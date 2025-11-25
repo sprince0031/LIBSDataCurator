@@ -196,7 +196,7 @@ public class LIBSDataGenConstants {
     
     // HTML element selectors for recalculation form
     public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
-    public static final String NIST_LIBS_RECALC_BUTTON_VALUE = "Recalculate";
+    public static final String NIST_LIBS_RECALC_BUTTON_NAME = "recalc";
     public static final String NIST_LIBS_RECALC_ELEMENT_PREFIX = "myperc";  // For element percentage inputs
 
     /**

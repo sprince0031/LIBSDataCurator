@@ -12,6 +12,7 @@ import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
+import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -100,8 +101,8 @@ public class LIBSDataController {
 
                 } else {
                     // This is the original non-variation path for -c
-                    libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs);
-                    logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
+                    String csvPath = libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs);
+                    logger.info("Successfully fetched LIBS data for composition: " + materialGrade + " and saved to path: " + csvPath);
                 }
             }
 

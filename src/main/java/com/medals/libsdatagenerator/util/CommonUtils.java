@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import org.apache.commons.cli.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.JSONArray;
@@ -18,6 +19,9 @@ import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -317,6 +321,16 @@ public class CommonUtils {
             }
         }
         return compositionString.toString();
+    }
+
+    public Path getCompositionCsvFilePath(String csvDirPath, List<Element> composition) throws IOException {
+        Path compositionDirPath = Paths.get(csvDirPath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR);
+        if (!Files.exists(compositionDirPath)) {
+            Files.createDirectories(compositionDirPath);
+        }
+        String compositionId = buildCompositionStringForFilename(composition);
+        String compositionFileName = "composition_" + compositionId + ".csv";
+        return Paths.get(compositionDirPath.toString(), compositionFileName);
     }
 
     /**
