@@ -12,6 +12,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.openqa.selenium.*;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -560,16 +562,23 @@ public class LIBSDataService {
         WebElement recalcButton = seleniumUtils.waitForElementClickable(
             By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
         );
+
+        recalcButton.click();
+        logger.info("Clicked Recalculate button for variation");
+
         try {
-            recalcButton.click();
-            logger.info("Clicked Recalculate button");
-            // Wait for recalculation to complete - wait for the CSV button to be present again
-            // This indicates the page has reloaded with new data
-            Thread.sleep(5000); // Brief pause to allow recalculation to start
-        } catch (UnhandledAlertException f) {
-            logger.info("Handling alert exception");
+            // Wait for recalculation to complete
+            WebDriverWait wait = seleniumUtils.getWait(2);
+            wait.until(ExpectedConditions.alertIsPresent());
+
+            logger.info("Alert detected");
             handleRecalculateAlert(seleniumUtils, composition, remainderElement);
+
+        } catch (TimeoutException e) {
+            // No alert appeared within 2 seconds. Assume success.
+            logger.info("No alert detected, proceeding to download.");
         }
+
         seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
         logger.info("Recalculation completed");
 
@@ -589,17 +598,20 @@ public class LIBSDataService {
         for (Element elem : elements) {
             elementPercentageMap.put(elem.getSymbol(), elem.getPercentageComposition());
         }
-        
+
+        List<WebElement> elementInputLabels = seleniumUtils.getDriver().findElements(
+            By.xpath(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH)
+        );
+        List<WebElement> elementInputFields = seleniumUtils.getDriver().findElements(
+            By.xpath(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH)
+        );
+
         // Update each percentage field based on matching element
-        for (int i = 0; i < elements.size(); i++) {
-            String elementSymbol = seleniumUtils.getDriver().findElement(
-                    By.cssSelector("label span#elem"+(i+1))
-            ).getText(); // Get the text from within the label element i.e., the Symbol
+        for (int i = 0; i < elementInputFields.size(); i++) {
+            String elementSymbol = elementInputLabels.get(i).getText(); // Get the text from within the label element i.e., the Symbol
 
             if (elementPercentageMap.containsKey(elementSymbol)) {
-                WebElement percentInput = seleniumUtils.getDriver().findElement(
-                        By.cssSelector("input#perc"+(i+1))
-                );
+                WebElement percentInput = elementInputFields.get(i);
                 percentInput.clear();
                 percentInput.sendKeys(String.valueOf(elementPercentageMap.get(elementSymbol)));
                 logger.fine("Updated " + elementSymbol + " to " + elementPercentageMap.get(elementSymbol) + "%");
@@ -626,20 +638,26 @@ public class LIBSDataService {
             WebElement recalcButton = seleniumUtils.waitForElementClickable(
                     By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
             );
+            recalcButton.click();
+            logger.info("Clicked Recalculate button for variation");
 
             try {
-                recalcButton.click();
-                logger.info("Clicked Recalculate button for variation");
                 // Wait for recalculation to complete
-                Thread.sleep(5000);
-            } catch (UnhandledAlertException f) {
-                logger.info("Handling alert exception");
+                WebDriverWait wait = seleniumUtils.getWait(2);
+                wait.until(ExpectedConditions.alertIsPresent());
+
+                logger.info("Alert detected");
                 handleRecalculateAlert(seleniumUtils, elements, remainderElement);
+
+            } catch (TimeoutException e) {
+                // No alert appeared within 2 seconds. Assume success.
+                logger.info("No alert detected, proceeding to download.");
             }
+
             seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
             logger.info("Variation recalculation completed");
 
-            return downloadCsvData(seleniumUtils, elements,  csvFilePath);
+            return downloadCsvData(seleniumUtils, elements, csvFilePath);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
         }
@@ -688,25 +706,68 @@ public class LIBSDataService {
             logger.warning("Alert text: " + alertText); // Example: ...Current value: 100.001
             alert.accept();
 
-            double delta = 100 - Double.parseDouble(alertText.split("Current value: ")[1]);
-            // adjust "remainder" element's percentage with delta
+            String[] parts = alertText.split("Current value: ");
+            if (parts.length < 2) {
+                logger.severe("Unexpected alert format: " + alertText);
+                throw new RuntimeException("Unexpected alert format: " + alertText);
+            }
+            double delta = 100 - Double.parseDouble(parts[1]);
+
             Element newRemainderElement = composition.getLast(); // TODO: Need to handle for coated cases using remainder element index instead of name
+            String old = newRemainderElement.toString();
             newRemainderElement.updatePercentageComposition(delta);
-            Element old = composition.set(composition.size()-1, newRemainderElement);
             logger.info("Updated " + old + " to " + newRemainderElement);
 
-            updateElementPercentages(seleniumUtils, composition);
+            // Identify auto filled element
+            WebElement lastInput = seleniumUtils.getDriver().findElement(
+                    By.xpath(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH+"[1]")
+            );
+            String id = lastInput.getAttribute("id"); // e.g., "perc25"
+            String number = id.replace("perc", "");
+            WebElement labelSpan = seleniumUtils.getDriver().findElement(By.id("elem" + number));
+
+            if (!labelSpan.getText().trim().equals(newRemainderElement.getSymbol())) {
+                logger.warning("Mismatch! DOM last element is " + labelSpan.getText()
+                        + " but Java remainder is " + newRemainderElement.getSymbol());
+                // TODO: reset or find the correct input field here -> but might not be relevant when getting rid of zero value elements with interpolation added
+            }
+
+            JavascriptExecutor js = (JavascriptExecutor) seleniumUtils.getDriver();
+            String liveValue = (String) js.executeScript("return arguments[0].value;", lastInput);
+
+            logger.info("Checked last input value: " + liveValue);
+
+            // TODO: Remove when interpolation is incorporated and zero-value elements are eliminated
+            // Check if it's non-zero (or equal to the delta) and reset
+            try {
+                double value = Double.parseDouble(liveValue);
+
+                // If the value is not 0 (meaning NIST JS autofilled it), reset it
+                if (Math.abs(value) > 0) {
+                    logger.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
+
+                    // Clear and set to 0
+                    lastInput.clear();
+                    lastInput.sendKeys("0");
+
+                    // Double check update with JS to ensure the event triggered
+                    js.executeScript("arguments[0].value = '0';", lastInput);
+                }
+            } catch (NumberFormatException e) {
+                logger.warning("Could not parse input value: " + liveValue);
+            }
+
+            // Pass only element with updated value and recalculate
+            List<Element> updatedElements = new  ArrayList<>();
+            updatedElements.add(newRemainderElement);
+            updateElementPercentages(seleniumUtils, updatedElements);
 
             // Click recalculate button again
             WebElement recalcButton = seleniumUtils.waitForElementClickable(
                     By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
             );
-            try {
-                recalcButton.click();
-                logger.info("Clicked Recalculate button for variation");
-            } catch (UnhandledAlertException e) {
-                logger.log(Level.WARNING, "Unable to fetch data from loaded NIST LIBS page", e);
-            }
+            recalcButton.click();
+            logger.info("Clicked Recalculate button for variation after fixing composition.");
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Exception occurred when trying to handle alert box event.", e);

@@ -2,9 +2,11 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import org.apache.http.client.utils.URIBuilder;
+import org.openqa.selenium.UnexpectedAlertBehaviour;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.By;
@@ -32,7 +34,9 @@ public class SeleniumUtils {
 
     public SeleniumUtils() {
         options = new ChromeOptions();
-        options.addArguments("--headless");  // headless mode
+        options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Added to not let Selenium ignore alert prompts
     }
 
     public static SeleniumUtils getInstance() {

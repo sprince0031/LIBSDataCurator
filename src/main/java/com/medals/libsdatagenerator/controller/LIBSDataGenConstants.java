@@ -200,7 +200,8 @@ public class LIBSDataGenConstants {
     // HTML element selectors for recalculation form
     public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
     public static final String NIST_LIBS_RECALC_BUTTON_NAME = "recalc";
-    public static final String NIST_LIBS_RECALC_ELEMENT_PREFIX = "myperc";  // For element percentage inputs
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";  // For element percentage input field labels
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";  // For element percentage input fields
 
     /**
      * #### Matweb Constants ####
@@ -231,9 +232,9 @@ public class LIBSDataGenConstants {
     public static final String ELEMENTS_LIST = "elementsList"; // Used in element list generation.
 
     public static final String[] STD_ELEMENT_LIST = {
-            "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",
+            "C", "Si", "Mn", "P", "S", "Cr", "Mo", "Ni", "Fe", "Cu", "Al", "V",
             "Ti", "Nb", "Co", "W", "Sn", "Pb", "B", "As", "Zr", "Bi", "Cd",
-            "Se", "Fe", "Zn", "N"
+            "Se", "Zn"//, "N"
     };
 
     // Fallback to use if Gaussian sampling chosen over Dirichlet sampling.
