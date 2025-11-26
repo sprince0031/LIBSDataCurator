@@ -101,10 +101,6 @@ public class ClassLabelTypeTest {
         // Test setter
         grade1.setMaterialName("AISI 1018 Steel");
         assertEquals("AISI 1018 Steel", grade1.getMaterialName());
-        
-        // Test backward compatibility constructor
-        MaterialGrade grade2 = new MaterialGrade(composition, individualMaterialGUIDs.getLast());
-        assertNull(grade2.getParentSeries()); // Should be null for backward compatibility
     }
 
     @Test

@@ -164,6 +164,9 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SEED_SHORT = "sd";
     public static final String CMD_OPT_SEED_LONG = "seed";
     public static final String CMD_OPT_SEED_DESC = "Seed for the samplers to ensure reproducibility.";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_SHORT = "nd";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_LONG = "num-decimal-places";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
     public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
@@ -224,6 +227,8 @@ public class LIBSDataGenConstants {
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
     public static final String COATED_SERIES_KEY_PATTERN = "([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.coated\\.(.*?)";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
+    public static final String REMAINDER_ELEMENT = "remainderElement"; // Used in element list generation.
+    public static final String ELEMENTS_LIST = "elementsList"; // Used in element list generation.
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",

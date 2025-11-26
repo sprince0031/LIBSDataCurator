@@ -228,6 +228,12 @@ public class CommonUtils {
                 true,
                 LIBSDataGenConstants.CMD_OPT_SEED_DESC);
 
+        // No. of decimal places to round comp% to
+        options.addOption(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT,
+                LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 

@@ -12,7 +12,6 @@ import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
-import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -61,13 +60,13 @@ public class LIBSDataController {
             if (userInputs.isSeriesMode) {
                 // Process input for -s (series) option
                 logger.info("Processing with -s (series) option.");
-                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput);
+                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput, userInputs.numDecimalPlaces);
             }
 
             if (userInputs.isCompositionMode) {
                 // Process input for -c (composition) option
                 logger.info("Processing with -c (composition) option.");
-                materialGrades.add(compositionProcessor.getMaterial(userInputs.compositionInput, userInputs.overviewGuid));
+                materialGrades.add(compositionProcessor.getMaterial(userInputs.compositionInput, userInputs.overviewGuid, userInputs.numDecimalPlaces));
             }
 
             // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler
@@ -101,7 +100,7 @@ public class LIBSDataController {
 
                 } else {
                     // This is the original non-variation path for -c
-                    String csvPath = libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs);
+                    String csvPath = libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs, materialGrade.getRemainderElement());
                     logger.info("Successfully fetched LIBS data for composition: " + materialGrade + " and saved to path: " + csvPath);
                 }
             }

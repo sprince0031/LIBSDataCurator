@@ -84,6 +84,10 @@ public class Element {
         this.percentageComposition = CommonUtils.roundToNDecimals(percentageComposition, numberDecimalPlaces);
     }
 
+    public void updatePercentageComposition(Double delta) {
+        this.percentageComposition = roundIfNotNull(this.percentageComposition  + delta);
+    }
+
     public Double getMin() {
         return this.min;
     }
@@ -108,10 +112,12 @@ public class Element {
         this.averageComposition = averageComposition;
     }
 
+    @Deprecated
     public int getNumberDecimalPlaces() {
         return numberDecimalPlaces;
     }
 
+    @Deprecated
     public void setNumberDecimalPlaces(int numberDecimalPlaces) {
         // Ensure rounding happens if decimal places change
         int oldDecimalPlaces = this.numberDecimalPlaces;

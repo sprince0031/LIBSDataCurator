@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,7 +33,8 @@ class CompositionParserTest {
     void testParseValidComposition() throws Exception {
         // Test parsing a simple composition string
         String[] compositionArray = { "C-0.2", "Fe-99.8" };
-        List<Element> elements = libsDataService.generateElementsList(compositionArray);
+        Map<String, Object> compositionMetaData = libsDataService.generateElementsList(compositionArray, 3);
+        List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -49,7 +51,8 @@ class CompositionParserTest {
     void testParseCompositionWithRanges() throws Exception {
         // Test parsing composition with ranges (min:max)
         String[] compositionArray = { "C-0.1:0.3", "Fe-99.7:99.9" };
-        List<Element> elements = libsDataService.generateElementsList(compositionArray);
+        Map<String, Object> compositionMetaData = libsDataService.generateElementsList(compositionArray, 3);
+        List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -70,7 +73,8 @@ class CompositionParserTest {
     void testParseRemainingPercentage() throws Exception {
         // Test that "#" symbol is handled correctly for remaining percentage
         String[] compositionArray = { "C-0.2", "Fe-#" };
-        List<Element> elements = libsDataService.generateElementsList(compositionArray);
+        Map<String, Object> compositionMetaData = libsDataService.generateElementsList(compositionArray, 3);
+        List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
         assertEquals(2, elements.size());
@@ -107,7 +111,7 @@ class CompositionParserTest {
         String[] compositionArray = { "XX-0.2", "Fe-99.8" };
 
         assertThrows(IOException.class, () -> {
-            libsDataService.generateElementsList(compositionArray);
+            libsDataService.generateElementsList(compositionArray, 3);
         });
     }
 }
