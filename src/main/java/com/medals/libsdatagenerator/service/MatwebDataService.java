@@ -338,7 +338,7 @@ public class MatwebDataService {
             
             parsedElementString[i] = element + "-" + parsedCompositionValue;
             
-            // Track the element with highest percentage for auto-remainder detection
+            // Track the element with the highest percentage for auto-remainder detection
             if (!hasRemainderElement) {
                 double percentage = calculateAveragePercentage(parsedCompositionValue);
                 if (percentage > maxPercentage) {

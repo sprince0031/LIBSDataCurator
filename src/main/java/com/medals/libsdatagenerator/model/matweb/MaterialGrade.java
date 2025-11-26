@@ -15,21 +15,19 @@ public class MaterialGrade {
     private static final Logger logger = Logger.getLogger(MaterialGrade.class.getName());
 
     private List<Element> composition;
+    private String remainingElement;
     private String matGUID;
     private String materialName;
     private String[] materialAttributes;
     private SeriesInput ParentSeries;
 
-    public MaterialGrade(List<Element> composition, String matGUID) {
-        this.composition = composition;
-        this.matGUID = matGUID;
-        this.ParentSeries = null; // Will be set separately if available
-    }
-
     public MaterialGrade(List<Element> composition, String matGUID, SeriesInput ParentSeries) {
         this.composition = composition;
         this.matGUID = matGUID;
         this.ParentSeries = ParentSeries;
+        this.materialAttributes = null;
+        this.materialName = null;
+        this.remainingElement = null;
     }
 
     public List<Element> getComposition() {
@@ -71,7 +69,15 @@ public class MaterialGrade {
     public void setParentSeries(SeriesInput parentSeries) {
         this.ParentSeries = parentSeries;
     }
-  
+
+    public String getRemainderElement() {
+        return remainingElement;
+    }
+
+    public void setRemainderElement(String remainingElement) {
+        this.remainingElement = remainingElement;
+    }
+
     @Override
     public String toString() {
         return materialName != null && !materialName.isEmpty() ? materialName : CommonUtils.getInstance().buildCompositionString(composition);

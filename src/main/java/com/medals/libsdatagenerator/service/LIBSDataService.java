@@ -3,7 +3,6 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
-import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
@@ -12,8 +11,7 @@ import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -55,9 +53,9 @@ public class LIBSDataService {
      * @param config User input configuration object containing all user input data
      * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
-    public String fetchLIBSData(List<Element> elements, UserInputConfig config) throws IOException {
+    public String fetchLIBSData(List<Element> elements, UserInputConfig config, String remainderElement) throws IOException {
         Path compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, elements);
-        return fetchLIBSData(elements, config, compositionFilePath, true);
+        return fetchLIBSData(elements, config, compositionFilePath, true, remainderElement);
     }
     
     /**
@@ -67,7 +65,7 @@ public class LIBSDataService {
      * @param quitDriver whether to quit the Selenium driver after fetching (false to keep session alive)
      * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
-    public String fetchLIBSData(List<Element> elements, UserInputConfig config, Path csvFilePath, boolean quitDriver) {
+    public String fetchLIBSData(List<Element> elements, UserInputConfig config, Path csvFilePath, boolean quitDriver, String remainderElement) throws IOException {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
@@ -77,7 +75,7 @@ public class LIBSDataService {
             );
 
             // Perform client-side recalculation with user's desired resolution
-            performRecalculation(seleniumUtils, config.resolution);
+            performRecalculation(seleniumUtils, config.resolution, elements, remainderElement);
 
             return downloadCsvData(seleniumUtils, elements, csvFilePath);
         } catch (Exception e) {
@@ -107,12 +105,12 @@ public class LIBSDataService {
         }
 
         // Adding remaining elements from full composition list
-//        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
-//            if (!composition.contains(element)) {
-//                composition = String.join(";", composition, element + ":0");
-//                spectra = String.join(",", spectra, element + "0-2");
-//            }
-//        }
+        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
+            if (!composition.contains(element)) {
+                composition = String.join(";", composition, element + ":0");
+                spectra = String.join(",", spectra, element + "0-2");
+            }
+        }
 
         // Add composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
@@ -163,7 +161,7 @@ public class LIBSDataService {
         return queryParams;
     }
 
-    public List<Element> generateElementsList(String[] composition) throws IOException {
+    public Map<String, Object> generateElementsList(String[] composition, int noDecimalPlaces) throws IOException {
         List<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;
         String remainderElementData = "";
@@ -193,6 +191,7 @@ public class LIBSDataService {
                     maxPercentage = minPercentage;
                 }
                 currentPercentage = (minPercentage + maxPercentage) / 2;
+                currentPercentage = CommonUtils.roundToNDecimals(currentPercentage, noDecimalPlaces);
                 totalPercentage += currentPercentage;
 
                 Element element = new Element(
@@ -207,6 +206,8 @@ public class LIBSDataService {
                 remainderElementData = composition[i];
             }
         }
+
+        Map<String, Object> compositionMetaData = new HashMap<>();
 
         // Handle dominant/remainder element composition
         if  (!remainderElementData.isEmpty()) {
@@ -231,9 +232,11 @@ public class LIBSDataService {
                     maxPercentage,
                     (minPercentage + maxPercentage) / 2);
             elementsList.add(element);
+            compositionMetaData.put(LIBSDataGenConstants.REMAINDER_ELEMENT, element.getSymbol());
         }
 
-        return elementsList;
+        compositionMetaData.put(LIBSDataGenConstants.ELEMENTS_LIST, elementsList);
+        return compositionMetaData;
     }
 
     public void generateDataset(List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
@@ -266,6 +269,7 @@ public class LIBSDataService {
                 // Fetch CSV data from NIST
                 String csvData;
                 Path compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, composition);
+                String compositionId = commonUtils.buildCompositionStringForFilename(composition);
 
                 logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
                 boolean compositionFileExists = Files.exists(compositionFilePath);
@@ -275,18 +279,18 @@ public class LIBSDataService {
                     
                     if (firstComposition) {
                         // First composition: make initial server request and keep browser session alive
-                        csvData = fetchLIBSData(composition, config, compositionFilePath, false);
+                        csvData = fetchLIBSData(composition, config, compositionFilePath, false, sourceMaterial.getRemainderElement());
                         firstComposition = false;
                         logger.info("First composition fetched - browser session kept alive for variations");
                     } else {
                         // Subsequent compositions: use client-side recalculation with existing browser session
                         if (seleniumUtils.isDriverOnline()) {
-                            csvData = fetchLIBSDataFromLoadedPage(composition, compositionFilePath, seleniumUtils);
+                            csvData = fetchLIBSDataFromLoadedPage(composition, compositionFilePath, seleniumUtils, sourceMaterial.getRemainderElement());
                             logger.info("Variation fetched using client-side recalculation");
                         } else {
                             // Fallback: if driver is not online for some reason, fetch normally
                             logger.warning("Driver not online - falling back to server request");
-                            csvData = fetchLIBSData(composition, config, compositionFilePath, false);
+                            csvData = fetchLIBSData(composition, config, compositionFilePath, false, sourceMaterial.getRemainderElement());
                         }
                         
                         // Small delay between variations to avoid overwhelming the browser
@@ -314,8 +318,8 @@ public class LIBSDataService {
                 // Parse wave->intensity
                 Map<Double, Double> waveMap;
                 try {
-                    waveMap = parseNistCsv(csvData, allWavelengths, config.wavelengthUnit);
-                } catch (IOException e) {
+                    waveMap = parseNistCsv(csvData, allWavelengths);
+                } catch (Exception e) {
                     logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
                     continue;
                 }
@@ -456,7 +460,7 @@ public class LIBSDataService {
      * @return a map: (wavelength -> intensity).
      *         Also add each encountered wavelength to 'allWavelengths'.
      */
-    private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths, WavelengthUnit wavelengthUnit) throws IOException {
+    private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException, IllegalArgumentException {
         Map<Double, Double> waveMap = new HashMap<>();
 
         // Check if CSV string is correctly parsed
@@ -468,8 +472,8 @@ public class LIBSDataService {
 
         // Headers might be "Wavelength (nm)" and "Sum"—confirm with a real example.
         for (CSVRecord record : records) {
-            String waveStr = record.get("Wavelength (" + wavelengthUnit.getUnitString() + ")"); // or "Wavelength"
-            String sumStr = record.get("Sum"); // or "Sum"
+            String waveStr = record.get(0); // "Wavelength (<UNIT>)"
+            String sumStr = record.get(1); // "Sum" or "Sum(calc)" if using recalculation form
 
             if (waveStr != null && sumStr != null) {
                 double wavelength = Double.parseDouble(waveStr);
@@ -531,36 +535,44 @@ public class LIBSDataService {
     /**
      * Updates the resolution field in the recalculation form and clicks recalculate button
      * @param seleniumUtils SeleniumUtils instance with active driver
-     * @param resolution desired resolution value
+     * @param expectedResolution desired resolution value
      * @throws Exception if unable to interact with form elements
      */
-    private void performRecalculation(SeleniumUtils seleniumUtils, String resolution) throws Exception {
-        logger.info("Performing client-side recalculation with resolution: " + resolution);
-
-        // Test url = https://physics.nist.gov/cgi-bin/ASD/lines1.pl?maxcharge=2&spectra=C0-2%2CMn0-2%2CP0-2%2CS0-2%2CFe0-2%2CCu0-2&temp=1&eden=1e17&upp_w=800&min_rel_int=0.01&low_w=200&resolution=1000&show_av=2&unit=0&mytext%5B%5D=C&myperc%5B%5D=0.199&mytext%5B%5D=Mn&myperc%5B%5D=0.449&mytext%5B%5D=P&myperc%5B%5D=0.02&mytext%5B%5D=S&myperc%5B%5D=0.025&mytext%5B%5D=Fe&myperc%5B%5D=99.007&mytext%5B%5D=Cu&myperc%5B%5D=0.3&composition=C%3A0.199%3BMn%3A0.449%3BP%3A0.02%3BS%3A0.025%3BFe%3A99.007%3BCu%3A0.3&limits_type=0&libs=1&int_scale=1
+    private void performRecalculation(SeleniumUtils seleniumUtils, String expectedResolution, List<Element> composition, String remainderElement) throws Exception {
+        logger.info("Performing client-side recalculation with resolution: " + expectedResolution);
 
         // Wait for the resolution input field to be present
         WebElement resolutionInput = seleniumUtils.waitForElementPresent(
             By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME)
         );
         
-        // Clear existing value and enter new resolution
-        resolutionInput.clear();
-        resolutionInput.sendKeys(resolution);
-        logger.info("Updated resolution field to: " + resolution);
+        // Clear existing value and enter new resolution if there is mismatch
+        String currentResolution = String.valueOf(resolutionInput.getDomAttribute("value"));
+        if  (!currentResolution.equals(expectedResolution)) {
+            resolutionInput.clear();
+            resolutionInput.sendKeys(expectedResolution);
+            logger.info("Updated resolution field from " + currentResolution + " to: " + expectedResolution);
+        } else {
+            logger.info("Resolution already correct: " + currentResolution);
+        }
         
         // Find and click the Recalculate button
         WebElement recalcButton = seleniumUtils.waitForElementClickable(
             By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
         );
-        recalcButton.click();
-        logger.info("Clicked Recalculate button");
-        
-        // Wait for recalculation to complete - wait for the CSV button to be present again
-        // This indicates the page has reloaded with new data
-        Thread.sleep(2000); // Brief pause to allow recalculation to start
+        try {
+            recalcButton.click();
+            logger.info("Clicked Recalculate button");
+            // Wait for recalculation to complete - wait for the CSV button to be present again
+            // This indicates the page has reloaded with new data
+            Thread.sleep(5000); // Brief pause to allow recalculation to start
+        } catch (UnhandledAlertException f) {
+            logger.info("Handling alert exception");
+            handleRecalculateAlert(seleniumUtils, composition, remainderElement);
+        }
         seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
         logger.info("Recalculation completed");
+
     }
     
     /**
@@ -605,7 +617,7 @@ public class LIBSDataService {
      * @param seleniumUtils SeleniumUtils instance with active driver on NIST LIBS result page
      * @return csv data as string if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
-    private String fetchLIBSDataFromLoadedPage(List<Element> elements, Path csvFilePath, SeleniumUtils seleniumUtils) {
+    private String fetchLIBSDataFromLoadedPage(List<Element> elements, Path csvFilePath, SeleniumUtils seleniumUtils, String remainderElement) {
         try {
             // Update element percentages in the form
             updateElementPercentages(seleniumUtils, elements);
@@ -614,14 +626,19 @@ public class LIBSDataService {
             WebElement recalcButton = seleniumUtils.waitForElementClickable(
                     By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
             );
-            recalcButton.click();
-            logger.info("Clicked Recalculate button for variation");
-            
-            // Wait for recalculation to complete
-            Thread.sleep(2000); // Brief pause to allow recalculation to start
+
+            try {
+                recalcButton.click();
+                logger.info("Clicked Recalculate button for variation");
+                // Wait for recalculation to complete
+                Thread.sleep(5000);
+            } catch (UnhandledAlertException f) {
+                logger.info("Handling alert exception");
+                handleRecalculateAlert(seleniumUtils, elements, remainderElement);
+            }
             seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
             logger.info("Variation recalculation completed");
-            
+
             return downloadCsvData(seleniumUtils, elements,  csvFilePath);
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
@@ -662,6 +679,38 @@ public class LIBSDataService {
             logger.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
         }
         return csvData;
+    }
+
+    private void handleRecalculateAlert(SeleniumUtils seleniumUtils, List<Element> composition, String remainderElement) {
+        try {
+            Alert alert = seleniumUtils.getDriver().switchTo().alert();
+            String alertText = alert.getText();
+            logger.warning("Alert text: " + alertText); // Example: ...Current value: 100.001
+            alert.accept();
+
+            double delta = 100 - Double.parseDouble(alertText.split("Current value: ")[1]);
+            // adjust "remainder" element's percentage with delta
+            Element newRemainderElement = composition.getLast(); // TODO: Need to handle for coated cases using remainder element index instead of name
+            newRemainderElement.updatePercentageComposition(delta);
+            Element old = composition.set(composition.size()-1, newRemainderElement);
+            logger.info("Updated " + old + " to " + newRemainderElement);
+
+            updateElementPercentages(seleniumUtils, composition);
+
+            // Click recalculate button again
+            WebElement recalcButton = seleniumUtils.waitForElementClickable(
+                    By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
+            );
+            try {
+                recalcButton.click();
+                logger.info("Clicked Recalculate button for variation");
+            } catch (UnhandledAlertException e) {
+                logger.log(Level.WARNING, "Unable to fetch data from loaded NIST LIBS page", e);
+            }
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Exception occurred when trying to handle alert box event.", e);
+        }
     }
 
 }

@@ -9,11 +9,7 @@ import com.medals.libsdatagenerator.service.MatwebDataService;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Properties;
+import java.util.*;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -175,7 +171,7 @@ public class InputCompositionProcessor {
         return processedSeries;
     }
 
-    public List<MaterialGrade> getMaterialsList(String userInput) throws IOException {
+    public List<MaterialGrade> getMaterialsList(String userInput, int noDecimalPlaces) throws IOException {
 
         MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
 
@@ -208,6 +204,7 @@ public class InputCompositionProcessor {
                 // Check if this GUID has already been processed
                 MaterialGrade cachedMaterial = findMaterialByGuid(materialGrades, individualGuid);
                 List<Element> baseComposition;
+                String remainderElement;
                 String materialName;
                 String[] materialAttributes;
 
@@ -215,6 +212,7 @@ public class InputCompositionProcessor {
                     logger.info("Material GUID: " + individualGuid + " already processed. Using cached data.");
                     // Create a new MaterialGrade with the cached composition but current series context
                     baseComposition = cachedMaterial.getComposition();
+                    remainderElement = cachedMaterial.getRemainderElement();
                     materialName = cachedMaterial.getMaterialName();
                     materialAttributes = cachedMaterial.getMaterialAttributes();
                 } else {
@@ -226,12 +224,15 @@ public class InputCompositionProcessor {
                         CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                         continue;
                     }
-                    baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
+                    Map<String, Object> compositionMetaData = LIBSDataService.getInstance().generateElementsList(compositionArray, noDecimalPlaces);
+                    baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
+                    remainderElement = (String) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT);
                     materialName = matwebService.getDatasheetName();
                     materialAttributes = matwebService.getDatasheetAttributes();
                 }
 
                 MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
+                materialGrade.setRemainderElement(remainderElement);
                 materialGrade.setMaterialName(materialName);
                 materialGrade.setMaterialAttributes(materialAttributes);
                 materialGrades.add(materialGrade);
@@ -251,27 +252,38 @@ public class InputCompositionProcessor {
 
     /**
      * Parses only single composition
-     * @param userInput either a direct composition string or a single matGUID
-     * @param overviewGUID user provided overviewGUID value, null if not provided
+     *
+     * @param userInput       either a direct composition string or a single matGUID
+     * @param overviewGUID    user provided overviewGUID value, null if not provided
+     * @param noDecimalPlaces
      * @return materialGrade
      * @throws IOException Exception for invalid command line arguments
      */
-    public MaterialGrade getMaterial(String userInput, String overviewGUID) throws IOException {
+    public MaterialGrade getMaterial(String userInput, String overviewGUID, int noDecimalPlaces) throws IOException {
         MaterialGrade materialGrade;
         String[] compositionArray;
+        String matGuid = null;
+        String materialName = null;
+        String[] materialAttributes = null;
         SeriesInput seriesInput = new SeriesInput(LIBSDataGenConstants.DIRECT_ENTRY, null, overviewGUID);
         if (COMPOSITION_STRING_PATTERN.matcher(userInput).matches()) {
             compositionArray = userInput.split(",");
-            List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-            materialGrade = new MaterialGrade(baseComposition, null, seriesInput);
         } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
             seriesInput.setIndividualMaterialGuids(Arrays.asList(userInput.split(",")));
+            matGuid = userInput;
             compositionArray = MatwebDataService.getInstance().getMaterialComposition(userInput);
-            List<Element> baseComposition = LIBSDataService.getInstance().generateElementsList(compositionArray);
-            materialGrade = new MaterialGrade(baseComposition, userInput, seriesInput);
+            materialName = MatwebDataService.getInstance().getDatasheetName();
+            materialAttributes = MatwebDataService.getInstance().getDatasheetAttributes();
         } else {
             throw new IOException("Invalid command line arguments. Aborting.");
         }
+        Map<String, Object> compositionMetaData = LIBSDataService.getInstance().generateElementsList(compositionArray, noDecimalPlaces);
+        List<Element> baseComposition = (List<Element>)  compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
+        String remainderElement = (String) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT);
+        materialGrade = new MaterialGrade(baseComposition, matGuid, seriesInput);
+        materialGrade.setRemainderElement(remainderElement);
+        materialGrade.setMaterialName(materialName);
+        materialGrade.setMaterialAttributes(materialAttributes);
         return materialGrade;
     }
 
