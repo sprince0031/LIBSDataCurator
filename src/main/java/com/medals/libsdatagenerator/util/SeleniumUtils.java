@@ -32,16 +32,18 @@ public class SeleniumUtils {
     private boolean isDriverOnline = false;
     private static final int DEFAULT_WAIT_TIMEOUT_SECONDS = 30;
 
-    public SeleniumUtils() {
+    public SeleniumUtils(boolean debugMode) {
         options = new ChromeOptions();
-        options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+        if  (debugMode) {
+            options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+        }
 
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Added to not let Selenium ignore alert prompts
     }
 
-    public static SeleniumUtils getInstance() {
+    public static SeleniumUtils getInstance(boolean debugMode) {
         if (instance == null) {
-            instance = new SeleniumUtils();
+            instance = new SeleniumUtils(debugMode);
         }
         return instance;
     }
@@ -69,7 +71,6 @@ public class SeleniumUtils {
      * Connects to the url provided
      * @param url Base URL string
      * @return True if connection established, false otherwise
-     * @throws URISyntaxException
      */
     public boolean connectToWebsite(String url) {
         if (!isDriverOnline) {

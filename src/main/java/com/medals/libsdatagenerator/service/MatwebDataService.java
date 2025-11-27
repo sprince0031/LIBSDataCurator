@@ -27,14 +27,18 @@ import java.util.logging.Logger;
 public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
     private static MatwebDataService instance = null;
-    private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+    private final SeleniumUtils seleniumUtils;
     private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
     private String datasheetName;
     private String[] datasheetAttributes;
 
-    public static MatwebDataService getInstance() {
+    public MatwebDataService(Boolean debugMode) {
+        seleniumUtils = new SeleniumUtils(debugMode);
+    }
+
+    public static MatwebDataService getInstance(Boolean debugMode) {
         if (instance == null) {
-            instance = new MatwebDataService();
+            instance = new MatwebDataService(debugMode);
         }
         return instance;
     }

@@ -48,9 +48,9 @@ public class InputCompositionProcessorCacheIntegrationTest {
         when(mockMatwebService.getDatasheetAttributes()).thenReturn(new String[]{"Test", "Attributes"});
 
         // Mock LIBSDataService to return our test composition
-        com.medals.libsdatagenerator.service.LIBSDataService mockLIBSService = 
-            mock(com.medals.libsdatagenerator.service.LIBSDataService.class);
-        when(mockLIBSService.generateElementsList(mockComposition, 3)).thenReturn(testCompositionMetadata);
+        com.medals.libsdatagenerator.util.InputCompositionProcessor mockInputCompositionService =
+            mock(com.medals.libsdatagenerator.util.InputCompositionProcessor.class);
+        when(mockInputCompositionService.generateElementsList(mockComposition, 3)).thenReturn(testCompositionMetadata);
 
         // Use reflection to simulate the caching scenario within getMaterialsList
         // We'll test the core caching logic by creating materials list with duplicates
@@ -151,7 +151,7 @@ public class InputCompositionProcessorCacheIntegrationTest {
     private Map<String, Object> createTestCompositionMetaData() {
         Map<String, Object> compositionMetaData = new HashMap<>();
         compositionMetaData.put(LIBSDataGenConstants.ELEMENTS_LIST, createTestComposition());
-        compositionMetaData.put(LIBSDataGenConstants.REMAINDER_ELEMENT, "Fe"); // TODO: Change to index
+        compositionMetaData.put(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX, "Fe"); // TODO: Change to index
         return compositionMetaData;
     }
 }

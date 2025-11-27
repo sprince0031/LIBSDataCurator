@@ -4,12 +4,18 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
-import com.medals.libsdatagenerator.service.LIBSDataService;
+import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.MatwebDataService;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.Properties;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -204,7 +210,7 @@ public class InputCompositionProcessor {
                 // Check if this GUID has already been processed
                 MaterialGrade cachedMaterial = findMaterialByGuid(materialGrades, individualGuid);
                 List<Element> baseComposition;
-                String remainderElement;
+                int remainderElement;
                 String materialName;
                 String[] materialAttributes;
 
@@ -212,7 +218,7 @@ public class InputCompositionProcessor {
                     logger.info("Material GUID: " + individualGuid + " already processed. Using cached data.");
                     // Create a new MaterialGrade with the cached composition but current series context
                     baseComposition = cachedMaterial.getComposition();
-                    remainderElement = cachedMaterial.getRemainderElement();
+                    remainderElement = cachedMaterial.getRemainderElementIdx();
                     materialName = cachedMaterial.getMaterialName();
                     materialAttributes = cachedMaterial.getMaterialAttributes();
                 } else {
@@ -224,15 +230,15 @@ public class InputCompositionProcessor {
                         CommonUtils.printProgressBar(materialsProcessed, totalMaterials, "materials processed", out);
                         continue;
                     }
-                    Map<String, Object> compositionMetaData = LIBSDataService.getInstance().generateElementsList(compositionArray, noDecimalPlaces);
+                    Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
                     baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
-                    remainderElement = (String) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT);
+                    remainderElement = (Integer) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
                     materialName = matwebService.getDatasheetName();
                     materialAttributes = matwebService.getDatasheetAttributes();
                 }
 
                 MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
-                materialGrade.setRemainderElement(remainderElement);
+                materialGrade.setRemainderElementIdx(remainderElement);
                 materialGrade.setMaterialName(materialName);
                 materialGrade.setMaterialAttributes(materialAttributes);
                 materialGrades.add(materialGrade);
@@ -255,11 +261,12 @@ public class InputCompositionProcessor {
      *
      * @param userInput       either a direct composition string or a single matGUID
      * @param overviewGUID    user provided overviewGUID value, null if not provided
-     * @param noDecimalPlaces
+     * @param noDecimalPlaces number of decimal places to round element percentages to
      * @return materialGrade
      * @throws IOException Exception for invalid command line arguments
      */
     public MaterialGrade getMaterial(String userInput, String overviewGUID, int noDecimalPlaces) throws IOException {
+        MatwebDataService matwebService = MatwebDataService.getInstance();
         MaterialGrade materialGrade;
         String[] compositionArray;
         String matGuid = null;
@@ -271,17 +278,17 @@ public class InputCompositionProcessor {
         } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
             seriesInput.setIndividualMaterialGuids(Arrays.asList(userInput.split(",")));
             matGuid = userInput;
-            compositionArray = MatwebDataService.getInstance().getMaterialComposition(userInput);
-            materialName = MatwebDataService.getInstance().getDatasheetName();
-            materialAttributes = MatwebDataService.getInstance().getDatasheetAttributes();
+            compositionArray = matwebService.getMaterialComposition(userInput);
+            materialName = matwebService.getDatasheetName();
+            materialAttributes = matwebService.getDatasheetAttributes();
         } else {
             throw new IOException("Invalid command line arguments. Aborting.");
         }
-        Map<String, Object> compositionMetaData = LIBSDataService.getInstance().generateElementsList(compositionArray, noDecimalPlaces);
-        List<Element> baseComposition = (List<Element>)  compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
-        String remainderElement = (String) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT);
+        Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
+        List<Element> baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
+        int remainderElementIdx = (Integer) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
         materialGrade = new MaterialGrade(baseComposition, matGuid, seriesInput);
-        materialGrade.setRemainderElement(remainderElement);
+        materialGrade.setRemainderElementIdx(remainderElementIdx);
         materialGrade.setMaterialName(materialName);
         materialGrade.setMaterialAttributes(materialAttributes);
         return materialGrade;
@@ -314,6 +321,84 @@ public class InputCompositionProcessor {
             }
         }
         return null;
+    }
+
+    public Map<String, Object> generateElementsList(String[] composition, int noDecimalPlaces) throws IOException {
+        List<Element> elementsList = new ArrayList<>();
+        double totalPercentage = 0.0;
+        String remainderElementData = "";
+        for (int i = 0; i < composition.length; i++) {
+            // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
+            // composition
+            String[] elementNamePercent = composition[i].split("-");
+
+            // Check if the current input element exists in the periodic table
+            if (!PeriodicTable.isValidElement(elementNamePercent[0])) {
+                logger.log(Level.SEVERE, "Invalid input. " + elementNamePercent[0] + " does not exist.");
+                throw new IOException("Invalid element " + elementNamePercent[0] + " given as input");
+            }
+
+            double currentPercentage = -1;
+            double minPercentage = -1;
+            double maxPercentage = -1;
+            // If the element percentage value is "#", consider as the remaining percentage
+            // composition
+            if (!composition[i].contains("#")) {
+                if (elementNamePercent[1].contains(":")) {
+                    String[] compositionRange = elementNamePercent[1].split(":");
+                    minPercentage = Double.parseDouble(compositionRange[0]);
+                    maxPercentage = Double.parseDouble(compositionRange[1]);
+                } else {
+                    minPercentage = Double.parseDouble(elementNamePercent[1]);
+                    maxPercentage = minPercentage;
+                }
+                currentPercentage = (minPercentage + maxPercentage) / 2;
+                currentPercentage = CommonUtils.roundToNDecimals(currentPercentage, noDecimalPlaces);
+                totalPercentage += currentPercentage;
+
+                Element element = new Element(
+                        PeriodicTable.getElementName(elementNamePercent[0]),
+                        elementNamePercent[0],
+                        currentPercentage,
+                        minPercentage,
+                        maxPercentage,
+                        currentPercentage);
+                elementsList.add(element);
+            } else {
+                remainderElementData = composition[i];
+            }
+        }
+
+        Map<String, Object> compositionMetaData = new HashMap<>();
+
+        // Handle dominant/remainder element composition
+        if  (!remainderElementData.isEmpty()) {
+            double currentPercentage = 100 - totalPercentage;
+            String[] data =  remainderElementData.split("-");
+            double minPercentage;
+            double maxPercentage;
+            if (data.length == 2) {
+                minPercentage = currentPercentage - CompositionalVariations.POST_NORM_CHECK_DELTA;
+                maxPercentage = currentPercentage + CompositionalVariations.POST_NORM_CHECK_DELTA;
+            } else {
+                String[] compositionRange = data[1].split(":");
+                minPercentage = Double.parseDouble(compositionRange[0]);
+                maxPercentage = Double.parseDouble(compositionRange[1]);
+            }
+
+            Element element = new Element(
+                    PeriodicTable.getElementName(data[0]),
+                    data[0],
+                    currentPercentage,
+                    minPercentage,
+                    maxPercentage,
+                    (minPercentage + maxPercentage) / 2);
+            elementsList.add(element);
+            compositionMetaData.put(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX, elementsList.size() - 1);
+        }
+
+        compositionMetaData.put(LIBSDataGenConstants.ELEMENTS_LIST, elementsList);
+        return compositionMetaData;
     }
 
     /**

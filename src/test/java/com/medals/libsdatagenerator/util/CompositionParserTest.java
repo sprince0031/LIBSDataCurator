@@ -23,17 +23,19 @@ import static org.junit.jupiter.api.Assertions.*;
 class CompositionParserTest {
 
     private LIBSDataService libsDataService;
+    private InputCompositionProcessor inputCompositionProcessor;
 
     @BeforeEach
     void setUp() {
         libsDataService = LIBSDataService.getInstance();
+        inputCompositionProcessor = InputCompositionProcessor.getInstance();
     }
 
     @Test
     void testParseValidComposition() throws Exception {
         // Test parsing a simple composition string
         String[] compositionArray = { "C-0.2", "Fe-99.8" };
-        Map<String, Object> compositionMetaData = libsDataService.generateElementsList(compositionArray, 3);
+        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
@@ -51,7 +53,7 @@ class CompositionParserTest {
     void testParseCompositionWithRanges() throws Exception {
         // Test parsing composition with ranges (min:max)
         String[] compositionArray = { "C-0.1:0.3", "Fe-99.7:99.9" };
-        Map<String, Object> compositionMetaData = libsDataService.generateElementsList(compositionArray, 3);
+        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
@@ -73,7 +75,7 @@ class CompositionParserTest {
     void testParseRemainingPercentage() throws Exception {
         // Test that "#" symbol is handled correctly for remaining percentage
         String[] compositionArray = { "C-0.2", "Fe-#" };
-        Map<String, Object> compositionMetaData = libsDataService.generateElementsList(compositionArray, 3);
+        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
@@ -111,7 +113,7 @@ class CompositionParserTest {
         String[] compositionArray = { "XX-0.2", "Fe-99.8" };
 
         assertThrows(IOException.class, () -> {
-            libsDataService.generateElementsList(compositionArray, 3);
+            inputCompositionProcessor.generateElementsList(compositionArray, 3);
         });
     }
 }

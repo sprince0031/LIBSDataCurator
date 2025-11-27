@@ -85,7 +85,7 @@ public class Element {
     }
 
     public void updatePercentageComposition(Double delta) {
-        this.percentageComposition = roundIfNotNull(this.percentageComposition  + delta);
+        this.percentageComposition = roundIfNotNull(this.percentageComposition + delta);
     }
 
     public Double getMin() {

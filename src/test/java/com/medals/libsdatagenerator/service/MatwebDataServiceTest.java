@@ -19,7 +19,7 @@ class MatwebDataServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        service = MatwebDataService.getInstance();
+        service = MatwebDataService.getInstance( false);
         
         // Access the private parseCompositionData method using reflection
         parseCompositionDataMethod = MatwebDataService.class.getDeclaredMethod(

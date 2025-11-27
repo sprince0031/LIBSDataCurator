@@ -100,7 +100,7 @@ public class LIBSDataController {
 
                 } else {
                     // This is the original non-variation path for -c
-                    String csvPath = libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs, materialGrade.getRemainderElement());
+                    String csvPath = libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs, materialGrade.getRemainderElementIdx());
                     logger.info("Successfully fetched LIBS data for composition: " + materialGrade + " and saved to path: " + csvPath);
                 }
             }
@@ -114,7 +114,7 @@ public class LIBSDataController {
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Exception occurred!", e);
-            System.out.println("Error occurred: " + e);
+            System.out.println("Could not process request. Please check logs for details or try again.");
         }
 
     }
