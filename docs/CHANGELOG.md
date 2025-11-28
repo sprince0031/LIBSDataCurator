@@ -5,6 +5,53 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2025-11-28
+
+### Added
+- **Client-side Recalculation**: Implemented client-side recalculation for NIST LIBS data. All compositional variations are now recalculated directly in the browser instead of making individual server requests, significantly improving performance.
+- **Decimal Places Option**: New `-nd, --num-decimal-places` command-line option to specify the number of decimal places for rounding composition percentage values (default: 3).
+- **Remainder Element Tracking**: Enhanced `MaterialGrade` model to store and retrieve the remainder element index for more accurate composition adjustments during recalculation.
+- **NISTUtils Class**: New utility class for NIST LIBS-specific operations including resolution setting, element percentage updates, and alert handling during recalculation.
+- **Debug Mode**: New `-d, --debug` command-line option to run the tool with visible browser execution for troubleshooting Selenium workflows.
+- **HTML Selectors Constants**: Added constants for NIST LIBS recalculation form element selectors for easier maintenance.
+
+### Changed
+- **NIST API Defaults**: Updated default wavelength range to 240-420 nm (previously 200-800 nm) and fixed wavelength unit default to Nanometers instead of incorrectly set Angstrom (fixes issue #74).
+- **Refactored LIBSDataService**: Major refactoring of LIBS data fetching logic for better modularity and maintainability. Modularized CSV download and recalculation logic.
+- **Element Model Enhancement**: Added `updatePercentageComposition` method to `Element` class for easier percentage adjustments. Marked decimal place accessors as deprecated.
+- **Improved Browser Session Management**: Browser sessions are now kept alive across compositional variations for reuse, improving efficiency.
+- **Selenium Alert Handling**: Added capability to handle NIST LIBS alerts that appear when composition percentages don't sum to exactly 100%.
+
+### Fixed
+- **Wavelength Unit Bug**: Fixed issue #74 where the default wavelength unit was incorrectly set to Angstrom instead of Nanometers.
+- **Selenium Workflow Bugs**: Fixed various Selenium automation issues for the recalculation workflow.
+- **WavelengthUnit Display**: Fixed the display string for nanometers in `WavelengthUnit` enum.
+
+### Documentation
+- Updated CHANGELOG and README with v0.9.0 changes
+- Added comprehensive Javadoc for new methods and classes
+
+## [0.8.9.2] - 2025-11-09
+
+### Changed
+- **Refactored Gaussian Sampler**: Converted `GaussianSampler` from using Java's built-in `Random.nextGaussian()` to Apache Commons RNG `ZigguratSampler.NormalizedGaussian` for better performance and consistency with `DirichletSampler`
+- **Enhanced Seeding Support for Gaussian Sampler**: Updated `GaussianSampler` to properly use the provided seed parameter for reproducible random sampling
+- **Enhanced Seeding Support for Dirichlet Sampler**: Updated `DirichletSampler` to use Apache Commons RNG with seed parameter for reproducible sampling
+  - Uses `RandomSource.XO_RO_SHI_RO_128_PP.create(seed)` to initialize the RNG when seed is provided
+  - Falls back to unseeded RNG when no seed is specified
+- **Improved Logging**: Added informative logging to both `GaussianSampler` and `DirichletSampler` to indicate whether seeded or random sampling is being used
+
+### Added
+- **Test Coverage for Gaussian Sampling with Seeding**: Added test cases to verify reproducibility:
+  - `testGaussianSampling_reproducibilityWithSeed`: Ensures same seed produces identical results
+  - `testGaussianSampling_differentSeedsProduceDifferentResults`: Ensures different seeds produce different results
+- **Test Coverage for Dirichlet Sampling with Seeding**: Added test cases to verify reproducibility:
+  - `testDirichletSampling_reproducibilityWithSeed`: Ensures same seed produces identical results for Dirichlet sampling
+  - `testDirichletSampling_differentSeedsProduceDifferentResults`: Ensures different seeds produce different results for Dirichlet sampling
+
+### Fixed
+- **Dirichlet Sampler Null Pointer Exception**: Added null check for `parentSeries` in `DirichletSampler` to gracefully fall back to Gaussian sampling when no parent series is available, preventing `NullPointerException`
+
 ## [0.8.9] - 2025-10-12
 
 ### Added

@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DirichletSampler implements Sampler {
@@ -32,27 +33,35 @@ public class DirichletSampler implements Sampler {
     /**
      * New Dirichlet sampling method for compositional variations
      *
-     * @param baseComp Base composition elements
+     * @param baseMaterialGrade Base material grade composition and metadata
      * @param numSamples Number of numSamples to generate
      * @param variations List to store generated variations
-     * @param metadata contains GUID of the overview datasheet for series statistics
      */
-    public void sample(MaterialGrade materialGrade, int numSamples,
-                       List<List<Element>> variations) {
+    @Override
+    public void sample(MaterialGrade baseMaterialGrade, int numSamples, List<List<Element>> variations, Long seed) {
 
-        List<Element> baseComp = materialGrade.getComposition();
-        String overviewGuid = materialGrade.getParentSeries().getOverviewGuid();
+        List<Element> baseComp = baseMaterialGrade.getComposition();
+        
+        // Check if parent series is available, fall back to Gaussian if not
+        if (baseMaterialGrade.getParentSeries() == null) {
+            logger.info("No parent series available. Falling back to Gaussian sampling.");
+            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
+            return;
+        }
+        
+        String overviewGuid = baseMaterialGrade.getParentSeries().getOverviewGuid();
 
         logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
 
         ConcentrationParameterEstimator parameterEstimator = new ConcentrationParameterEstimator();
 
+        // TODO: Shift method invocation to once per series and not once per material grade within a series
         // Get series statistics from overview sheet
         SeriesStatistics seriesStats = MatwebDataService.getInstance().getSeriesStatistics(overviewGuid);
         if (seriesStats == null) {
             logger.severe("Failed to extract series statistics from overview sheet. Falling back to Gaussian sampling.");
             // Fallback to Gaussian sampling
-            GaussianSampler.getInstance().sample(materialGrade, numSamples, variations);
+            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
             return;
         }
 
@@ -70,7 +79,7 @@ public class DirichletSampler implements Sampler {
         double[] concentrationParams = parameterEstimator.estimateParametersForElements(seriesStats, elementOrder);
         if (concentrationParams == null || !parameterEstimator.validateParameters(concentrationParams)) {
             logger.severe("Failed to estimate valid Dirichlet parameters. Falling back to Gaussian sampling.");
-            GaussianSampler.getInstance().sample(materialGrade, numSamples, variations);
+            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
             return;
         }
 
@@ -78,11 +87,15 @@ public class DirichletSampler implements Sampler {
         if (concentrationParams.length != elementOrder.length) {
             logger.severe("Mismatch between concentration parameters (" + concentrationParams.length +
                     ") and element order (" + elementOrder.length + "). Falling back to Gaussian sampling.");
-            GaussianSampler.getInstance().sample(materialGrade, numSamples, variations);
+            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
             return;
         }
 
-        UniformRandomProvider rng = RandomSource.XO_RO_SHI_RO_128_PP.create();
+        UniformRandomProvider rng = seed != null ?
+                RandomSource.XO_RO_SHI_RO_128_PP.create(seed) :
+                RandomSource.XO_RO_SHI_RO_128_PP.create();
+
+        logger.info("Starting Dirichlet sampling with " + (seed != null ? "seed: " + seed : "random seed"));
 
         org.apache.commons.rng.sampling.distribution.DirichletSampler sampler = org.apache.commons.rng.sampling.distribution.DirichletSampler.of(rng, concentrationParams);
 
@@ -114,7 +127,7 @@ public class DirichletSampler implements Sampler {
                 }
 
             } catch (Exception e) {
-                logger.warning("Error generating Dirichlet sample: " + e.getMessage());
+                logger.log(Level.WARNING, "Error generating Dirichlet sample: ", e);
             }
         }
 

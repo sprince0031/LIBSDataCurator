@@ -80,12 +80,10 @@ public class CompositionalVariations {
         int numVariationsToGenerate = Math.max(0, config.numSamples - 1);
 
         if (config.variationMode == VariationMode.GAUSSIAN) {
-            GaussianSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
+            GaussianSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions, config.seed);
 
         } else if (config.variationMode == VariationMode.DIRICHLET) {
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("overviewGuid", materialGrade.getParentSeries().getOverviewGuid());
-            DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
+            DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions, config.seed);
 
         } else { // For uniform distribution
             // Start backtracking with an empty "current combo" and a running sum of 0

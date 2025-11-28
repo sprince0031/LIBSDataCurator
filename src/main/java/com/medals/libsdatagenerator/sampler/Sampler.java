@@ -8,6 +8,6 @@ import java.util.Map;
 
 public interface Sampler {
 
-    void sample(MaterialGrade material, int numSamples, List<List<Element>> variations);
+    void sample(MaterialGrade material, int numSamples, List<List<Element>> variations, Long seed);
 
 }

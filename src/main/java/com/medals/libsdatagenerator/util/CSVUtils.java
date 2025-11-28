@@ -67,9 +67,7 @@ public class CSVUtils {
             long fileSize = fileExists ? Files.size(csvPath) : 0;
             boolean fileExistsAndIsNotEmpty = fileExists && fileSize > 0;
             
-            writer = Files.newBufferedWriter(csvPath,
-                    StandardOpenOption.APPEND,
-                    StandardOpenOption.CREATE);
+            writer = Files.newBufferedWriter(csvPath, StandardOpenOption.APPEND, StandardOpenOption.CREATE);
 
             if (fileExistsAndIsNotEmpty) {
                 // File exists and has content, so append without writing a new header
