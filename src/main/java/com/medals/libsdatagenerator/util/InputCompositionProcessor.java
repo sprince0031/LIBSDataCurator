@@ -234,7 +234,7 @@ public class InputCompositionProcessor {
                     }
                     Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
                     baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
-                    remainderElement = (Integer) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
+                    remainderElement = (int) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
                     materialName = matwebService.getDatasheetName();
                     materialAttributes = matwebService.getDatasheetAttributes();
                 }

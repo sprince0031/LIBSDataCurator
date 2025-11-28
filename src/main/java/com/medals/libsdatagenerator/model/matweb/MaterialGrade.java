@@ -70,11 +70,11 @@ public class MaterialGrade {
         this.ParentSeries = parentSeries;
     }
 
-    public int getRemainderElementIdx() {
+    public Integer getRemainderElementIdx() {
         return remainderElementIdx;
     }
 
-    public void setRemainderElementIdx(int remainingElementIdx) {
+    public void setRemainderElementIdx(Integer remainingElementIdx) {
         this.remainderElementIdx = remainingElementIdx;
     }
 

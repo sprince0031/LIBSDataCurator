@@ -45,7 +45,8 @@ public class GaussianSampler implements Sampler {
         Map<String, Double> stdDevs = LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK;
 
         int attempts = 0;
-        int maxAttempts = numSamples * 25000; // Allow up to 10x attempts to account for constraint violations
+        int maxAttempts = numSamples * 25000; // Allow up to 25kx attempts to account for constraint violations. Kept at this arbitrary number for now to allow for test cases to pass.
+        // TODO: Will revisit later
         while (variations.size() <= numSamples && attempts < maxAttempts) {
             attempts++;
 

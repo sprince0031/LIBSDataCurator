@@ -130,7 +130,7 @@ public class LIBSDataService {
      * Composes NIST LIBS URL (query) for fetching spectrum data for given input
      * @param elements list of Elements in composition
      * @param config User input configuration object containing all user input data
-     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     * @return csv content if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
     public String fetchLIBSData(List<Element> elements, UserInputConfig config, int remainderElementIdx) {
         Path compositionFilePath = null;
@@ -147,7 +147,7 @@ public class LIBSDataService {
      * @param composition list of Elements in composition
      * @param config User input configuration object containing all user input data
      * @param quitDriver whether to quit the Selenium driver after fetching (false to keep session alive)
-     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     * @return csv content if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
     public String fetchLIBSData(List<Element> composition, UserInputConfig config, Path csvFilePath, boolean quitDriver, int remainderElementIdx) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
@@ -209,7 +209,7 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    private void processCompositionsForNIST_LIBS(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) throws RuntimeException {
+    private void processCompositionsForNIST_LIBS(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
 
         // Keeping track of all wavelength across all comps:
         Set<Double> allWavelengths = (Set<Double>) fetchedSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS);
@@ -337,14 +337,17 @@ public class LIBSDataService {
                     }
                     System.out.println("Fetching LIBS spectra from NIST for all variations of " + materialGrade.getMaterialName());
                     processCompositionsForNIST_LIBS(fetchedSpectralData, compositions, config, materialGrade);
-                    logger.info("Successfully fetched LIBS spectra for for all variations of " + materialGrade);
+                    logger.info("Successfully fetched LIBS spectra for all variations of " + materialGrade);
                 } else {
                     logger.warning("No compositions generated for input: " + materialGrade);
                 }
             } else {
                 // This is the original non-variation path for -c
-                String csvPath = fetchLIBSData(materialGrade.getComposition(), config, materialGrade.getRemainderElementIdx());
-                logger.info("Successfully fetched LIBS data for composition: " + materialGrade + " and saved to path: " + csvPath);
+                String csvData = fetchLIBSData(materialGrade.getComposition(), config, materialGrade.getRemainderElementIdx());
+                List<List<Element>> compositions = new ArrayList<>(); // Dummy list of list just to hold one composition for compatability
+                compositions.add(materialGrade.getComposition());
+                processCompositionsForNIST_LIBS(fetchedSpectralData, compositions, config, materialGrade);
+                logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
             }
         }
 
