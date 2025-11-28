@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import org.apache.http.client.utils.URIBuilder;
 import org.openqa.selenium.UnexpectedAlertBehaviour;
 import org.openqa.selenium.WebDriver;
@@ -32,18 +33,18 @@ public class SeleniumUtils {
     private boolean isDriverOnline = false;
     private static final int DEFAULT_WAIT_TIMEOUT_SECONDS = 30;
 
-    public SeleniumUtils(boolean debugMode) {
+    public SeleniumUtils() {
         options = new ChromeOptions();
-        if  (debugMode) {
+        if (!UserInputConfig.debugModeEnabled()) {
             options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
         }
 
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Added to not let Selenium ignore alert prompts
     }
 
-    public static SeleniumUtils getInstance(boolean debugMode) {
+    public static SeleniumUtils getInstance() {
         if (instance == null) {
-            instance = new SeleniumUtils(debugMode);
+            instance = new SeleniumUtils();
         }
         return instance;
     }

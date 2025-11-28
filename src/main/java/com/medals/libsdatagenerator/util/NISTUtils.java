@@ -21,10 +21,10 @@ public class NISTUtils {
 
     Logger logger = Logger.getLogger(NISTUtils.class.getName());
 
-    private static SeleniumUtils seleniumUtils;
+    private final SeleniumUtils seleniumUtils;
 
     public NISTUtils(SeleniumUtils seleniumUtils) {
-        NISTUtils.seleniumUtils = seleniumUtils;
+        this.seleniumUtils = seleniumUtils;
     }
 
     /**

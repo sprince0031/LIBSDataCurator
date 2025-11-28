@@ -43,6 +43,7 @@ public class CommonUtils {
     public static final String CONF_PATH = CommonUtils.HOME_PATH + File.separator + "conf";
     public static final String DATA_PATH = CommonUtils.HOME_PATH + File.separator + "data";
     public static final String MATERIALS_CATALOGUE_PATH = CommonUtils.CONF_PATH + File.separator + LIBSDataGenConstants.MATERIALS_CATALOGUE_FILE_NAME;
+    private static int clearConsole = 0;
 
     public static CommonUtils instance = null;
 
@@ -460,7 +461,10 @@ public class CommonUtils {
         
         int progress = current * progressBarWidth / total;
         String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
-        out.printf("\r[%s] %d/%d %s", bar, current, total, message);
+        String progressText = String.format("\r[%s] %d/%d %s", bar, current, total, message);
+        clearConsole = progressText.length();
+        out.printf("\r%s", " ".repeat(clearConsole));
+        out.printf(progressText);
     }
 
     /**

@@ -231,8 +231,13 @@ public class LIBSDataGenConstants {
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
     public static final String COATED_SERIES_KEY_PATTERN = "([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.coated\\.(.*?)";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
+    public static final String CSV_HEADER_MATERIAL_GRADE_NAME = "material_grade_name"; // Multi-class target column name
+    public static final String CSV_HEADER_MATERIAL_TYPE = "material_type"; // Super class target column name
     public static final String REMAINDER_ELEMENT_IDX = "remainderElementIndex"; // Used in element list generation.
     public static final String ELEMENTS_LIST = "elementsList"; // Used in element list generation.
+    public static final String SPECTRAL_DATA_MAP_KEY_SPECTRA = "spectra";
+    public static final String SPECTRAL_DATA_MAP_KEY_COMPOSITIONS = "compositions";
+    public static final String SPECTRAL_DATA_MAP_KEY_WAVELENGTHS = "wavelengths";
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cr", "Mo", "Ni", "Fe", "Cu", "Al", "V",

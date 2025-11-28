@@ -19,7 +19,7 @@ class MatwebDataServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        service = MatwebDataService.getInstance( false);
+        service = MatwebDataService.getInstance();
         
         // Access the private parseCompositionData method using reflection
         parseCompositionDataMethod = MatwebDataService.class.getDeclaredMethod(
@@ -34,13 +34,13 @@ class MatwebDataServiceTest {
         List<String> compositionList = Arrays.asList("80.0 - 85.0 %", "15.0 - 20.0 %", "0.5 %");
         List<String> comments = Arrays.asList("", "", "remainder");
         
-        String[] result = (String[]) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
+        List<String> result = (List<String>) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
         
         assertNotNull(result);
-        assertEquals(3, result.length);
-        assertEquals("Cu-80.0:85.0", result[0]);
-        assertEquals("Zn-15.0:20.0", result[1]);
-        assertEquals("Pb-#", result[2]); // Should be marked as remainder
+        assertEquals(3, result.size());
+        assertEquals("Cu-80.0:85.0", result.get(0));
+        assertEquals("Zn-15.0:20.0", result.get(1));
+        assertEquals("Pb-#", result.get(2)); // Should be marked as remainder
     }
 
     @Test
@@ -51,13 +51,13 @@ class MatwebDataServiceTest {
         List<String> compositionList = Arrays.asList("85.0 %", "10.0 %", "0.5 %");
         List<String> comments = Arrays.asList("", "", "");
         
-        String[] result = (String[]) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
+        List<String> result = (List<String>) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
         
         assertNotNull(result);
-        assertEquals(3, result.length);
-        assertEquals("Cu-85.0:85.0-#", result[0]); // Cu has highest percentage, should be marked as remainder
-        assertEquals("Zn-10.0:10.0", result[1]);
-        assertEquals("Pb-0.5:0.5", result[2]);
+        assertEquals(3, result.size());
+        assertEquals("Cu-85.0:85.0-#", result.get(0)); // Cu has highest percentage, should be marked as remainder
+        assertEquals("Zn-10.0:10.0", result.get(1));
+        assertEquals("Pb-0.5:0.5", result.get(2));
     }
 
     @Test
@@ -67,14 +67,14 @@ class MatwebDataServiceTest {
         List<String> compositionList = Arrays.asList("78.8 - 98.9 %", "0.250 - 18.0 %", "0.05 - 0.40 %");
         List<String> comments = Arrays.asList("", "", "");
         
-        String[] result = (String[]) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
+        List<String> result = (List<String>) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
         
         assertNotNull(result);
-        assertEquals(3, result.length);
+        assertEquals(3, result.size());
         // Cu has highest average percentage (88.85%), should be marked as remainder
-        assertEquals("Cu-78.8:98.9-#", result[0]);
-        assertEquals("Zn-0.250:18.0", result[1]);
-        assertEquals("Pb-0.05:0.40", result[2]);
+        assertEquals("Cu-78.8:98.9-#", result.get(0));
+        assertEquals("Zn-0.250:18.0", result.get(1));
+        assertEquals("Pb-0.05:0.40", result.get(2));
     }
 
     @Test
@@ -84,12 +84,12 @@ class MatwebDataServiceTest {
         List<String> compositionList = Arrays.asList("80.0 %", "20.0 %");
         List<String> comments = Arrays.asList("balance", "");
         
-        String[] result = (String[]) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
+        List<String> result = (List<String>) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
         
         assertNotNull(result);
-        assertEquals(2, result.length);
-        assertEquals("Cu-#", result[0]); // Should be marked as remainder due to "balance" comment
-        assertEquals("Zn-20.0:20.0", result[1]);
+        assertEquals(2, result.size());
+        assertEquals("Cu-#", result.get(0)); // Should be marked as remainder due to "balance" comment
+        assertEquals("Zn-20.0:20.0", result.get(1));
     }
 
     @Test
@@ -99,13 +99,13 @@ class MatwebDataServiceTest {
         List<String> compositionList = Arrays.asList("98.0 %", "<= 0.5 %", "0.5 - 1.5 %");
         List<String> comments = Arrays.asList("", "", "");
         
-        String[] result = (String[]) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
+        List<String> result = (List<String>) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
         
         assertNotNull(result);
-        assertEquals(3, result.length);
-        assertEquals("Fe-98.0:98.0-#", result[0]); // Fe has highest percentage, should be marked as remainder
-        assertEquals("C-0:0.5", result[1]); // <= format
-        assertEquals("Mn-0.5:1.5", result[2]); // Range format
+        assertEquals(3, result.size());
+        assertEquals("Fe-98.0:98.0-#", result.get(0)); // Fe has highest percentage, should be marked as remainder
+        assertEquals("C-0:0.5", result.get(1)); // <= format
+        assertEquals("Mn-0.5:1.5", result.get(2)); // Range format
     }
 
     @Test
@@ -119,12 +119,12 @@ class MatwebDataServiceTest {
         List<String> compositionList = Arrays.asList("80.0 %", "15.0 %", "5.0 %");
         List<String> comments = Arrays.asList("", "", "");
         
-        String[] result = (String[]) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
+        List<String> result = (List<String>) parseCompositionDataMethod.invoke(service, elementList, compositionList, comments);
         
         assertNotNull(result);
-        assertEquals(3, result.length);
-        assertTrue(result[0].startsWith("Cu-"));
-        assertTrue(result[1].startsWith("Zn-"));
-        assertTrue(result[2].startsWith("Pb-"));
+        assertEquals(3, result.size());
+        assertTrue(result.get(0).startsWith("Cu-"));
+        assertTrue(result.get(1).startsWith("Zn-"));
+        assertTrue(result.get(2).startsWith("Pb-"));
     }
 }

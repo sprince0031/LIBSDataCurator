@@ -3,11 +3,15 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
+import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import com.medals.libsdatagenerator.util.NISTUtils;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
+import com.medals.libsdatagenerator.util.CSVUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
@@ -128,8 +132,13 @@ public class LIBSDataService {
      * @param config User input configuration object containing all user input data
      * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
-    public String fetchLIBSData(List<Element> elements, UserInputConfig config, int remainderElementIdx) throws IOException {
-        Path compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, elements);
+    public String fetchLIBSData(List<Element> elements, UserInputConfig config, int remainderElementIdx) {
+        Path compositionFilePath = null;
+        try {
+            compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, elements);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         return fetchLIBSData(elements, config, compositionFilePath, true, remainderElementIdx);
     }
     
@@ -140,7 +149,7 @@ public class LIBSDataService {
      * @param quitDriver whether to quit the Selenium driver after fetching (false to keep session alive)
      * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
      */
-    public String fetchLIBSData(List<Element> composition, UserInputConfig config, Path csvFilePath, boolean quitDriver, int remainderElementIdx) throws IOException {
+    public String fetchLIBSData(List<Element> composition, UserInputConfig config, Path csvFilePath, boolean quitDriver, int remainderElementIdx) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
         try {
@@ -200,21 +209,19 @@ public class LIBSDataService {
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    private Map<String, Object> processCompositionsForNIST_LIBS(List<List<Element>> compositions, UserInputConfig config, int remainderIdx) throws RuntimeException {
+    private void processCompositionsForNIST_LIBS(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) throws RuntimeException {
+
         // Keeping track of all wavelength across all comps:
-        Set<Double> allWavelengths = new TreeSet<>();
-        // Store for each composition's *string ID* -> (wave -> intensity)
-        Map<String, Map<Double, Double>> compWaveIntensityMap = new HashMap<>();
-        // Store for each composition's *string ID* -> (element symbol -> percentage)
-        Map<String, Map<String, Double>> compElementPercentageMap = new HashMap<>();
+        Set<Double> allWavelengths = (Set<Double>) fetchedSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS);
+        // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
+        Map<String, Object> compWaveIntensityMap = new HashMap<>();
 
         int compositionsProcessed = 0;
-
         PrintStream out = System.out;
 
         // Get selenium instance for reuse across variations
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-
+        firstComposition = true;
         try {
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
@@ -228,7 +235,7 @@ public class LIBSDataService {
 
                 if (config.forceFetch || !compositionFileExists) {
                     logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + config.forceFetch + ", fileExists=" + compositionFileExists + ")");
-                    csvData = fetchLIBSData(composition, config, compositionFilePath, false, remainderIdx);
+                    csvData = fetchLIBSData(composition, config, compositionFilePath, false, sourceMaterial.getRemainderElementIdx());
                 } else {
                     logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
                     try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
@@ -252,30 +259,44 @@ public class LIBSDataService {
                     logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
                     continue;
                 }
-
-                compWaveIntensityMap.put(compositionId, waveMap);
+                compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, waveMap);
 
                 // Also store element symbols + their percentages
                 Map<String, Double> elemMap = new HashMap<>();
                 for (Element elem : composition) {
                     elemMap.put(elem.getSymbol(), elem.getPercentageComposition());
                 }
-                compElementPercentageMap.put(compositionId, elemMap);
+                compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_COMPOSITIONS, elemMap);
+
+                // Add class label columns based on configuration
+                // If user explicitly specified a class type, only add that specific column
+                // Otherwise, add both material grade name and material type columns by default
+                if (config.classLabelTypeExplicitlySet) {
+                    // User explicitly selected a class type
+                    if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                        // Add only the specific class column requested
+                        String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+                        String classLabel = generateClassLabel(config.classLabelType, sourceMaterial);
+                        compWaveIntensityMap.put(classLabelColumnName, classLabel);
+                    }
+                    // For composition percentages (type 1), no additional class column is needed as the individual element columns serve as the class labels
+                } else {
+                    // Default behavior: add both material columns
+                    String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial);
+                    String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial);
+                    compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME, gradeLabel);
+                    compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE, typeLabel);
+                }
+                fetchedSpectralData.put(compositionId, compWaveIntensityMap);
 
                 // Calculate progress
                 CommonUtils.printProgressBar(compositionsProcessed + 1, compositions.size(), "samples completed", out);
-
                 compositionsProcessed++;
             }
 
             // Print newline after progress bar completion
             CommonUtils.finishProgressBar(compositions.size(), out);
-
-            Map<String, Object> fetchedSpectralData = new HashMap<>();
-            fetchedSpectralData.put("spectra", compWaveIntensityMap);
-            fetchedSpectralData.put("compositions", compElementPercentageMap);
-            fetchedSpectralData.put("wavelengths", allWavelengths);
-            return fetchedSpectralData;
+            fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, allWavelengths);
         } catch (Exception e) {
             throw new RuntimeException("Error while processing compositions for NIST website", e);
         } finally {
@@ -287,12 +308,52 @@ public class LIBSDataService {
         }
     }
 
-    public void generateDataset(List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
+    public void generateDataset(List<MaterialGrade> materialGrades, UserInputConfig config) {
 
-        Map<String, Object> fetchedSpectralData = processCompositionsForNIST_LIBS(compositions, config, sourceMaterial.getRemainderElementIdx());
-        Set<Double> allWavelengths = (Set<Double>) fetchedSpectralData.get("wavelengths");
-        Map<String, Map<Double, Double>> compWaveIntensityMap =  (Map<String, Map<Double, Double>>) fetchedSpectralData.get("spectra");
-        Map<String, Map<String, Double>> compElementPercentageMap =  (Map<String, Map<String, Double>>) fetchedSpectralData.get("compositions");
+        Set<Double> allWavelengths = new TreeSet<>();
+        Map<String, Object> fetchedSpectralData = new HashMap<>();
+        fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, allWavelengths); // Initialise wavelength TreeSet to be updated for each composition
+
+        for (MaterialGrade materialGrade : materialGrades) {
+            if (config.performVariations) {
+                if (config.variationMode == NistUrlOptions.VariationMode.DIRICHLET) {
+                    if (materialGrade.getParentSeries().getOverviewGuid() == null) {
+                        System.out.println("Please provide an overview GUID to generate variations.");
+                        logger.severe("Overview GUID not present for Dirichlet sampling for "
+                                + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
+                        continue;
+                    }
+                }
+
+                List<List<Element>> compositions = CompositionalVariations.getInstance()
+                        .generateCompositionalVariations(materialGrade, config);
+
+                if (compositions != null && !compositions.isEmpty()) {
+                    // Apply coating to all variations of material if this is a coated series
+                    if (materialGrade.getParentSeries().isCoated()) {
+                        SeriesInput series = materialGrade.getParentSeries();
+                        compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
+                                series.getCoatingElement(), config.scaleCoating);
+                    }
+                    System.out.println("Fetching LIBS spectra from NIST for all variations of " + materialGrade.getMaterialName());
+                    processCompositionsForNIST_LIBS(fetchedSpectralData, compositions, config, materialGrade);
+                    logger.info("Successfully fetched LIBS spectra for for all variations of " + materialGrade);
+                } else {
+                    logger.warning("No compositions generated for input: " + materialGrade);
+                }
+            } else {
+                // This is the original non-variation path for -c
+                String csvPath = fetchLIBSData(materialGrade.getComposition(), config, materialGrade.getRemainderElementIdx());
+                logger.info("Successfully fetched LIBS data for composition: " + materialGrade + " and saved to path: " + csvPath);
+            }
+        }
+
+        writeSpectralDataToMasterCsv(fetchedSpectralData, config);
+
+    }
+
+    private void writeSpectralDataToMasterCsv(Map<String, Object> fetchedSpectralData, UserInputConfig config) {
+        Set<Double> allWavelengths = (Set<Double>) fetchedSpectralData.remove(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS);
 
         try {
             // Write a single "master CSV" with all results
@@ -313,16 +374,19 @@ public class LIBSDataService {
             // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
 
             String[] headerArray = header.toArray(new String[0]);
-            try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, config.appendMode, headerArray)) {
+            try (CSVPrinter printer = CSVUtils.getCsvPrinter(masterCsvPath, config.appendMode, headerArray)) {
                 // If appending, and the file might have already existed and had data (and thus headers),
                 // CSVUtils.getCsvPrinter when appendMode=true opens without writing new headers.
                 // If not appending, or if appending and file is new, headers are written by CSVUtils.
 
                 // Each composition => one row
-                for (String compId : compWaveIntensityMap.keySet()) {
-                    Map<Double, Double> waveMap = compWaveIntensityMap.get(compId);
-                    // Get the specific element map for the row
-                    Map<String, Double> elemMap = compElementPercentageMap.get(compId);
+                for (String compId : fetchedSpectralData.keySet()) {
+                    // Get the specific element maps for the row
+                    Map<String, Object> compSpectralData = (Map<String, Object>) fetchedSpectralData.get(compId);
+                    Map<Double, Double> waveMap = (Map<Double, Double>) compSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA);
+                    Map<String, Double> elemMap = (Map<String, Double>) compSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_COMPOSITIONS);
+                    String gradeLabel = (String) compSpectralData.get(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME);
+                    String typeLabel = (String) compSpectralData.get(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE);
 
                     List<String> row = new ArrayList<>();
                     row.add(compId);
@@ -340,23 +404,10 @@ public class LIBSDataService {
                         row.add(String.valueOf(pct));
                     }
 
-                    // Add class label columns based on configuration
-                    // If user explicitly specified a class type, only add that specific column
-                    // Otherwise, add both material grade name and material type columns by default
-                    if (config.classLabelTypeExplicitlySet) {
-                        // User explicitly selected a class type
-                        if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
-                            // Add only the specific class column requested
-                            String classLabel = generateClassLabel(config.classLabelType, sourceMaterial, compId);
-                            row.add(classLabel);
-                        }
-                        // For composition percentages (type 1), no additional class column is needed
-                        // as the individual element columns serve as the class labels
-                    } else {
-                        // Default behavior: add both material columns
-                        String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial, compId);
-                        String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial, compId);
+                    if (gradeLabel != null) {
                         row.add(gradeLabel);
+                    }
+                    if (typeLabel != null) {
                         row.add(typeLabel);
                     }
 
@@ -395,12 +446,11 @@ public class LIBSDataService {
                 String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
                 header.add(classLabelColumnName);
             }
-            // For composition percentages (type 1), no additional class column is needed
-            // as the individual element columns serve as the class labels
+            // For composition percentages (type 1), no additional class column is needed as the individual element columns serve as the class labels
         } else {
             // Default behavior: add both material columns
-            header.add("material_grade_name");
-            header.add("material_type");
+            header.add(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME);
+            header.add(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE);
         }
         return header;
     }
@@ -442,18 +492,17 @@ public class LIBSDataService {
      */
     private String getClassLabelColumnName(ClassLabelType classLabelType) {
         return switch (classLabelType) {
-            case COMPOSITION_PERCENTAGE -> "class_composition_percentage";
-            case MATERIAL_GRADE_NAME -> "material_grade_name";
-            case MATERIAL_TYPE -> "material_type";
+            case MATERIAL_GRADE_NAME -> LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME;
+            case MATERIAL_TYPE -> LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE;
+            default -> throw new IllegalStateException("Unexpected value: " + classLabelType);
         };
     }
 
     /**
      * Generates the class label value for a given composition
      */
-    private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial, String compositionId) {
+    private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial) {
         return switch (classLabelType) {
-            case COMPOSITION_PERCENTAGE -> compositionId; // Use composition ID for multi-output regression
             case MATERIAL_GRADE_NAME -> {
                 if (sourceMaterial != null && sourceMaterial.getMaterialName() != null && !sourceMaterial.getMaterialName().isEmpty()) {
                     yield sourceMaterial.getMaterialName();
@@ -468,13 +517,14 @@ public class LIBSDataService {
                     yield "Unknown Type"; // Fallback for missing series information
                 }
             }
+            default -> throw new IllegalStateException("Unexpected value: " + classLabelType);
         };
     }
 
     /**
      * Converts series key to readable material type by replacing dots and underscores with spaces
      */
-    private String processSeriesKeyToMaterialType(String seriesKey) {
+    public String processSeriesKeyToMaterialType(String seriesKey) {
         if (seriesKey == null || seriesKey.equals(LIBSDataGenConstants.DIRECT_ENTRY)) {
             return "Direct Entry";
         }

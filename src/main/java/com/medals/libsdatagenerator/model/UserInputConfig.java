@@ -53,7 +53,7 @@ public class UserInputConfig {
     public final boolean appendMode;
     public final boolean forceFetch;
     public final boolean genStats;
-    public final boolean debugMode;
+    private static boolean debugMode;
 
     /**
      * Constructs the configuration object by parsing the command-line arguments.
@@ -109,7 +109,11 @@ public class UserInputConfig {
         this.appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
         this.forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
-        this.debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+        UserInputConfig.debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+    }
+
+    public static boolean debugModeEnabled() {
+        return UserInputConfig.debugMode;
     }
 
 }

@@ -9,10 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,7 +31,7 @@ class CompositionParserTest {
     @Test
     void testParseValidComposition() throws Exception {
         // Test parsing a simple composition string
-        String[] compositionArray = { "C-0.2", "Fe-99.8" };
+        List<String> compositionArray = Arrays.asList("C-0.2", "Fe-99.8");
         Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
@@ -52,7 +49,7 @@ class CompositionParserTest {
     @Test
     void testParseCompositionWithRanges() throws Exception {
         // Test parsing composition with ranges (min:max)
-        String[] compositionArray = { "C-0.1:0.3", "Fe-99.7:99.9" };
+        List<String> compositionArray = Arrays.asList("C-0.1:0.3", "Fe-99.7:99.9");
         Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
@@ -74,7 +71,7 @@ class CompositionParserTest {
     @Test
     void testParseRemainingPercentage() throws Exception {
         // Test that "#" symbol is handled correctly for remaining percentage
-        String[] compositionArray = { "C-0.2", "Fe-#" };
+        List<String> compositionArray = Arrays.asList("C-0.2", "Fe-#");
         Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
@@ -110,7 +107,7 @@ class CompositionParserTest {
     @Test
     void testInvalidElementParsing() {
         // Test handling of invalid element symbols
-        String[] compositionArray = { "XX-0.2", "Fe-99.8" };
+        List<String> compositionArray = Arrays.asList("XX-0.2", "Fe-99.8");
 
         assertThrows(IOException.class, () -> {
             inputCompositionProcessor.generateElementsList(compositionArray, 3);
