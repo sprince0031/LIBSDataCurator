@@ -39,7 +39,7 @@ public class SeleniumUtils {
             options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
         }
 
-        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Added to not let Selenium ignore alert prompts
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Configure Selenium to ignore unexpected alert prompts and not dismiss it automatically.
     }
 
     public static SeleniumUtils getInstance() {

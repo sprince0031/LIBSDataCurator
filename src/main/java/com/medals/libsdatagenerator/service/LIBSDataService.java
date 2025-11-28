@@ -476,8 +476,8 @@ public class LIBSDataService {
 
         // Headers might be "Wavelength (nm)" and "Sum"—confirm with a real example.
         for (CSVRecord record : records) {
-            String waveStr = record.get(0); // "Wavelength (<UNIT>)"
-            String sumStr = record.get(1); // "Sum" or "Sum(calc)" if using recalculation form
+            String waveStr = record.get("Wavelength (nm)"); // or handle different unit strings
+            String sumStr = record.get(record.isMapped("Sum") ? "Sum" : "Sum(calc)");
 
             if (waveStr != null && sumStr != null) {
                 double wavelength = Double.parseDouble(waveStr);
