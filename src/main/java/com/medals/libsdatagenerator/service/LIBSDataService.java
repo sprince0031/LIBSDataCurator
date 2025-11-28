@@ -3,11 +3,15 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
-import com.medals.libsdatagenerator.util.PeriodicTable;
+import com.medals.libsdatagenerator.util.InputCompositionProcessor;
+import com.medals.libsdatagenerator.util.NISTUtils;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
+import com.medals.libsdatagenerator.util.CSVUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
@@ -39,55 +43,14 @@ public class LIBSDataService {
     private static Logger logger = Logger.getLogger(LIBSDataService.class.getName());
 
     public static LIBSDataService instance = null;
-//    private static Map<String, Map<Double, Double>> compositionalDataset = new HashMap<>();
     private final CommonUtils commonUtils = new CommonUtils();
+    private boolean firstComposition = true;
 
     public static LIBSDataService getInstance() {
         if (instance == null) {
             instance = new LIBSDataService();
         }
         return instance;
-    }
-
-    /**
-     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
-     * @param elements list of Elements in composition
-     * @param config User input configuration object containing all user input data
-     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
-     */
-    public String fetchLIBSData(List<Element> elements, UserInputConfig config, String remainderElement) throws IOException {
-        Path compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, elements);
-        return fetchLIBSData(elements, config, compositionFilePath, true, remainderElement);
-    }
-    
-    /**
-     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
-     * @param elements list of Elements in composition
-     * @param config User input configuration object containing all user input data
-     * @param quitDriver whether to quit the Selenium driver after fetching (false to keep session alive)
-     * @return csv save path if successful; HTTP_NOT_FOUND (404) error status string if failure.
-     */
-    public String fetchLIBSData(List<Element> elements, UserInputConfig config, Path csvFilePath, boolean quitDriver, String remainderElement) throws IOException {
-        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-
-        try {
-            Map<String, String> queryParams = processLIBSQueryParams(elements, config);
-            seleniumUtils.connectToWebsite(
-                    commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
-            );
-
-            // Perform client-side recalculation with user's desired resolution
-            performRecalculation(seleniumUtils, config.resolution, elements, remainderElement);
-
-            return downloadCsvData(seleniumUtils, elements, csvFilePath);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
-        } finally {
-            if (quitDriver) {
-                seleniumUtils.quitSelenium();
-            }
-        }
-        return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
     public Map<String, String> processLIBSQueryParams(List<Element> elements, UserInputConfig config) {
@@ -163,111 +126,105 @@ public class LIBSDataService {
         return queryParams;
     }
 
-    public Map<String, Object> generateElementsList(String[] composition, int noDecimalPlaces) throws IOException {
-        List<Element> elementsList = new ArrayList<>();
-        double totalPercentage = 0.0;
-        String remainderElementData = "";
-        for (int i = 0; i < composition.length; i++) {
-            // elementNamePercent[0] -> Symbol, elementNamePercent[1] -> Percentage of
-            // composition
-            String[] elementNamePercent = composition[i].split("-");
+    /**
+     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
+     * @param elements list of Elements in composition
+     * @param config User input configuration object containing all user input data
+     * @return csv content if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     */
+    public String fetchLIBSData(List<Element> elements, UserInputConfig config, int remainderElementIdx) {
+        Path compositionFilePath = null;
+        try {
+            compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, elements);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return fetchLIBSData(elements, config, compositionFilePath, true, remainderElementIdx);
+    }
+    
+    /**
+     * Composes NIST LIBS URL (query) for fetching spectrum data for given input
+     * @param composition list of Elements in composition
+     * @param config User input configuration object containing all user input data
+     * @param quitDriver whether to quit the Selenium driver after fetching (false to keep session alive)
+     * @return csv content if successful; HTTP_NOT_FOUND (404) error status string if failure.
+     */
+    public String fetchLIBSData(List<Element> composition, UserInputConfig config, Path csvFilePath, boolean quitDriver, int remainderElementIdx) {
+        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
 
-            // Check if the current input element exists in the periodic table
-            if (!PeriodicTable.isValidElement(elementNamePercent[0])) {
-                logger.log(Level.SEVERE, "Invalid input. " + elementNamePercent[0] + " does not exist.");
-                throw new IOException("Invalid element " + elementNamePercent[0] + " given as input");
+        try {
+            if (!seleniumUtils.isDriverOnline()) {
+                logger.warning("Driver not online - falling back to server request");
+                Map<String, String> queryParams = processLIBSQueryParams(composition, config);
+                seleniumUtils.connectToWebsite(
+                        commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
+                );
+            }
+            NISTUtils nistUtils = new NISTUtils(seleniumUtils);
+
+            // First composition: make initial server request and keep browser session alive
+            if (firstComposition) {
+                // Perform client-side recalculation with user's desired resolution
+                nistUtils.setCorrectResolution(config.resolution);
+                firstComposition = false;
+                logger.info("First composition fetched - browser session kept alive for variations");
+            } else { // Subsequent compositions: use client-side recalculation with existing browser session
+                // Update element percentages in the form
+                nistUtils.updateElementPercentages(composition);
+                logger.info("Variation fetched using client-side recalculation");
             }
 
-            double currentPercentage = -1;
-            double minPercentage = -1;
-            double maxPercentage = -1;
-            // If the element percentage value is "#", consider as the remaining percentage
-            // composition
-            if (!composition[i].contains("#")) {
-                if (elementNamePercent[1].contains(":")) {
-                    String[] compositionRange = elementNamePercent[1].split(":");
-                    minPercentage = Double.parseDouble(compositionRange[0]);
-                    maxPercentage = Double.parseDouble(compositionRange[1]);
-                } else {
-                    minPercentage = Double.parseDouble(elementNamePercent[1]);
-                    maxPercentage = minPercentage;
-                }
-                currentPercentage = (minPercentage + maxPercentage) / 2;
-                currentPercentage = CommonUtils.roundToNDecimals(currentPercentage, noDecimalPlaces);
-                totalPercentage += currentPercentage;
+            // Find and click the Recalculate button
+            WebElement recalcButton = seleniumUtils.waitForElementClickable(
+                    By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
+            );
 
-                Element element = new Element(
-                        PeriodicTable.getElementName(elementNamePercent[0]),
-                        elementNamePercent[0],
-                        currentPercentage,
-                        minPercentage,
-                        maxPercentage,
-                        currentPercentage);
-                elementsList.add(element);
-            } else {
-                remainderElementData = composition[i];
+            recalcButton.click();
+            logger.info("Clicked Recalculate button for variation");
+
+            try {
+                // Wait for recalculation to complete
+                WebDriverWait wait = seleniumUtils.getWait(2);
+                wait.until(ExpectedConditions.alertIsPresent());
+
+                logger.info("Alert detected");
+                nistUtils.handleRecalculateAlert(composition, remainderElementIdx);
+
+            } catch (TimeoutException e) {
+                // No alert appeared within 2 seconds. Assume success.
+                logger.info("No alert detected, proceeding to download.");
+            }
+
+            seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+            logger.info("Recalculation completed");
+
+            return nistUtils.downloadCsvData(composition, csvFilePath);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Unable to fetch data from NIST LIBS website", e);
+        } finally {
+            if (quitDriver) {
+                seleniumUtils.quitSelenium();
             }
         }
-
-        Map<String, Object> compositionMetaData = new HashMap<>();
-
-        // Handle dominant/remainder element composition
-        if  (!remainderElementData.isEmpty()) {
-            double currentPercentage = 100 - totalPercentage;
-            String[] data =  remainderElementData.split("-");
-            double minPercentage;
-            double maxPercentage;
-            if (data.length == 2) {
-                minPercentage = currentPercentage - CompositionalVariations.POST_NORM_CHECK_DELTA;
-                maxPercentage = currentPercentage + CompositionalVariations.POST_NORM_CHECK_DELTA;
-            } else {
-                String[] compositionRange = data[1].split(":");
-                minPercentage = Double.parseDouble(compositionRange[0]);
-                maxPercentage = Double.parseDouble(compositionRange[1]);
-            }
-
-            Element element = new Element(
-                    PeriodicTable.getElementName(data[0]),
-                    data[0],
-                    currentPercentage,
-                    minPercentage,
-                    maxPercentage,
-                    (minPercentage + maxPercentage) / 2);
-            elementsList.add(element);
-            compositionMetaData.put(LIBSDataGenConstants.REMAINDER_ELEMENT, element.getSymbol());
-        }
-
-        compositionMetaData.put(LIBSDataGenConstants.ELEMENTS_LIST, elementsList);
-        return compositionMetaData;
+        return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
-    public void generateDataset(List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
+    private void processCompositionsForNIST_LIBS(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
 
         // Keeping track of all wavelength across all comps:
-        Set<Double> allWavelengths = new TreeSet<>();
-
-        // all Element symbols across all comps (can be kept if used elsewhere, or removed if only for header):
-        Set<String> allElementSymbols = new TreeSet<>();
-
-        // Store for each composition's *string ID* -> (wave -> intensity)
-        Map<String, Map<Double, Double>> compWaveIntensity = new HashMap<>();
-        // Store for each composition's *string ID* -> (element symbol -> percentage)
-        Map<String, Map<String, Double>> compElementPcts = new HashMap<>();
+        Set<Double> allWavelengths = (Set<Double>) fetchedSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS);
+        // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
+        Map<String, Object> compWaveIntensityMap = new HashMap<>();
 
         int compositionsProcessed = 0;
-
         PrintStream out = System.out;
 
         // Get selenium instance for reuse across variations
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-        boolean firstComposition = true;
-
+        firstComposition = true;
         try {
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
-
-                // Build a string like "Cu-50;Fe-50" for cross-platform compatible filename
-
                 // Fetch CSV data from NIST
                 String csvData;
                 Path compositionFilePath = commonUtils.getCompositionCsvFilePath(config.csvDirPath, composition);
@@ -275,33 +232,10 @@ public class LIBSDataService {
 
                 logger.info("Checking for existing LIBS data file at: " + compositionFilePath.toAbsolutePath());
                 boolean compositionFileExists = Files.exists(compositionFilePath);
-                
+
                 if (config.forceFetch || !compositionFileExists) {
                     logger.info("Fetching LIBS data for " + compositionId + " (forceFetch=" + config.forceFetch + ", fileExists=" + compositionFileExists + ")");
-                    
-                    if (firstComposition) {
-                        // First composition: make initial server request and keep browser session alive
-                        csvData = fetchLIBSData(composition, config, compositionFilePath, false, sourceMaterial.getRemainderElement());
-                        firstComposition = false;
-                        logger.info("First composition fetched - browser session kept alive for variations");
-                    } else {
-                        // Subsequent compositions: use client-side recalculation with existing browser session
-                        if (seleniumUtils.isDriverOnline()) {
-                            csvData = fetchLIBSDataFromLoadedPage(composition, compositionFilePath, seleniumUtils, sourceMaterial.getRemainderElement());
-                            logger.info("Variation fetched using client-side recalculation");
-                        } else {
-                            // Fallback: if driver is not online for some reason, fetch normally
-                            logger.warning("Driver not online - falling back to server request");
-                            csvData = fetchLIBSData(composition, config, compositionFilePath, false, sourceMaterial.getRemainderElement());
-                        }
-                        
-                        // Small delay between variations to avoid overwhelming the browser
-//                        try {
-//                            Thread.sleep(500);
-//                        } catch (InterruptedException e) {
-//                            throw new RuntimeException(e);
-//                        }
-                    }
+                    csvData = fetchLIBSData(composition, config, compositionFilePath, false, sourceMaterial.getRemainderElementIdx());
                 } else {
                     logger.info("Reading cached composition data for " + compositionId + " from: " + compositionFilePath.toAbsolutePath());
                     try (BufferedReader csvReader = Files.newBufferedReader(compositionFilePath)) {
@@ -325,26 +259,106 @@ public class LIBSDataService {
                     logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
                     continue;
                 }
-
-                compWaveIntensity.put(compositionId, waveMap);
+                compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, waveMap);
 
                 // Also store element symbols + their percentages
                 Map<String, Double> elemMap = new HashMap<>();
                 for (Element elem : composition) {
                     elemMap.put(elem.getSymbol(), elem.getPercentageComposition());
-                    allElementSymbols.add(elem.getSymbol());
                 }
-                compElementPcts.put(compositionId, elemMap);
+                compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_COMPOSITIONS, elemMap);
+
+                // Add class label columns based on configuration
+                // If user explicitly specified a class type, only add that specific column
+                // Otherwise, add both material grade name and material type columns by default
+                if (config.classLabelTypeExplicitlySet) {
+                    // User explicitly selected a class type
+                    if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                        // Add only the specific class column requested
+                        String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+                        String classLabel = generateClassLabel(config.classLabelType, sourceMaterial);
+                        compWaveIntensityMap.put(classLabelColumnName, classLabel);
+                    }
+                    // For composition percentages (type 1), no additional class column is needed as the individual element columns serve as the class labels
+                } else {
+                    // Default behavior: add both material columns
+                    String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial);
+                    String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial);
+                    compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME, gradeLabel);
+                    compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE, typeLabel);
+                }
+                fetchedSpectralData.put(compositionId, compWaveIntensityMap);
 
                 // Calculate progress
                 CommonUtils.printProgressBar(compositionsProcessed + 1, compositions.size(), "samples completed", out);
-
                 compositionsProcessed++;
             }
 
             // Print newline after progress bar completion
             CommonUtils.finishProgressBar(compositions.size(), out);
+            fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, allWavelengths);
+        } catch (Exception e) {
+            throw new RuntimeException("Error while processing compositions for NIST website", e);
+        } finally {
+            // Clean up: close the browser session if it's still open
+            if (seleniumUtils.isDriverOnline()) {
+                seleniumUtils.quitSelenium();
+                logger.info("Browser session closed after processing all compositions");
+            }
+        }
+    }
 
+    public void generateDataset(List<MaterialGrade> materialGrades, UserInputConfig config) {
+
+        Set<Double> allWavelengths = new TreeSet<>();
+        Map<String, Object> fetchedSpectralData = new HashMap<>();
+        fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, allWavelengths); // Initialise wavelength TreeSet to be updated for each composition
+
+        for (MaterialGrade materialGrade : materialGrades) {
+            if (config.performVariations) {
+                if (config.variationMode == NistUrlOptions.VariationMode.DIRICHLET) {
+                    if (materialGrade.getParentSeries().getOverviewGuid() == null) {
+                        System.out.println("Please provide an overview GUID to generate variations.");
+                        logger.severe("Overview GUID not present for Dirichlet sampling for "
+                                + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
+                        continue;
+                    }
+                }
+
+                List<List<Element>> compositions = CompositionalVariations.getInstance()
+                        .generateCompositionalVariations(materialGrade, config);
+
+                if (compositions != null && !compositions.isEmpty()) {
+                    // Apply coating to all variations of material if this is a coated series
+                    if (materialGrade.getParentSeries().isCoated()) {
+                        SeriesInput series = materialGrade.getParentSeries();
+                        compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
+                                series.getCoatingElement(), config.scaleCoating);
+                    }
+                    System.out.println("Fetching LIBS spectra from NIST for all variations of " + materialGrade.getMaterialName());
+                    processCompositionsForNIST_LIBS(fetchedSpectralData, compositions, config, materialGrade);
+                    logger.info("Successfully fetched LIBS spectra for all variations of " + materialGrade);
+                } else {
+                    logger.warning("No compositions generated for input: " + materialGrade);
+                }
+            } else {
+                // This is the original non-variation path for -c
+                String csvData = fetchLIBSData(materialGrade.getComposition(), config, materialGrade.getRemainderElementIdx());
+                List<List<Element>> compositions = new ArrayList<>(); // Dummy list of list just to hold one composition for compatability
+                compositions.add(materialGrade.getComposition());
+                processCompositionsForNIST_LIBS(fetchedSpectralData, compositions, config, materialGrade);
+                logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
+            }
+        }
+
+        writeSpectralDataToMasterCsv(fetchedSpectralData, config);
+
+    }
+
+    private void writeSpectralDataToMasterCsv(Map<String, Object> fetchedSpectralData, UserInputConfig config) {
+        Set<Double> allWavelengths = (Set<Double>) fetchedSpectralData.remove(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS);
+
+        try {
             // Write a single "master CSV" with all results
             // columns: composition, each wavelength (sorted), each element symbol (sorted).
 
@@ -356,50 +370,26 @@ public class LIBSDataService {
             Collections.sort(sortedSymbols); // Ensure canonical order
 
             // Build header
-            List<String> header = new ArrayList<>();
-            header.add("composition");
-            // Add wave columns
-            for (Double w : sortedWaves) {
-                header.add(String.valueOf(w));
-            }
-            // Add element columns
-            for (String sym : sortedSymbols) { // Now uses STD_ELEMENT_LIST
-                header.add(sym);
-            }
-
-            // Add class label columns based on configuration
-            // If user explicitly specified a class type, only add that specific column
-            // Otherwise, add both material grade name and material type columns by default
-            if (config.classLabelTypeExplicitlySet) {
-                // User explicitly selected a class type
-                if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
-                    // Add only the specific class column requested
-                    String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
-                    header.add(classLabelColumnName);
-                }
-                // For composition percentages (type 1), no additional class column is needed
-                // as the individual element columns serve as the class labels
-            } else {
-                // Default behavior: add both material columns
-                header.add("material_grade_name");
-                header.add("material_type");
-            }
+            List<String> header = buildHeader(config, sortedWaves, sortedSymbols);
 
             // Write out to "master.csv" inside savePath
             Path masterCsvPath = Paths.get(config.csvDirPath, LIBSDataGenConstants.MASTER_DATASET_FILENAME);
             // Ensure the 'header' List<String> is converted to String[] for getCsvPrinter
 
             String[] headerArray = header.toArray(new String[0]);
-            try (CSVPrinter printer = com.medals.libsdatagenerator.util.CSVUtils.getCsvPrinter(masterCsvPath, config.appendMode, headerArray)) {
+            try (CSVPrinter printer = CSVUtils.getCsvPrinter(masterCsvPath, config.appendMode, headerArray)) {
                 // If appending, and the file might have already existed and had data (and thus headers),
                 // CSVUtils.getCsvPrinter when appendMode=true opens without writing new headers.
                 // If not appending, or if appending and file is new, headers are written by CSVUtils.
 
                 // Each composition => one row
-                for (String compId : compWaveIntensity.keySet()) {
-                    Map<Double, Double> waveMap = compWaveIntensity.get(compId);
-                    // Get the specific element map for the row
-                    Map<String, Double> elemMap = compElementPcts.get(compId);
+                for (String compId : fetchedSpectralData.keySet()) {
+                    // Get the specific element maps for the row
+                    Map<String, Object> compSpectralData = (Map<String, Object>) fetchedSpectralData.get(compId);
+                    Map<Double, Double> waveMap = (Map<Double, Double>) compSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA);
+                    Map<String, Double> elemMap = (Map<String, Double>) compSpectralData.get(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_COMPOSITIONS);
+                    String gradeLabel = (String) compSpectralData.get(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME);
+                    String typeLabel = (String) compSpectralData.get(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE);
 
                     List<String> row = new ArrayList<>();
                     row.add(compId);
@@ -417,23 +407,10 @@ public class LIBSDataService {
                         row.add(String.valueOf(pct));
                     }
 
-                    // Add class label columns based on configuration
-                    // If user explicitly specified a class type, only add that specific column
-                    // Otherwise, add both material grade name and material type columns by default
-                    if (config.classLabelTypeExplicitlySet) {
-                        // User explicitly selected a class type
-                        if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
-                            // Add only the specific class column requested
-                            String classLabel = generateClassLabel(config.classLabelType, sourceMaterial, compId);
-                            row.add(classLabel);
-                        }
-                        // For composition percentages (type 1), no additional class column is needed
-                        // as the individual element columns serve as the class labels
-                    } else {
-                        // Default behavior: add both material columns
-                        String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial, compId);
-                        String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial, compId);
+                    if (gradeLabel != null) {
                         row.add(gradeLabel);
+                    }
+                    if (typeLabel != null) {
                         row.add(typeLabel);
                     }
 
@@ -447,13 +424,38 @@ public class LIBSDataService {
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Error writing master dataset CSV", e);
-        } finally {
-            // Clean up: close the browser session if it's still open
-            if (seleniumUtils.isDriverOnline()) {
-                seleniumUtils.quitSelenium();
-                logger.info("Browser session closed after processing all compositions");
-            }
         }
+    }
+
+    private List<String> buildHeader(UserInputConfig config, List<Double> sortedWaves, List<String> sortedSymbols) {
+        List<String> header = new ArrayList<>();
+        header.add("composition");
+        // Add wave columns
+        for (Double w : sortedWaves) {
+            header.add(String.valueOf(w));
+        }
+        // Add element columns
+        for (String sym : sortedSymbols) { // Now uses STD_ELEMENT_LIST
+            header.add(sym);
+        }
+
+        // Add class label columns based on configuration
+        // If user explicitly specified a class type, only add that specific column
+        // Otherwise, add both material grade name and material type columns by default
+        if (config.classLabelTypeExplicitlySet) {
+            // User explicitly selected a class type
+            if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                // Add only the specific class column requested
+                String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+                header.add(classLabelColumnName);
+            }
+            // For composition percentages (type 1), no additional class column is needed as the individual element columns serve as the class labels
+        } else {
+            // Default behavior: add both material columns
+            header.add(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME);
+            header.add(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE);
+        }
+        return header;
     }
 
     /**
@@ -493,18 +495,17 @@ public class LIBSDataService {
      */
     private String getClassLabelColumnName(ClassLabelType classLabelType) {
         return switch (classLabelType) {
-            case COMPOSITION_PERCENTAGE -> "class_composition_percentage";
-            case MATERIAL_GRADE_NAME -> "material_grade_name";
-            case MATERIAL_TYPE -> "material_type";
+            case MATERIAL_GRADE_NAME -> LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME;
+            case MATERIAL_TYPE -> LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE;
+            default -> throw new IllegalStateException("Unexpected value: " + classLabelType);
         };
     }
 
     /**
      * Generates the class label value for a given composition
      */
-    private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial, String compositionId) {
+    private String generateClassLabel(ClassLabelType classLabelType, MaterialGrade sourceMaterial) {
         return switch (classLabelType) {
-            case COMPOSITION_PERCENTAGE -> compositionId; // Use composition ID for multi-output regression
             case MATERIAL_GRADE_NAME -> {
                 if (sourceMaterial != null && sourceMaterial.getMaterialName() != null && !sourceMaterial.getMaterialName().isEmpty()) {
                     yield sourceMaterial.getMaterialName();
@@ -519,13 +520,14 @@ public class LIBSDataService {
                     yield "Unknown Type"; // Fallback for missing series information
                 }
             }
+            default -> throw new IllegalStateException("Unexpected value: " + classLabelType);
         };
     }
 
     /**
      * Converts series key to readable material type by replacing dots and underscores with spaces
      */
-    private String processSeriesKeyToMaterialType(String seriesKey) {
+    public String processSeriesKeyToMaterialType(String seriesKey) {
         if (seriesKey == null || seriesKey.equals(LIBSDataGenConstants.DIRECT_ENTRY)) {
             return "Direct Entry";
         }
@@ -533,245 +535,4 @@ public class LIBSDataService {
         // Convert dots and underscores to spaces
         return seriesKey.replace('.', ' ').replace('_', ' ');
     }
-    
-    /**
-     * Updates the resolution field in the recalculation form and clicks recalculate button
-     * @param seleniumUtils SeleniumUtils instance with active driver
-     * @param expectedResolution desired resolution value
-     * @throws Exception if unable to interact with form elements
-     */
-    private void performRecalculation(SeleniumUtils seleniumUtils, String expectedResolution, List<Element> composition, String remainderElement) throws Exception {
-        logger.info("Performing client-side recalculation with resolution: " + expectedResolution);
-
-        // Wait for the resolution input field to be present
-        WebElement resolutionInput = seleniumUtils.waitForElementPresent(
-            By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME)
-        );
-        
-        // Clear existing value and enter new resolution if there is mismatch
-        String currentResolution = String.valueOf(resolutionInput.getDomAttribute("value"));
-        if  (!currentResolution.equals(expectedResolution)) {
-            resolutionInput.clear();
-            resolutionInput.sendKeys(expectedResolution);
-            logger.info("Updated resolution field from " + currentResolution + " to: " + expectedResolution);
-        } else {
-            logger.info("Resolution already correct: " + currentResolution);
-        }
-        
-        // Find and click the Recalculate button
-        WebElement recalcButton = seleniumUtils.waitForElementClickable(
-            By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
-        );
-
-        recalcButton.click();
-        logger.info("Clicked Recalculate button for variation");
-
-        try {
-            // Wait for recalculation to complete
-            WebDriverWait wait = seleniumUtils.getWait(2);
-            wait.until(ExpectedConditions.alertIsPresent());
-
-            logger.info("Alert detected");
-            handleRecalculateAlert(seleniumUtils, composition, remainderElement);
-
-        } catch (TimeoutException e) {
-            // No alert appeared within 2 seconds. Assume success.
-            logger.info("No alert detected, proceeding to download.");
-        }
-
-        seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
-        logger.info("Recalculation completed");
-
-    }
-    
-    /**
-     * Updates element percentages in the recalculation form
-     * @param seleniumUtils SeleniumUtils instance with active driver
-     * @param elements list of elements with their percentages
-     * @throws Exception if unable to update form elements
-     */
-    private void updateElementPercentages(SeleniumUtils seleniumUtils, List<Element> elements) throws Exception {
-        logger.info("Updating element percentages in recalculation form");
-
-        // Create a map of element symbol to percentage for easy lookup
-        Map<String, Double> elementPercentageMap = new HashMap<>();
-        for (Element elem : elements) {
-            elementPercentageMap.put(elem.getSymbol(), elem.getPercentageComposition());
-        }
-
-        List<WebElement> elementInputLabels = seleniumUtils.getDriver().findElements(
-            By.xpath(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH)
-        );
-        List<WebElement> elementInputFields = seleniumUtils.getDriver().findElements(
-            By.xpath(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH)
-        );
-
-        // Update each percentage field based on matching element
-        for (int i = 0; i < elementInputFields.size(); i++) {
-            String elementSymbol = elementInputLabels.get(i).getText(); // Get the text from within the label element i.e., the Symbol
-
-            if (elementPercentageMap.containsKey(elementSymbol)) {
-                WebElement percentInput = elementInputFields.get(i);
-                percentInput.clear();
-                percentInput.sendKeys(String.valueOf(elementPercentageMap.get(elementSymbol)));
-                logger.fine("Updated " + elementSymbol + " to " + elementPercentageMap.get(elementSymbol) + "%");
-            }
-        }
-        
-        logger.info("Element percentages updated");
-    }
-    
-    /**
-     * Fetches LIBS data from an already-loaded NIST LIBS result page by updating composition and recalculating.
-     * This is used for compositional variations to avoid making new server requests.
-     * @param elements list of Elements in composition
-     * @param csvFilePath Csv save file path
-     * @param seleniumUtils SeleniumUtils instance with active driver on NIST LIBS result page
-     * @return csv data as string if successful; HTTP_NOT_FOUND (404) error status string if failure.
-     */
-    private String fetchLIBSDataFromLoadedPage(List<Element> elements, Path csvFilePath, SeleniumUtils seleniumUtils, String remainderElement) {
-        try {
-            // Update element percentages in the form
-            updateElementPercentages(seleniumUtils, elements);
-            
-            // Click recalculate button to trigger client-side recalculation
-            WebElement recalcButton = seleniumUtils.waitForElementClickable(
-                    By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
-            );
-            recalcButton.click();
-            logger.info("Clicked Recalculate button for variation");
-
-            try {
-                // Wait for recalculation to complete
-                WebDriverWait wait = seleniumUtils.getWait(2);
-                wait.until(ExpectedConditions.alertIsPresent());
-
-                logger.info("Alert detected");
-                handleRecalculateAlert(seleniumUtils, elements, remainderElement);
-
-            } catch (TimeoutException e) {
-                // No alert appeared within 2 seconds. Assume success.
-                logger.info("No alert detected, proceeding to download.");
-            }
-
-            seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
-            logger.info("Variation recalculation completed");
-
-            return downloadCsvData(seleniumUtils, elements, csvFilePath);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
-        }
-        return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
-    }
-
-    private String downloadCsvData(SeleniumUtils seleniumUtils, List<Element> elements, Path csvFilePath) {
-        String csvData = String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
-        try {
-            WebElement csvButton = seleniumUtils.getDriver()
-                    .findElement(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
-            csvButton.click();
-
-            // Switch to the new tab/window
-            String originalWindow = seleniumUtils.getDriver().getWindowHandle();
-            for (String windowHandle : seleniumUtils.getDriver().getWindowHandles()) {
-                if (!windowHandle.equals(originalWindow)) {
-                    seleniumUtils.getDriver().switchTo().window(windowHandle);
-                    break;
-                }
-            }
-
-            // Grab the CSV content (<pre> block in the page source)
-            csvData = seleniumUtils.getDriver().findElement(By.tagName("pre")).getText();
-
-            // Saving to CSV file
-            logger.info("Saving fetched LIBS data to: " + csvFilePath.toAbsolutePath()); // New log
-            Files.write(csvFilePath, csvData.getBytes());
-            // System.out.println("Saved: " + filename);
-            logger.info("Saved: " + csvFilePath); // Existing log, kept for consistency with potential existing log parsing
-
-            // Close the CSV tab
-            seleniumUtils.getDriver().close();
-            // Switch back to the original window
-            seleniumUtils.getDriver().switchTo().window(originalWindow);
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
-        }
-        return csvData;
-    }
-
-    private void handleRecalculateAlert(SeleniumUtils seleniumUtils, List<Element> composition, String remainderElement) {
-        try {
-            Alert alert = seleniumUtils.getDriver().switchTo().alert();
-            String alertText = alert.getText();
-            logger.warning("Alert text: " + alertText); // Example: ...Current value: 100.001
-            alert.accept();
-
-            String[] parts = alertText.split("Current value: ");
-            if (parts.length < 2) {
-                logger.severe("Unexpected alert format: " + alertText);
-                throw new RuntimeException("Unexpected alert format: " + alertText);
-            }
-            double delta = 100 - Double.parseDouble(parts[1]);
-
-            Element newRemainderElement = composition.getLast(); // TODO: Need to handle for coated cases using remainder element index instead of name
-            String old = newRemainderElement.toString();
-            newRemainderElement.updatePercentageComposition(delta);
-            logger.info("Updated " + old + " to " + newRemainderElement);
-
-            // Identify auto filled element
-            WebElement lastInput = seleniumUtils.getDriver().findElement(
-                    By.xpath(LIBSDataGenConstants.NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH+"[1]")
-            );
-            String id = lastInput.getAttribute("id"); // e.g., "perc25"
-            String number = id.replace("perc", "");
-            WebElement labelSpan = seleniumUtils.getDriver().findElement(By.id("elem" + number));
-
-            if (!labelSpan.getText().trim().equals(newRemainderElement.getSymbol())) {
-                logger.warning("Mismatch! DOM last element is " + labelSpan.getText()
-                        + " but Java remainder is " + newRemainderElement.getSymbol());
-                // TODO: reset or find the correct input field here -> but might not be relevant when getting rid of zero value elements with interpolation added
-            }
-
-            JavascriptExecutor js = (JavascriptExecutor) seleniumUtils.getDriver();
-            String liveValue = (String) js.executeScript("return arguments[0].value;", lastInput);
-
-            logger.info("Checked last input value: " + liveValue);
-
-            // TODO: Remove when interpolation is incorporated and zero-value elements are eliminated
-            // Check if it's non-zero (or equal to the delta) and reset
-            try {
-                double value = Double.parseDouble(liveValue);
-
-                // If the value is not 0 (meaning NIST JS autofilled it), reset it
-                if (Math.abs(value) > 0) {
-                    logger.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
-
-                    // Clear and set to 0
-                    lastInput.clear();
-                    lastInput.sendKeys("0");
-
-                    // Double check update with JS to ensure the event triggered
-                    js.executeScript("arguments[0].value = '0';", lastInput);
-                }
-            } catch (NumberFormatException e) {
-                logger.warning("Could not parse input value: " + liveValue);
-            }
-
-            // Pass only element with updated value and recalculate
-            List<Element> updatedElements = new  ArrayList<>();
-            updatedElements.add(newRemainderElement);
-            updateElementPercentages(seleniumUtils, updatedElements);
-
-            // Click recalculate button again
-            WebElement recalcButton = seleniumUtils.waitForElementClickable(
-                    By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
-            );
-            recalcButton.click();
-            logger.info("Clicked Recalculate button for variation after fixing composition.");
-
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Exception occurred when trying to handle alert box event.", e);
-        }
-    }
-
 }

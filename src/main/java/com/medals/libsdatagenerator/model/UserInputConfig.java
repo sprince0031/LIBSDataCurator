@@ -53,6 +53,7 @@ public class UserInputConfig {
     public final boolean appendMode;
     public final boolean forceFetch;
     public final boolean genStats;
+    private static boolean debugMode;
 
     /**
      * Constructs the configuration object by parsing the command-line arguments.
@@ -82,7 +83,14 @@ public class UserInputConfig {
         } else {
             this.seed = null;
         }
-        this.numDecimalPlaces = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT, "3"));
+        try {
+            this.numDecimalPlaces = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT, "3"));
+            if (this.numDecimalPlaces < 0) {
+                throw new IllegalArgumentException("Invalid number of decimal places. Must be a valid positive integer.");
+            }
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid number of decimal places. Must be a valid positive integer.", e);
+        }
         this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
         this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
 
@@ -104,6 +112,11 @@ public class UserInputConfig {
         this.appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
         this.forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
+        this.debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+    }
+
+    public static boolean debugModeEnabled() {
+        return debugMode;
     }
 
 }

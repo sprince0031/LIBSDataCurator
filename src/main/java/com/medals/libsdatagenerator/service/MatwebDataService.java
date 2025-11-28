@@ -3,20 +3,16 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.util.CommonUtils;
+import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
-import org.json.JSONArray;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -49,7 +45,7 @@ public class MatwebDataService {
         return CommonUtils.getInstance().getArchivedWebpageUrl(datasheetUrl);
     }
 
-    public String[] getMaterialComposition(String guid) {
+    public List<String> getMaterialComposition(String guid) {
         try {
             HashMap<String, String> queryParams = new HashMap<>();
             queryParams.put(LIBSDataGenConstants.MATWEB_DATASHEET_PARAM_GUID, guid);
@@ -73,7 +69,7 @@ public class MatwebDataService {
         } finally {
             seleniumUtils.quitSelenium();
         }
-        return new String[] { String.valueOf(HttpURLConnection.HTTP_NOT_FOUND) };
+        return List.of(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND));
     }
 
     /**
@@ -285,9 +281,9 @@ public class MatwebDataService {
         }
     }
 
-    private String[] parseCompositionData(List<String> elementList, List<String> compositionList,
+    private List<String> parseCompositionData(List<String> elementList, List<String> compositionList,
                                           List<String> comments) {
-        String[] parsedElementString = new String[elementList.size()];
+        List<String> parsedElementString = new ArrayList<>();
         boolean hasRemainderElement = false;
         int maxIndex = -1;
         double maxPercentage = -1.0;
@@ -335,8 +331,14 @@ public class MatwebDataService {
                 // Treat as a fixed point: min = X, max = X
                 parsedCompositionValue = composition.trim() + ":" + composition.trim();
             }
-            
-            parsedElementString[i] = element + "-" + parsedCompositionValue;
+
+            // TODO: Handle "ele1+ele2" cases where there is a combined %
+            // Filter out invalid element entries like "other", "Si+Fe" (for now), etc.
+            if (PeriodicTable.isValidElement(element)) {
+                parsedElementString.add(element + "-" + parsedCompositionValue);
+            } else {
+                logger.warning("Invalid composition value: " + parsedCompositionValue + " - skipping...");
+            }
             
             // Track the element with the highest percentage for auto-remainder detection
             if (!hasRemainderElement) {
@@ -350,8 +352,8 @@ public class MatwebDataService {
 
         // If no remainder element was found, automatically mark the element with the highest percentage
         if (!hasRemainderElement && maxIndex >= 0) {
-            parsedElementString[maxIndex] += "-#";
-            logger.info("Automatically marked element " + parsedElementString[maxIndex].split("-")[0]
+            parsedElementString.set(maxIndex, parsedElementString.get(maxIndex) + "-#");
+            logger.info("Automatically marked element " + parsedElementString.get(maxIndex).split("-")[0]
                     + " as remainder (highest percentage: " + maxPercentage + "%)");
         }
 
@@ -361,17 +363,17 @@ public class MatwebDataService {
     /**
      * Utility method to check for validity of matweb service output
      */
-    public boolean validateMatwebServiceOutput(String[] compositionArray, String guid) {
-        if (compositionArray == null || compositionArray.length == 0) {
+    public boolean validateMatwebServiceOutput(List<String> compositionArray, String guid) {
+        if (compositionArray == null || compositionArray.isEmpty()) {
             logger.warning("Failed to fetch composition (null or empty array) for material GUID: " + guid + ". Skipping this material.");
             return false;
         }
-        if (compositionArray.length == 1) {
-            if (compositionArray[0].equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+        if (compositionArray.size() == 1) {
+            if (compositionArray.getFirst().equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
                 logger.warning("Material GUID: " + guid + " not found (404) on MatWeb. Skipping this material.");
                 return false;
             }
-            if (compositionArray[0].equals(String.valueOf(HttpURLConnection.HTTP_INTERNAL_ERROR))) {
+            if (compositionArray.getFirst().equals(String.valueOf(HttpURLConnection.HTTP_INTERNAL_ERROR))) {
                 logger.warning("MatWeb internal server error (500) for material GUID: " + guid + ". Skipping this material.");
                 return false;
             }

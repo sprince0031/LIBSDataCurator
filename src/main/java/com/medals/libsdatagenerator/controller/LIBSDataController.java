@@ -61,6 +61,7 @@ public class LIBSDataController {
                 // Process input for -s (series) option
                 logger.info("Processing with -s (series) option.");
                 materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput, userInputs.numDecimalPlaces);
+                System.out.println("\n--Finished fetching material grade compositions from Matweb--");
             }
 
             if (userInputs.isCompositionMode) {
@@ -71,39 +72,7 @@ public class LIBSDataController {
 
             // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler
 
-            for (MaterialGrade materialGrade : materialGrades) {
-                if (userInputs.performVariations) {
-                    VariationMode variationMode = userInputs.variationMode;
-                    if (variationMode == VariationMode.DIRICHLET) {
-                        if (materialGrade.getParentSeries().getOverviewGuid() == null) {
-                            logger.severe("Overview GUID not present for Dirichlet sampling for "
-                                    + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
-                            continue;
-                        }
-                    }
-
-                    List<List<Element>> compositions = CompositionalVariations.getInstance()
-                            .generateCompositionalVariations(materialGrade, userInputs);
-
-                    if (compositions != null && !compositions.isEmpty()) {
-                        // Apply coating to all variations of material if this is a coated series
-                        if (materialGrade.getParentSeries().isCoated()) {
-                            SeriesInput series = materialGrade.getParentSeries();
-                            compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
-                                    series.getCoatingElement(), userInputs.scaleCoating);
-                        }
-                        libsDataService.generateDataset(compositions, userInputs, materialGrade);
-                        logger.info("Successfully generated dataset for composition: " + materialGrade);
-                    } else {
-                        logger.warning("No compositions generated for input: " + materialGrade);
-                    }
-
-                } else {
-                    // This is the original non-variation path for -c
-                    String csvPath = libsDataService.fetchLIBSData(materialGrade.getComposition(), userInputs, materialGrade.getRemainderElement());
-                    logger.info("Successfully fetched LIBS data for composition: " + materialGrade + " and saved to path: " + csvPath);
-                }
-            }
+            libsDataService.generateDataset(materialGrades, userInputs);
 
             // After dataset generation, calculate statistics if requested
             if (userInputs.genStats) {
@@ -114,7 +83,7 @@ public class LIBSDataController {
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Exception occurred!", e);
-            System.out.println("Error occurred: " + e);
+            System.out.println("Could not process request. Please check logs for details or try again.");
         }
 
     }

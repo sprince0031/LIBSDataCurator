@@ -222,6 +222,12 @@ public class CommonUtils {
                 false,
                 LIBSDataGenConstants.CMD_OPT_GEN_STATS_DESC);
 
+        // Activate debug mode
+        options.addOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_DESC);
+
         // RNG Seed
         options.addOption(LIBSDataGenConstants.CMD_OPT_SEED_SHORT,
                 LIBSDataGenConstants.CMD_OPT_SEED_LONG,
@@ -334,12 +340,13 @@ public class CommonUtils {
         if (!Files.exists(compositionDirPath)) {
             Files.createDirectories(compositionDirPath);
         }
+        // Build a string like "Cu-50;Fe-50" for cross-platform compatible filename
         String compositionId = buildCompositionStringForFilename(composition);
         String compositionFileName = "composition_" + compositionId + ".csv";
         return Paths.get(compositionDirPath.toString(), compositionFileName);
     }
 
-    /**
+    /** TODO: refactor to SeleniumUtils and use wait() with timeout for reachability
      * Testing if the target website is reachable
      *
      * @return boolean - True if website live, false otherwise

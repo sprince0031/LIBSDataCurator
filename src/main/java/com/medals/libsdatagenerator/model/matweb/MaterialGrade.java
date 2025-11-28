@@ -15,7 +15,7 @@ public class MaterialGrade {
     private static final Logger logger = Logger.getLogger(MaterialGrade.class.getName());
 
     private List<Element> composition;
-    private String remainingElement;
+    private Integer remainderElementIdx;
     private String matGUID;
     private String materialName;
     private String[] materialAttributes;
@@ -27,7 +27,7 @@ public class MaterialGrade {
         this.ParentSeries = ParentSeries;
         this.materialAttributes = null;
         this.materialName = null;
-        this.remainingElement = null;
+        this.remainderElementIdx = null;
     }
 
     public List<Element> getComposition() {
@@ -70,12 +70,12 @@ public class MaterialGrade {
         this.ParentSeries = parentSeries;
     }
 
-    public String getRemainderElement() {
-        return remainingElement;
+    public Integer getRemainderElementIdx() {
+        return remainderElementIdx;
     }
 
-    public void setRemainderElement(String remainingElement) {
-        this.remainingElement = remainingElement;
+    public void setRemainderElementIdx(Integer remainingElementIdx) {
+        this.remainderElementIdx = remainingElementIdx;
     }
 
     @Override

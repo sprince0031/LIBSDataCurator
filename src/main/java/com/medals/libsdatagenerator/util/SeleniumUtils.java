@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import org.apache.http.client.utils.URIBuilder;
 import org.openqa.selenium.UnexpectedAlertBehaviour;
 import org.openqa.selenium.WebDriver;
@@ -34,7 +35,9 @@ public class SeleniumUtils {
 
     public SeleniumUtils() {
         options = new ChromeOptions();
-        options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+        if (!UserInputConfig.debugModeEnabled()) {
+            options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+        }
 
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Added to not let Selenium ignore alert prompts
     }
@@ -69,7 +72,6 @@ public class SeleniumUtils {
      * Connects to the url provided
      * @param url Base URL string
      * @return True if connection established, false otherwise
-     * @throws URISyntaxException
      */
     public boolean connectToWebsite(String url) {
         if (!isDriverOnline) {
