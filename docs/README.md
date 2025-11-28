@@ -13,16 +13,16 @@ LIBS Data Curator enables systematic generation of synthetic spectral data for a
 
 Download the latest version from [GitHub Releases](https://github.com/sprince0031/LIBSDataCurator/releases/latest):
 
-- **Linux/macOS**: `LIBSDataCurator-0.8.9-linux.tar.gz`
-- **Windows**: `LIBSDataCurator-0.8.9-windows.zip`
+- **Linux/macOS**: `LIBSDataCurator-0.9.0-linux.tar.gz`
+- **Windows**: `LIBSDataCurator-0.9.0-windows.zip`
 
 ### Installation
 
 #### Linux/macOS
 ```bash
 # Download and extract
-tar -xzf LIBSDataCurator-0.8.9-linux.tar.gz
-cd LIBSDataCurator-0.8.9/
+tar -xzf LIBSDataCurator-0.9.0-linux.tar.gz
+cd LIBSDataCurator-0.9.0/
 
 # Run the application
 ./bin/run.sh [options]
@@ -47,6 +47,13 @@ bin\run.bat [options]
 - Maven 3.6 or higher
 
 ## Latest Changes
+
+### [0.9.0] - 2025-11-28
+- **New**: Client-side recalculation for NIST LIBS data - compositional variations are now recalculated in browser instead of making individual server requests, significantly improving performance
+- **New**: Decimal places option (`-nd, --num-decimal-places`) to control precision of composition percentage values
+- **New**: Debug mode (`-d, --debug`) to visualize Selenium browser execution for troubleshooting
+- **Fixed**: Wavelength unit default now correctly set to Nanometers instead of Angstrom (issue #74)
+- **Changed**: Default wavelength range updated to 240-420 nm for more focused spectral analysis
 
 ### [0.8.9] - 2025-10-12
 - **New**: Dataset statistics generation with `-gs, --gen-stats` option for automatic calculation of mean, standard deviation and element-wise distribution; saved to `data/dataset_stats.json`
@@ -92,8 +99,8 @@ bin\run.bat [options]
 
 **Basic Options:**
 - `-c, --composition`: Material composition (e.g., "Fe-80,C-20") or MatWeb GUID
-- `--min-wavelength`: Minimum wavelength in nm (default: 200)
-- `--max-wavelength`: Maximum wavelength in nm (default: 800)
+- `--min-wavelength`: Minimum wavelength in nm (default: 240)
+- `--max-wavelength`: Maximum wavelength in nm (default: 420)
 - `-o, --output`: Output directory path
 - `-s, --series`: Process steel series from materials catalogue
 
@@ -102,12 +109,13 @@ bin\run.bat [options]
 - `-n, --num-samples`: Number of compositional variations (default: 20)
 - `--max-delta`: Maximum variation limit (default: 2.0)
 - `-vm, --variation-mode`: Sampling mode (1: Dirichlet, 2: Gaussian)
+- `-nd, --num-decimal-places`: Number of decimal places for composition percentages (default: 3)
 
 **Advanced NIST LIBS Parameters:**
 - `--resolution`: Wavelength resolution (default: 1000)
 - `--plasma-temperature`: Plasma temperature in eV (default: 1)
 - `--electron-density`: Electron density in cm^-3 (default: 1e17)
-- `--wavelength-unit`: Unit (1: Angstrom, 2: Nanometer, 3: Micrometer)
+- `--wavelength-unit`: Unit (1: Angstrom, 2: Nanometer (default), 3: Micrometer)
 - `--wavelength-condition`: Measurement condition (1: Mixed, 2: Vacuum)
 - `--max-ion-charge`: Maximum ion charge (1: No limit, 2: 2+, 3: 3+, 4: 4+)
 - `--min-relative-intensity`: Minimum intensity (1: No limit, 2: 0.1, 3: 0.01, 4: 0.001)
@@ -122,6 +130,10 @@ bin\run.bat [options]
 
 **Materials Processing Options:**
 - `-sc, --scale-coating`: Scale down all elements proportionally when applying coating percentages (default: subtract from dominant element)
+
+**Debugging Options:**
+- `-d, --debug`: Run with visible browser for troubleshooting Selenium workflows
+- `-sd, --seed`: Seed for samplers to ensure reproducibility
 
 ### Class Label Types
 

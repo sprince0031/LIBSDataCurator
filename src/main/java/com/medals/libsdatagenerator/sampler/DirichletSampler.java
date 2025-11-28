@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class DirichletSampler implements Sampler {
@@ -37,8 +38,7 @@ public class DirichletSampler implements Sampler {
      * @param variations List to store generated variations
      */
     @Override
-    public void sample(MaterialGrade baseMaterialGrade, int numSamples,
-                       List<List<Element>> variations, Long seed) {
+    public void sample(MaterialGrade baseMaterialGrade, int numSamples, List<List<Element>> variations, Long seed) {
 
         List<Element> baseComp = baseMaterialGrade.getComposition();
         
@@ -55,6 +55,7 @@ public class DirichletSampler implements Sampler {
 
         ConcentrationParameterEstimator parameterEstimator = new ConcentrationParameterEstimator();
 
+        // TODO: Shift method invocation to once per series and not once per material grade within a series
         // Get series statistics from overview sheet
         SeriesStatistics seriesStats = MatwebDataService.getInstance().getSeriesStatistics(overviewGuid);
         if (seriesStats == null) {
@@ -126,7 +127,7 @@ public class DirichletSampler implements Sampler {
                 }
 
             } catch (Exception e) {
-                logger.warning("Error generating Dirichlet sample: " + e.getMessage());
+                logger.log(Level.WARNING, "Error generating Dirichlet sample: ", e);
             }
         }
 

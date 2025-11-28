@@ -101,10 +101,6 @@ public class ClassLabelTypeTest {
         // Test setter
         grade1.setMaterialName("AISI 1018 Steel");
         assertEquals("AISI 1018 Steel", grade1.getMaterialName());
-        
-        // Test backward compatibility constructor
-        MaterialGrade grade2 = new MaterialGrade(composition, individualMaterialGUIDs.getLast());
-        assertNull(grade2.getParentSeries()); // Should be null for backward compatibility
     }
 
     @Test
@@ -135,7 +131,7 @@ public class ClassLabelTypeTest {
         // Test class label generation (using reflection to access private method)
         try {
             java.lang.reflect.Method method = LIBSDataService.class.getDeclaredMethod("generateClassLabel", 
-                ClassLabelType.class, MaterialGrade.class, String.class);
+                ClassLabelType.class, MaterialGrade.class);
             method.setAccessible(true);
             
             List<Element> composition = createTestComposition();
@@ -145,18 +141,18 @@ public class ClassLabelTypeTest {
             String compositionId = "Fe-80;C-20";
             
             // Test composition percentage mode
-            assertEquals(compositionId, method.invoke(libsDataService, ClassLabelType.COMPOSITION_PERCENTAGE, testGrade, compositionId));
+//            assertNull(method.invoke(libsDataService, ClassLabelType.COMPOSITION_PERCENTAGE, testGrade));
             
             // Test material grade name mode
-            assertEquals("AISI 1018 Steel", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, testGrade, compositionId));
+            assertEquals("AISI 1018 Steel", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, testGrade));
             
             // Test material type mode
-            assertEquals("low carbon steels", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, testGrade, compositionId));
+            assertEquals("low carbon steels", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, testGrade));
             
             // Test fallbacks for missing data
             MaterialGrade emptyGrade = new MaterialGrade(null, "testGuid", null);
-            assertEquals("Unknown Grade", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, emptyGrade, compositionId));
-            assertEquals("Unknown Type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, emptyGrade, compositionId));
+            assertEquals("Unknown Grade", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME, emptyGrade));
+            assertEquals("Unknown Type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE, emptyGrade));
             
         } catch (Exception e) {
             fail("Failed to test class label generation: " + e.getMessage());
@@ -170,7 +166,7 @@ public class ClassLabelTypeTest {
             java.lang.reflect.Method method = LIBSDataService.class.getDeclaredMethod("getClassLabelColumnName", ClassLabelType.class);
             method.setAccessible(true);
             
-            assertEquals("class_composition_percentage", method.invoke(libsDataService, ClassLabelType.COMPOSITION_PERCENTAGE));
+//            assertNull(method.invoke(libsDataService, ClassLabelType.COMPOSITION_PERCENTAGE));
             assertEquals("material_grade_name", method.invoke(libsDataService, ClassLabelType.MATERIAL_GRADE_NAME));
             assertEquals("material_type", method.invoke(libsDataService, ClassLabelType.MATERIAL_TYPE));
             

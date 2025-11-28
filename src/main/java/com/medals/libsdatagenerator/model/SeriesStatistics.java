@@ -95,6 +95,7 @@ public class SeriesStatistics {
         }
 
         // Check that total percentage is reasonable (between 95% and 105% to allow for rounding)
+        // TODO: Overview sheet for Cu Alloy has too many elements resulting in a combined total of 208.30%
         double totalPercentage = getTotalAveragePercentage();
         if (totalPercentage < 95.0 || totalPercentage > 105.0) {
             return false;
