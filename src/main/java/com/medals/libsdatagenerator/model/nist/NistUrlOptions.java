@@ -21,7 +21,7 @@ public class NistUrlOptions {
 
     public enum WavelengthUnit implements UserSelectable {
         ANGSTROM(1, "0", "Å"),
-        NANOMETER(2, "1", "Nm"), // Default
+        NANOMETER(2, "1", "nm"), // Default
         MICROMETER(3, "2", "µm");
 
         private final int userOption;

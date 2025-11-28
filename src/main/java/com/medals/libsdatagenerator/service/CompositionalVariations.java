@@ -20,7 +20,7 @@ public class CompositionalVariations {
     private final Logger logger = Logger.getLogger(CompositionalVariations.class.getName());
     private static CompositionalVariations instance = null;
     private final CommonUtils commonUtils;
-    private static final double POST_NORM_CHECK_DELTA = 0.0001;
+    public static final double POST_NORM_CHECK_DELTA = 0.0001;
     private static final double FINAL_SUM_TOLERANCE = 0.1;
 
     public CompositionalVariations() {
@@ -80,12 +80,10 @@ public class CompositionalVariations {
         int numVariationsToGenerate = Math.max(0, config.numSamples - 1);
 
         if (config.variationMode == VariationMode.GAUSSIAN) {
-            GaussianSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
+            GaussianSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions, config.seed);
 
         } else if (config.variationMode == VariationMode.DIRICHLET) {
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("overviewGuid", materialGrade.getParentSeries().getOverviewGuid());
-            DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions);
+            DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions, config.seed);
 
         } else { // For uniform distribution
             // Start backtracking with an empty "current combo" and a running sum of 0

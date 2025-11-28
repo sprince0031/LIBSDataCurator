@@ -114,10 +114,10 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_FORCE_FETCH_LONG = "force-fetch";
     public static final String CMD_OPT_FORCE_FETCH_DESC = "Will force re-downloading of individual spectrum data " +
             "for every composition even if data is available locally in the /data directory.";
-    public static final String CMD_OPT_SCALE_COATING_SHORT = "sc";
-    public static final String CMD_OPT_SCALE_COATING_LONG = "scale-coating";
+    public static final String CMD_OPT_SCALE_COATING_SHORT = "dsc";
+    public static final String CMD_OPT_SCALE_COATING_LONG = "dont-scale-coating";
     public static final String CMD_OPT_SCALE_COATING_DESC = "Will scale down all other elements in the composition rather " +
-            "than subtracting the coating element percentage from the dominant element's percentage. Disabled by default.";
+            "than subtracting the coating element percentage from the dominant element's percentage by default. Include flag to disable.";
     @Deprecated
     public static final String CMD_OPT_VARY_BY_SHORT = "vb";
     @Deprecated
@@ -155,15 +155,21 @@ public class LIBSDataGenConstants {
             
             3 -> Material type - multi-class classification with broader material categories (e.g., Carbon steel)\
             """;
-
     public static final String CMD_OPT_SERIES_SHORT = "s";
     public static final String CMD_OPT_SERIES_LONG = "series";
     public static final String CMD_OPT_SERIES_DESC = "Specify a steel series key, a comma-separated list of series keys (e.g., 'key1,key2'), or no argument to process all series from the properties file.";
-
     public static final String CMD_OPT_GEN_STATS_SHORT = "gs";
     public static final String CMD_OPT_GEN_STATS_LONG = "gen-stats";
     public static final String CMD_OPT_GEN_STATS_DESC = "Generate and save statistics (mean, std dev) for the dataset.";
-
+    public static final String CMD_OPT_SEED_SHORT = "sd";
+    public static final String CMD_OPT_SEED_LONG = "seed";
+    public static final String CMD_OPT_SEED_DESC = "Seed for the samplers to ensure reproducibility.";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_SHORT = "nd";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_LONG = "num-decimal-places";
+    public static final String CMD_OPT_DEBUG_MODE_SHORT = "d";
+    public static final String CMD_OPT_DEBUG_MODE_LONG = "debug";
+    public static final String CMD_OPT_DEBUG_MODE_DESC = "Run tool in debug mode to see selenium browser execution.";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
     public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
@@ -193,6 +199,12 @@ public class LIBSDataGenConstants {
     public static final String NIST_LIBS_QUERY_PARAM_LIBS = "libs";
 
     public static final String NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT = "ViewDataCSV";
+    
+    // HTML element selectors for recalculation form
+    public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
+    public static final String NIST_LIBS_RECALC_BUTTON_NAME = "recalc";
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";  // For element percentage input field labels
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";  // For element percentage input fields
 
     /**
      * #### Matweb Constants ####
@@ -219,11 +231,18 @@ public class LIBSDataGenConstants {
     public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
     public static final String COATED_SERIES_KEY_PATTERN = "([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.coated\\.(.*?)";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
+    public static final String CSV_HEADER_MATERIAL_GRADE_NAME = "material_grade_name"; // Multi-class target column name
+    public static final String CSV_HEADER_MATERIAL_TYPE = "material_type"; // Super class target column name
+    public static final String REMAINDER_ELEMENT_IDX = "remainderElementIndex"; // Used in element list generation.
+    public static final String ELEMENTS_LIST = "elementsList"; // Used in element list generation.
+    public static final String SPECTRAL_DATA_MAP_KEY_SPECTRA = "spectra";
+    public static final String SPECTRAL_DATA_MAP_KEY_COMPOSITIONS = "compositions";
+    public static final String SPECTRAL_DATA_MAP_KEY_WAVELENGTHS = "wavelengths";
 
     public static final String[] STD_ELEMENT_LIST = {
-            "C", "Si", "Mn", "P", "S", "Cu", "Al", "Cr", "Mo", "Ni", "V",
+            "C", "Si", "Mn", "P", "S", "Cr", "Mo", "Ni", "Fe", "Cu", "Al", "V",
             "Ti", "Nb", "Co", "W", "Sn", "Pb", "B", "As", "Zr", "Bi", "Cd",
-            "Se", "Fe", "Zn", "N"
+            "Se", "Zn"//, "N"
     };
 
     // Fallback to use if Gaussian sampling chosen over Dirichlet sampling.

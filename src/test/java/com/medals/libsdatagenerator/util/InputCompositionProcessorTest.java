@@ -4,7 +4,6 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
-import com.medals.libsdatagenerator.service.MatwebDataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.AfterEach;
@@ -130,7 +129,7 @@ class InputCompositionProcessorTest {
     @Test
     void testGetMaterial_withCompositionString_overviewGuid() throws IOException {
         String overviewGuid = "12345678901234567890123456789012";
-        MaterialGrade result = processor.getMaterial("Fe-80,C-20", overviewGuid);
+        MaterialGrade result = processor.getMaterial("Fe-80,C-20", overviewGuid, 3);
         
         assertNotNull(result);
 

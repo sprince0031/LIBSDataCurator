@@ -39,3 +39,4 @@ jre-custom/
 release-package/
 LIBSDataCurator-*.tar.gz
 LIBSDataCurator-*.zip
+**/StatsUtil.java
