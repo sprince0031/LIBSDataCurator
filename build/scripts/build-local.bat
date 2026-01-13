@@ -189,6 +189,18 @@ echo echo Starting LIBSDataCurator...
 echo "%%JAVA_HOME%%\bin\java.exe" "%%JAVA_OPT1%%" "%%JAVA_OPT2%%" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
 ) > build\release-package\bin\run.bat
 
+REM Create calibrate script for instrument profile generation
+(
+echo @echo off
+echo REM LIBS Instrument Profile Calibration Script
+echo REM Generates instrument profile from real LIBS measurement data.
+echo setlocal enabledelayedexpansion
+echo set "SCRIPT_DIR=%%~dp0"
+echo set "MAIN_DIR=%%SCRIPT_DIR%%.."
+echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
+echo "%%JAVA_HOME%%\bin\java.exe" -cp "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" com.medals.libsdatagenerator.controller.InstrumentProfileController %%*
+) > build\release-package\bin\calibrate.bat
+
 REM Create README
 (
 echo LIBSDataCurator %VERSION%
@@ -208,6 +220,12 @@ echo The application includes its own JRE, so you don't need Java installed on y
 echo.
 echo For help with command line arguments:
 echo bin\run.bat --help
+echo.
+echo Instrument Profile Calibration:
+echo bin\calibrate.bat -i ^<sample_csv^> -c ^<composition^> [-o ^<output^>] [-n ^<name^>]
+echo.
+echo For calibration help:
+echo bin\calibrate.bat --help
 ) > build\release-package\README.txt
 
 echo.
