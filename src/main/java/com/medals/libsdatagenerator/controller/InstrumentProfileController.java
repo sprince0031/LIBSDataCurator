@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.*;
 
 import java.io.File;
@@ -44,6 +45,8 @@ public class InstrumentProfileController {
     private static final String CMD_OPT_HELP_LONG = "help";
     private static final String CMD_OPT_HELP_DESC = "Show this help message";
 
+    private static String outputDir = CommonUtils.HOME_PATH + File.separator + ".." + File.separator + "conf";
+
     public static void main(String[] args) {
         logger.info("Starting LIBS Instrument Profile Calibration...");
         
@@ -57,7 +60,7 @@ public class InstrumentProfileController {
             // Get input parameters
             String inputPath = cmd.getOptionValue(CMD_OPT_INPUT_SHORT);
             String composition = cmd.getOptionValue(CMD_OPT_COMPOSITION_SHORT);
-            String outputPath = cmd.getOptionValue(CMD_OPT_OUTPUT_SHORT, "instrument_profile.json");
+            String outputPath = cmd.getOptionValue(CMD_OPT_OUTPUT_SHORT,  outputDir + File.separator + "instrument_profile.json");
             String instrumentName = cmd.getOptionValue(CMD_OPT_NAME_SHORT, "Unknown");
             
             // Validate input file exists

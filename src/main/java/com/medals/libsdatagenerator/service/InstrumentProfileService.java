@@ -121,7 +121,7 @@ public class InstrumentProfileService {
                 throw new IOException("Empty CSV file");
             }
             
-            String[] headers = headerLine.split(",");
+            String[] headers = headerLine.split(";");
             for (String header : headers) {
                 String trimmed = header.trim().replaceAll("\"", "");
                 try {
@@ -154,7 +154,7 @@ public class InstrumentProfileService {
         List<double[]> spectra = new ArrayList<>();
         
         try (BufferedReader reader = Files.newBufferedReader(csvPath);
-             CSVParser parser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader)) {
+             CSVParser parser = CSVFormat.DEFAULT.withDelimiter(';').withFirstRecordAsHeader().parse(reader)) {
             
             // Identify wavelength columns
             Map<String, Integer> headerMap = parser.getHeaderMap();

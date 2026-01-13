@@ -34,9 +34,9 @@ public class InstrumentProfileServiceTest {
     @Test
     void testExtractWavelengthGrid() throws IOException {
         // Create a sample CSV with wavelength headers
-        String csvContent = "Shot,250.5,251.0,251.5,252.0,252.5,Label\n" +
-                "1,100.5,120.3,130.2,110.8,105.1,Sample1\n" +
-                "2,105.2,122.1,128.9,112.3,106.7,Sample2\n";
+        String csvContent = "Shot;250.5;251.0;251.5;252.0;252.5;Label\n" +
+                "1;100.5;120.3;130.2;110.8;105.1;Sample1\n" +
+                "2;105.2;122.1;128.9;112.3;106.7;Sample2\n";
         
         Path csvPath = tempDir.resolve("sample_spectra.csv");
         Files.writeString(csvPath, csvContent);
@@ -52,8 +52,8 @@ public class InstrumentProfileServiceTest {
     @Test
     void testExtractWavelengthGridFiltersNonNumeric() throws IOException {
         // CSV with mixed numeric and non-numeric headers
-        String csvContent = "ID,Name,300.0,350.0,400.0,Type\n" +
-                "1,Sample1,50.0,60.0,70.0,A\n";
+        String csvContent = "ID;Name;300.0;350.0;400.0;Type\n" +
+                "1;Sample1;50.0;60.0;70.0;A\n";
         
         Path csvPath = tempDir.resolve("mixed_headers.csv");
         Files.writeString(csvPath, csvContent);
@@ -70,8 +70,8 @@ public class InstrumentProfileServiceTest {
     @Test
     void testExtractWavelengthGridFiltersOutOfRange() throws IOException {
         // CSV with some wavelengths outside typical LIBS range
-        String csvContent = "50.0,250.0,500.0,1500.0\n" +
-                "10,100,200,300\n";
+        String csvContent = "50.0;250.0;500.0;1500.0\n" +
+                "10;100;200;300\n";
         
         Path csvPath = tempDir.resolve("range_test.csv");
         Files.writeString(csvPath, csvContent);
@@ -114,10 +114,10 @@ public class InstrumentProfileServiceTest {
 
     @Test
     void testExtractMeasuredSpectra() throws IOException {
-        String csvContent = "250.0,300.0,350.0\n" +
-                "100.0,150.0,200.0\n" +
-                "110.0,160.0,210.0\n" +
-                "120.0,170.0,220.0\n";
+        String csvContent = "250.0;300.0;350.0\n" +
+                "100.0;150.0;200.0\n" +
+                "110.0;160.0;210.0\n" +
+                "120.0;170.0;220.0\n";
         
         Path csvPath = tempDir.resolve("spectra.csv");
         Files.writeString(csvPath, csvContent);
@@ -134,11 +134,11 @@ public class InstrumentProfileServiceTest {
     void testGenerateProfileCreatesValidProfile() throws IOException {
         // Create a more realistic sample CSV
         StringBuilder csvBuilder = new StringBuilder();
-        csvBuilder.append("Shot,250.0,260.0,270.0,280.0,290.0,300.0,310.0,320.0\n");
+        csvBuilder.append("Shot;250.0;260.0;270.0;280.0;290.0;300.0;310.0;320.0\n");
         for (int i = 1; i <= 10; i++) {
             csvBuilder.append(i);
             for (int j = 0; j < 8; j++) {
-                csvBuilder.append(",").append(100 + Math.random() * 50);
+                csvBuilder.append(";").append(100 + Math.random() * 50);
             }
             csvBuilder.append("\n");
         }
