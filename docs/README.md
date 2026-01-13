@@ -135,6 +135,42 @@ bin\run.bat [options]
 - `-d, --debug`: Run with visible browser for troubleshooting Selenium workflows
 - `-sd, --seed`: Seed for samplers to ensure reproducibility
 
+### Instrument Profile Calibration
+
+The calibration mode generates an instrument profile from real LIBS measurement data. This profile contains the wavelength grid and two-zone plasma parameters (Te, Ne for hot core and cool periphery) optimized to match your instrument's characteristics.
+
+```bash
+# Generate instrument profile from sample measurements
+./bin/calibrate.sh -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5"
+
+# With custom output path and instrument name
+./bin/calibrate.sh -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5" \
+    -o my_instrument_profile.json -n "Ocean Optics HR2000"
+
+# Windows
+bin\calibrate.bat -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5"
+```
+
+**Calibration Options:**
+- `-i, --input`: Path to sample LIBS measurement CSV file (required)
+- `-c, --composition`: Exact composition of reference material (required)
+- `-o, --output`: Output path for profile JSON (default: instrument_profile.json)
+- `-n, --name`: Instrument name/identifier
+
+**Input CSV Format:**
+- Column headers should contain wavelength values (in nm)
+- Each row represents one measurement shot
+- Non-numeric columns (e.g., "Shot", "ID") are ignored
+
+**Output Profile:**
+The generated JSON profile contains:
+- Wavelength grid extracted from your instrument
+- Two-zone plasma parameters:
+  - Hot core: Higher temperature/density zone
+  - Cool periphery: Lower temperature/density zone
+- Fit quality metrics (R-squared, RMSE)
+- Future enhancements placeholders for Voigt profile support
+
 ### Class Label Types
 
 The tool supports different class label formats for machine learning applications:

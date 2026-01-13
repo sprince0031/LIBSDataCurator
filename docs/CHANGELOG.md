@@ -5,6 +5,20 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Instrument Profile Calibration Mode**: New standalone calibration tool to generate instrument profiles from real LIBS measurement data (issue #84)
+  - Extract wavelength grid from instrument sample CSV headers
+  - Two-zone plasma parameter optimization (Te, Ne for hot core and cool periphery)
+  - Nelder-Mead optimization algorithm to match synthetic spectrum to measured data
+  - JSON output format with metadata, wavelength grid, plasma parameters, and fit quality metrics
+  - `./bin/calibrate.sh` (Linux/macOS) and `bin\calibrate.bat` (Windows) scripts
+  - Future enhancement placeholders for Voigt profile and n-zone support
+- **InstrumentProfile Model**: New model class for storing instrument calibration data
+- **InstrumentProfileService**: Service for wavelength extraction, spectrum averaging, and plasma parameter optimization
+- **InstrumentProfileController**: Standalone entry point for calibration mode with CLI support
+
 ## [0.9.0] - 2025-11-28
 
 ### Added

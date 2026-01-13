@@ -42,6 +42,9 @@ public class InstrumentProfileService {
     // Optimization settings
     private static final int MAX_EVALUATIONS = 5000;
     private static final double CONVERGENCE_THRESHOLD = 1e-6;
+    
+    // Default number of decimal places for composition percentages
+    private static final int DEFAULT_DECIMAL_PLACES = 3;
 
     private static InstrumentProfileService instance = null;
 
@@ -183,7 +186,8 @@ public class InstrumentProfileService {
                     try {
                         spectrum[i] = Double.parseDouble(record.get(wavelengthColumns.get(i)).trim());
                     } catch (IllegalArgumentException e) {
-                        // Catches both NumberFormatException (parsing) and IllegalArgumentException (missing column)
+                        // IllegalArgumentException catches both NumberFormatException (which extends it)
+                        // and cases where the column is missing from the record
                         spectrum[i] = 0.0;
                     }
                 }
@@ -232,7 +236,7 @@ public class InstrumentProfileService {
             // Convert composition string to list format expected by generateElementsList
             List<String> compositionArray = Arrays.asList(compositionString.split(","));
             Map<String, Object> result = InputCompositionProcessor.getInstance()
-                    .generateElementsList(compositionArray, 3);
+                    .generateElementsList(compositionArray, DEFAULT_DECIMAL_PLACES);
             
             @SuppressWarnings("unchecked")
             List<Element> elements = (List<Element>) result.get("elementsList");
@@ -513,10 +517,22 @@ public class InstrumentProfileService {
 
     /**
      * Normalizes a spectrum to [0, 1] range.
+     * If spectrum is empty or has no positive values, returns array of zeros.
+     * 
+     * @param spectrum Input intensity array
+     * @return Normalized array with values in [0, 1] range
      */
     private double[] normalizeSpectrum(double[] spectrum) {
-        double max = Arrays.stream(spectrum).max().orElse(1.0);
-        if (max <= 0) max = 1.0;
+        if (spectrum == null || spectrum.length == 0) {
+            logger.warning("Empty spectrum provided for normalization, returning empty array");
+            return new double[0];
+        }
+        
+        double max = Arrays.stream(spectrum).max().orElse(0.0);
+        if (max <= 0) {
+            logger.fine("Spectrum has no positive values, returning zeros");
+            return new double[spectrum.length]; // Returns array of zeros
+        }
         
         double[] normalized = new double[spectrum.length];
         for (int i = 0; i < spectrum.length; i++) {
