@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  * Usage: java -cp LIBSDataCurator.jar com.medals.libsdatagenerator.controller.InstrumentProfileController
  *        -i <sample_csv_path> -c <composition> [-o <output_path>] [-n <instrument_name>]
  * 
- * @author Siddharth Prince | Generated for issue #84
+ * @author Siddharth Prince | 13/01/26 08:30
  */
 public class InstrumentProfileController {
 

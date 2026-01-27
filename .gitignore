@@ -41,3 +41,6 @@ release-package/
 LIBSDataCurator-*.tar.gz
 LIBSDataCurator-*.zip
 **/StatsUtil.java
+.gemini/
+GEMINI.md
+gha-creds-*.json

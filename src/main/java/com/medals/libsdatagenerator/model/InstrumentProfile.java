@@ -15,7 +15,7 @@ import java.util.List;
  * Model class representing an instrument profile for LIBS data calibration.
  * Contains wavelength grid and plasma parameters for two-zone temperature model.
  * 
- * @author Siddharth Prince | Generated for issue #84
+ * @author Siddharth Prince | 13/01/26 08:30
  */
 public class InstrumentProfile {
 

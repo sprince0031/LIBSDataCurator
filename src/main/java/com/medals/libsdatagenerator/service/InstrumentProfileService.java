@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
  * Extracts wavelength grids and optimizes two-zone plasma parameters to match
  * measured spectra with synthetic NIST data.
  * 
- * @author Siddharth Prince | Generated for issue #84
+ * @author Siddharth Prince | 13/01/26 08:30
  */
 public class InstrumentProfileService {
 
