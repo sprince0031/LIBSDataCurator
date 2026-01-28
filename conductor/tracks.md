@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Calibration Feature - Instrument Profile Generation**
+- [~] **Track: Calibration Feature - Instrument Profile Generation**
   *Link: [./tracks/instrument_profile_20260127/](./tracks/instrument_profile_20260127/)*

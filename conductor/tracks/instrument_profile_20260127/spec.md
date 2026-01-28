@@ -31,7 +31,7 @@ Implement a feature to generate an `instrument_profile.json` file from real-worl
 - **Parameter Estimation (Grid Search):**
     - Implement a grid search algorithm to find the optimal $T_e$ and $N_e$ for both the hot core and cool periphery.
     - **Optimization Goal:** Minimize the difference (e.g., Mean Squared Error) between the preprocessed real spectrum and the combined synthetic two-zone spectrum.
-    - **Combined Spectrum Model:** $I_{total}(\lambda) = I_{hot}(\lambda) + I_{cool}(\lambda)$.
+    - **Combined Spectrum Model:** $I_{total} = I_{hot}(\lambda) + I_{cool}(1-\lambda)$. $\lambda$ is the weight that determines which is more pronounced.
 - **Library Usage:** Use Apache Commons Math for optimization or statistical calculations where appropriate.
 
 ### 4. CLI Integration
