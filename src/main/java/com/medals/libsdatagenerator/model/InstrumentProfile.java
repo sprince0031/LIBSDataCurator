@@ -2,241 +2,48 @@ package com.medals.libsdatagenerator.model;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-/**
- * Model class representing an instrument profile for LIBS data calibration.
- * Contains wavelength grid and plasma parameters for two-zone temperature model.
- * 
- * @author Siddharth Prince | 13/01/26 08:30
- */
 public class InstrumentProfile {
-
-    // Metadata
     private String instrumentName;
-    private String generatedAt;
-    private String sampleFile;
-    private String composition;
+    private List<Double> wavelengths;
+    private PlasmaParameters plasmaParameters;
+    private CalibrationStats calibrationStats;
     private int numShots;
+    private String sourceFile;
+    private String referenceComposition;
 
-    // Wavelength grid
-    private List<Double> wavelengthGrid;
-    private double minWavelength;
-    private double maxWavelength;
-    private double wavelengthStep;
-
-    // Two-zone plasma parameters
-    // Hot core zone
-    private double hotCoreTe;  // Plasma temperature in eV
-    private double hotCoreNe;  // Electron density in cm^-3
-    private double hotCoreWeight;  // Contribution weight (0.0 to 1.0)
-
-    // Cool periphery zone  
-    private double coolPeripheryTe;  // Plasma temperature in eV
-    private double coolPeripheryNe;  // Electron density in cm^-3
-    private double coolPeripheryWeight;  // Contribution weight (0.0 to 1.0)
-
-    // Fit quality metrics
-    private double fitScore;  // R-squared or similar metric
-    private double rmse;  // Root mean square error
-
-    /**
-     * Default constructor with default plasma parameters.
-     */
+    // No-arg constructor
     public InstrumentProfile() {
-        this.wavelengthGrid = new ArrayList<>();
-        this.generatedAt = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        
-        // Default two-zone parameters (typical LIBS plasma values)
-        // Hot core: higher temperature, higher density
-        this.hotCoreTe = 1.5;  // eV
-        this.hotCoreNe = 1e17; // cm^-3
-        this.hotCoreWeight = 0.4;
-        
-        // Cool periphery: lower temperature, lower density
-        this.coolPeripheryTe = 0.8;  // eV
-        this.coolPeripheryNe = 5e16; // cm^-3
-        this.coolPeripheryWeight = 0.6;
+        this.wavelengths = new ArrayList<>();
+        this.plasmaParameters = new PlasmaParameters(new PlasmaZone(0, 0), new PlasmaZone(0, 0));
+        this.calibrationStats = new CalibrationStats(0, 0, 0);
     }
 
-    /**
-     * Creates an InstrumentProfile from extracted wavelength grid.
-     * 
-     * @param wavelengthGrid List of wavelengths from instrument
-     * @param sampleFile Path to the sample CSV file
-     * @param composition Composition string for the reference material
-     */
-    public InstrumentProfile(List<Double> wavelengthGrid, String sampleFile, String composition) {
-        this();
-        this.wavelengthGrid = new ArrayList<>(wavelengthGrid);
-        this.sampleFile = sampleFile;
-        this.composition = composition;
-        
-        if (!wavelengthGrid.isEmpty()) {
-            this.minWavelength = wavelengthGrid.get(0);
-            this.maxWavelength = wavelengthGrid.get(wavelengthGrid.size() - 1);
-            if (wavelengthGrid.size() > 1) {
-                this.wavelengthStep = wavelengthGrid.get(1) - wavelengthGrid.get(0);
-            }
-        }
+    // Constructor used in tests and spec
+    public InstrumentProfile(String instrumentName, List<Double> wavelengths, PlasmaParameters plasmaParameters, CalibrationStats calibrationStats) {
+        this.instrumentName = instrumentName;
+        this.wavelengths = wavelengths;
+        this.plasmaParameters = plasmaParameters;
+        this.calibrationStats = calibrationStats;
     }
 
-    /**
-     * Converts this profile to a JSON object for serialization.
-     * 
-     * @return JSONObject representation of the profile
-     */
-    public JSONObject toJson() {
-        JSONObject json = new JSONObject();
-        
-        // Metadata section
-        JSONObject metadata = new JSONObject();
-        metadata.put("instrumentName", instrumentName != null ? instrumentName : "Unknown");
-        metadata.put("generatedAt", generatedAt);
-        metadata.put("sampleFile", sampleFile != null ? sampleFile : "");
-        metadata.put("composition", composition != null ? composition : "");
-        metadata.put("numShots", numShots);
-        json.put("metadata", metadata);
-        
-        // Wavelength grid section
-        JSONObject wavelengthSection = new JSONObject();
-        wavelengthSection.put("minWavelength", minWavelength);
-        wavelengthSection.put("maxWavelength", maxWavelength);
-        wavelengthSection.put("wavelengthStep", wavelengthStep);
-        wavelengthSection.put("numPoints", wavelengthGrid.size());
-        
-        // Only store a sample of the grid for readability (first 10, last 10)
-        JSONArray gridSample = new JSONArray();
-        if (wavelengthGrid.size() <= 20) {
-            for (Double w : wavelengthGrid) {
-                gridSample.put(w);
-            }
-        } else {
-            for (int i = 0; i < 10; i++) {
-                gridSample.put(wavelengthGrid.get(i));
-            }
-            gridSample.put("...");
-            for (int i = wavelengthGrid.size() - 10; i < wavelengthGrid.size(); i++) {
-                gridSample.put(wavelengthGrid.get(i));
-            }
-        }
-        wavelengthSection.put("gridSample", gridSample);
-        json.put("wavelengthGrid", wavelengthSection);
-        
-        // Two-zone plasma parameters section
-        JSONObject plasmaParams = new JSONObject();
-        
-        // Hot core zone
-        JSONObject hotCore = new JSONObject();
-        hotCore.put("plasmaTemperature_eV", hotCoreTe);
-        hotCore.put("electronDensity_cm3", hotCoreNe);
-        hotCore.put("weight", hotCoreWeight);
-        plasmaParams.put("hotCore", hotCore);
-        
-        // Cool periphery zone
-        JSONObject coolPeriphery = new JSONObject();
-        coolPeriphery.put("plasmaTemperature_eV", coolPeripheryTe);
-        coolPeriphery.put("electronDensity_cm3", coolPeripheryNe);
-        coolPeriphery.put("weight", coolPeripheryWeight);
-        plasmaParams.put("coolPeriphery", coolPeriphery);
-        
-        json.put("plasmaParameters", plasmaParams);
-        
-        // Fit quality section
-        JSONObject fitQuality = new JSONObject();
-        fitQuality.put("fitScore", fitScore);
-        fitQuality.put("rmse", rmse);
-        json.put("fitQuality", fitQuality);
-        
-        // Future enhancement placeholders
-        JSONObject futureEnhancements = new JSONObject();
-        futureEnhancements.put("voigtProfileEnabled", false);
-        futureEnhancements.put("additionalZones", JSONObject.NULL);
-        futureEnhancements.put("note", "Voigt profile and n-zone support planned for future releases");
-        json.put("futureEnhancements", futureEnhancements);
-        
-        return json;
+    // Constructor used in InstrumentProfileService
+    public InstrumentProfile(List<Double> wavelengths, String sourceFile, String referenceComposition) {
+        this.wavelengths = wavelengths;
+        this.sourceFile = sourceFile;
+        this.referenceComposition = referenceComposition;
+        this.plasmaParameters = new PlasmaParameters(new PlasmaZone(0, 0), new PlasmaZone(0, 0));
+        this.calibrationStats = new CalibrationStats(0, 0, 0);
     }
-
-    /**
-     * Saves this profile to a JSON file.
-     * 
-     * @param outputPath Path to save the JSON file
-     * @throws IOException if file cannot be written
-     */
-    public void saveToFile(Path outputPath) throws IOException {
-        JSONObject json = toJson();
-        Files.writeString(outputPath, json.toString(2));
-    }
-
-    /**
-     * Loads an InstrumentProfile from a JSON file.
-     * 
-     * @param filePath Path to the JSON file
-     * @return InstrumentProfile populated from file
-     * @throws IOException if file cannot be read
-     */
-    public static InstrumentProfile loadFromFile(Path filePath) throws IOException {
-        String content = Files.readString(filePath);
-        JSONObject json = new JSONObject(content);
-        
-        InstrumentProfile profile = new InstrumentProfile();
-        
-        // Parse metadata
-        if (json.has("metadata")) {
-            JSONObject metadata = json.getJSONObject("metadata");
-            profile.setInstrumentName(metadata.optString("instrumentName", "Unknown"));
-            profile.setGeneratedAt(metadata.optString("generatedAt", ""));
-            profile.setSampleFile(metadata.optString("sampleFile", ""));
-            profile.setComposition(metadata.optString("composition", ""));
-            profile.setNumShots(metadata.optInt("numShots", 0));
-        }
-        
-        // Parse wavelength grid info
-        if (json.has("wavelengthGrid")) {
-            JSONObject wavelengthSection = json.getJSONObject("wavelengthGrid");
-            profile.setMinWavelength(wavelengthSection.optDouble("minWavelength", 0));
-            profile.setMaxWavelength(wavelengthSection.optDouble("maxWavelength", 0));
-            profile.setWavelengthStep(wavelengthSection.optDouble("wavelengthStep", 0));
-        }
-        
-        // Parse plasma parameters
-        if (json.has("plasmaParameters")) {
-            JSONObject params = json.getJSONObject("plasmaParameters");
-            
-            if (params.has("hotCore")) {
-                JSONObject hotCore = params.getJSONObject("hotCore");
-                profile.setHotCoreTe(hotCore.optDouble("plasmaTemperature_eV", 1.5));
-                profile.setHotCoreNe(hotCore.optDouble("electronDensity_cm3", 1e17));
-                profile.setHotCoreWeight(hotCore.optDouble("weight", 0.4));
-            }
-            
-            if (params.has("coolPeriphery")) {
-                JSONObject coolPeriphery = params.getJSONObject("coolPeriphery");
-                profile.setCoolPeripheryTe(coolPeriphery.optDouble("plasmaTemperature_eV", 0.8));
-                profile.setCoolPeripheryNe(coolPeriphery.optDouble("electronDensity_cm3", 5e16));
-                profile.setCoolPeripheryWeight(coolPeriphery.optDouble("weight", 0.6));
-            }
-        }
-        
-        // Parse fit quality
-        if (json.has("fitQuality")) {
-            JSONObject fitQuality = json.getJSONObject("fitQuality");
-            profile.setFitScore(fitQuality.optDouble("fitScore", 0));
-            profile.setRmse(fitQuality.optDouble("rmse", 0));
-        }
-        
-        return profile;
-    }
-
-    // Getters and Setters
 
     public String getInstrumentName() {
         return instrumentName;
@@ -246,28 +53,33 @@ public class InstrumentProfile {
         this.instrumentName = instrumentName;
     }
 
-    public String getGeneratedAt() {
-        return generatedAt;
+    public List<Double> getWavelengths() {
+        return wavelengths;
     }
 
-    public void setGeneratedAt(String generatedAt) {
-        this.generatedAt = generatedAt;
+    public void setWavelengths(List<Double> wavelengths) {
+        this.wavelengths = wavelengths;
     }
 
-    public String getSampleFile() {
-        return sampleFile;
+    // Alias for getWavelengths to match existing code
+    public List<Double> getWavelengthGrid() {
+        return wavelengths;
     }
 
-    public void setSampleFile(String sampleFile) {
-        this.sampleFile = sampleFile;
+    public PlasmaParameters getPlasmaParameters() {
+        return plasmaParameters;
     }
 
-    public String getComposition() {
-        return composition;
+    public void setPlasmaParameters(PlasmaParameters plasmaParameters) {
+        this.plasmaParameters = plasmaParameters;
     }
 
-    public void setComposition(String composition) {
-        this.composition = composition;
+    public CalibrationStats getCalibrationStats() {
+        return calibrationStats;
+    }
+
+    public void setCalibrationStats(CalibrationStats calibrationStats) {
+        this.calibrationStats = calibrationStats;
     }
 
     public int getNumShots() {
@@ -278,107 +90,150 @@ public class InstrumentProfile {
         this.numShots = numShots;
     }
 
-    public List<Double> getWavelengthGrid() {
-        return wavelengthGrid;
+    public String getComposition() {
+        return referenceComposition;
     }
 
-    public void setWavelengthGrid(List<Double> wavelengthGrid) {
-        this.wavelengthGrid = wavelengthGrid;
+    public void setComposition(String composition) {
+        this.referenceComposition = composition;
+    }
+
+    public String getSourceFile() {
+        return sourceFile;
+    }
+
+    public void setSourceFile(String sourceFile) {
+        this.sourceFile = sourceFile;
     }
 
     public double getMinWavelength() {
-        return minWavelength;
-    }
-
-    public void setMinWavelength(double minWavelength) {
-        this.minWavelength = minWavelength;
+        if (wavelengths == null || wavelengths.isEmpty()) return 0.0;
+        return Collections.min(wavelengths);
     }
 
     public double getMaxWavelength() {
-        return maxWavelength;
+        if (wavelengths == null || wavelengths.isEmpty()) return 0.0;
+        return Collections.max(wavelengths);
     }
 
-    public void setMaxWavelength(double maxWavelength) {
-        this.maxWavelength = maxWavelength;
-    }
-
-    public double getWavelengthStep() {
-        return wavelengthStep;
-    }
-
-    public void setWavelengthStep(double wavelengthStep) {
-        this.wavelengthStep = wavelengthStep;
-    }
-
-    public double getHotCoreTe() {
-        return hotCoreTe;
-    }
-
-    public void setHotCoreTe(double hotCoreTe) {
-        this.hotCoreTe = hotCoreTe;
-    }
-
-    public double getHotCoreNe() {
-        return hotCoreNe;
-    }
-
-    public void setHotCoreNe(double hotCoreNe) {
-        this.hotCoreNe = hotCoreNe;
+    // Delegation methods for PlasmaParameters
+    public void setHotCoreNe(double ne) {
+        plasmaParameters.getHotCore().setNe(ne);
     }
 
     public double getHotCoreWeight() {
-        return hotCoreWeight;
+        return plasmaParameters.getHotCore().getWeight();
     }
 
-    public void setHotCoreWeight(double hotCoreWeight) {
-        this.hotCoreWeight = hotCoreWeight;
+    public void setHotCoreWeight(double weight) {
+        plasmaParameters.getHotCore().setWeight(weight);
     }
 
     public double getCoolPeripheryTe() {
-        return coolPeripheryTe;
+        return plasmaParameters.getCoolPeriphery().getTe();
     }
 
-    public void setCoolPeripheryTe(double coolPeripheryTe) {
-        this.coolPeripheryTe = coolPeripheryTe;
+    public void setCoolPeripheryTe(double te) {
+        plasmaParameters.getCoolPeriphery().setTe(te);
     }
 
     public double getCoolPeripheryNe() {
-        return coolPeripheryNe;
+        return plasmaParameters.getCoolPeriphery().getNe();
     }
 
-    public void setCoolPeripheryNe(double coolPeripheryNe) {
-        this.coolPeripheryNe = coolPeripheryNe;
+    public void setCoolPeripheryNe(double ne) {
+        plasmaParameters.getCoolPeriphery().setNe(ne);
     }
 
     public double getCoolPeripheryWeight() {
-        return coolPeripheryWeight;
+        return plasmaParameters.getCoolPeriphery().getWeight();
+    }
+    
+    public void setCoolPeripheryWeight(double weight) {
+        plasmaParameters.getCoolPeriphery().setWeight(weight);
     }
 
-    public void setCoolPeripheryWeight(double coolPeripheryWeight) {
-        this.coolPeripheryWeight = coolPeripheryWeight;
+    public double getHotCoreTe() {
+        return plasmaParameters.getHotCore().getTe();
     }
 
+    public void setHotCoreTe(double te) {
+        plasmaParameters.getHotCore().setTe(te);
+    }
+
+    public double getHotCoreNe() {
+        return plasmaParameters.getHotCore().getNe();
+    }
+
+    // Delegation for CalibrationStats
     public double getFitScore() {
-        return fitScore;
+        return calibrationStats.getRSquared();
     }
 
-    public void setFitScore(double fitScore) {
-        this.fitScore = fitScore;
+    public void setFitScore(double score) {
+        calibrationStats.setRSquared(score);
     }
 
     public double getRmse() {
-        return rmse;
+        return calibrationStats.getRmse();
     }
 
     public void setRmse(double rmse) {
-        this.rmse = rmse;
+        calibrationStats.setRmse(rmse);
     }
 
-    @Override
-    public String toString() {
-        return String.format("InstrumentProfile{instrument=%s, wavelengths=[%.1f-%.1f nm, step=%.3f], " +
-                "hotCore(Te=%.2f eV, Ne=%.2e), coolPeriphery(Te=%.2f eV, Ne=%.2e), fitScore=%.4f}",
-                instrumentName, minWavelength, maxWavelength, wavelengthStep,
-                hotCoreTe, hotCoreNe, coolPeripheryTe, coolPeripheryNe, fitScore);
+    public void saveToFile(Path path) throws IOException {
+        try (FileWriter writer = new FileWriter(path.toFile())) {
+            writer.write(this.toJson().toString(2));
+        }
+    }
+
+    public static InstrumentProfile loadFromFile(Path path) throws IOException {
+        try (FileReader reader = new FileReader(path.toFile())) {
+            JSONTokener tokener = new JSONTokener(reader);
+            JSONObject json = new JSONObject(tokener);
+            return fromJson(json);
+        }
+    }
+
+    public JSONObject toJson() {
+        JSONObject json = new JSONObject();
+        json.put("instrumentName", instrumentName);
+        json.put("wavelengths", wavelengths);
+        json.put("numShots", numShots);
+        json.put("sourceFile", sourceFile);
+        json.put("referenceComposition", referenceComposition);
+        if (plasmaParameters != null) {
+            json.put("plasmaParameters", plasmaParameters.toJson());
+        }
+        if (calibrationStats != null) {
+            json.put("calibrationStats", calibrationStats.toJson());
+        }
+        return json;
+    }
+
+    public static InstrumentProfile fromJson(JSONObject json) {
+        if (json == null) {
+            return null;
+        }
+        String name = json.optString("instrumentName", "");
+        
+        List<Double> wavelengths = new ArrayList<>();
+        JSONArray wavelengthsArray = json.optJSONArray("wavelengths");
+        if (wavelengthsArray != null) {
+            for (int i = 0; i < wavelengthsArray.length(); i++) {
+                wavelengths.add(wavelengthsArray.getDouble(i));
+            }
+        }
+
+        PlasmaParameters params = PlasmaParameters.fromJson(json.optJSONObject("plasmaParameters"));
+        CalibrationStats stats = CalibrationStats.fromJson(json.optJSONObject("calibrationStats"));
+        
+        InstrumentProfile profile = new InstrumentProfile(name, wavelengths, params, stats);
+        profile.setNumShots(json.optInt("numShots"));
+        profile.sourceFile = json.optString("sourceFile");
+        profile.referenceComposition = json.optString("referenceComposition");
+        
+        return profile;
     }
 }
