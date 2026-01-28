@@ -22,7 +22,7 @@ Implement logic to read, average, and clean the reference measurements.
     - [x] **Test:** Verify that a spectrum with a known background offset is correctly corrected.
     - [x] **Implement:** A baseline correction utility (e.g., polynomial fit or simple subtraction) in `InstrumentProfileService`.
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Input Preprocessing' (Protocol in workflow.md) [checkpoint: ]
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Input Preprocessing' (Protocol in workflow.md) [checkpoint: 8656909]
 
 ## Phase 3: Calibration Logic (Grid Search)
 Implement the core optimization logic by comparing real data with NIST-generated theoretical spectra.
