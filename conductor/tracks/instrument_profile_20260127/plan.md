@@ -3,11 +3,11 @@
 ## Phase 1: Core Models & Data Structures
 Define the data model for the Instrument Profile and ensure it can be serialized/deserialized correctly.
 
-- [ ] Task: Create `InstrumentProfile` and related POJOs
-    - [ ] Create/Refine `InstrumentProfile.java` with fields for wavelengths, plasma parameters (two-zone), and stats.
-    - [ ] Create `PlasmaZone.java` (Te, Ne) and `CalibrationStats.java` for structure.
-    - [ ] **Test:** Write unit tests for JSON serialization/deserialization using `org.json`.
-    - [ ] **Implement:** `InstrumentProfile` and supporting classes.
+- [x] Task: Create `InstrumentProfile` and related POJOs fc44c25
+    - [x] Create/Refine `InstrumentProfile.java` with fields for wavelengths, plasma parameters (two-zone), and stats.
+    - [x] Create `PlasmaZone.java` (Te, Ne) and `CalibrationStats.java` for structure.
+    - [x] **Test:** Write unit tests for JSON serialization/deserialization using `org.json`.
+    - [x] **Implement:** `InstrumentProfile` and supporting classes.
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Models' (Protocol in workflow.md) [checkpoint: ]
 
