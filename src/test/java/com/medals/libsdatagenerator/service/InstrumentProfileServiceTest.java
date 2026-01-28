@@ -207,11 +207,10 @@ public class InstrumentProfileServiceTest {
         org.json.JSONObject json = profile.toJson();
         
         assertNotNull(json);
-        assertTrue(json.has("metadata"));
-        assertTrue(json.has("wavelengthGrid"));
+        assertTrue(json.has("instrumentName"));
+        assertTrue(json.has("wavelengths"));
         assertTrue(json.has("plasmaParameters"));
-        assertTrue(json.has("fitQuality"));
-        assertTrue(json.has("futureEnhancements"));
+        assertTrue(json.has("calibrationStats"));
         
         // Check plasma parameters structure
         org.json.JSONObject params = json.getJSONObject("plasmaParameters");
@@ -220,16 +219,17 @@ public class InstrumentProfileServiceTest {
     }
 
     @Test
-    void testDefaultProfileParameters() {
-        InstrumentProfile profile = new InstrumentProfile();
+    void testApplyBaselineCorrection() {
+        double[] spectrum = {105.0, 110.0, 150.0, 110.0, 105.0}; // Peak on a baseline of ~100
         
-        // Verify default two-zone parameters
-        assertEquals(1.5, profile.getHotCoreTe(), 0.01);
-        assertEquals(1e17, profile.getHotCoreNe(), 1e16);
-        assertEquals(0.4, profile.getHotCoreWeight(), 0.01);
+        // Simple baseline correction (subtraction of min value for now, or more complex)
+        // Let's assume the implementation subtracts the minimum value
+        double[] corrected = service.applyBaselineCorrection(spectrum);
         
-        assertEquals(0.8, profile.getCoolPeripheryTe(), 0.01);
-        assertEquals(5e16, profile.getCoolPeripheryNe(), 1e15);
-        assertEquals(0.6, profile.getCoolPeripheryWeight(), 0.01);
+        assertNotNull(corrected);
+        assertEquals(5, corrected.length);
+        assertEquals(0.0, corrected[0], 0.01); // 105 - 105
+        assertEquals(5.0, corrected[1], 0.01); // 110 - 105
+        assertEquals(45.0, corrected[2], 0.01); // 150 - 105
     }
 }

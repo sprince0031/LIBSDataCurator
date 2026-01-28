@@ -226,6 +226,33 @@ public class InstrumentProfileService {
     }
 
     /**
+     * Applies baseline correction to the spectrum.
+     * Current implementation subtracts the minimum value from all points.
+     * 
+     * @param spectrum Input spectrum
+     * @return Baseline corrected spectrum
+     */
+    public double[] applyBaselineCorrection(double[] spectrum) {
+        if (spectrum == null || spectrum.length == 0) {
+            return new double[0];
+        }
+        
+        double min = Double.MAX_VALUE;
+        for (double val : spectrum) {
+            if (val < min) {
+                min = val;
+            }
+        }
+        
+        double[] corrected = new double[spectrum.length];
+        for (int i = 0; i < spectrum.length; i++) {
+            corrected[i] = Math.max(0.0, spectrum[i] - min);
+        }
+        
+        return corrected;
+    }
+
+    /**
      * Parses a composition string into a list of Elements.
      * 
      * @param compositionString Format: "Element1-Percentage1,Element2-Percentage2,..."
