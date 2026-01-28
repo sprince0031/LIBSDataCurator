@@ -35,7 +35,7 @@ Implement the core optimization logic by comparing real data with NIST-generated
     - [x] **Test:** Verify that the grid search correctly identifies parameters that minimize MSE for a mock dataset.
     - [x] **Implement:** Grid search over $T_e$ and $N_e$ ranges. Use MSE as the objective function to compare the preprocessed real spectrum vs. the NIST synthetic spectrum.
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Calibration Service Logic' (Protocol in workflow.md) [checkpoint: ]
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Calibration Service Logic' (Protocol in workflow.md) [checkpoint: 1c65b9c]
 
 ## Phase 4: CLI Controller Integration
 Wire up the service to the command-line interface using existing configuration patterns.
