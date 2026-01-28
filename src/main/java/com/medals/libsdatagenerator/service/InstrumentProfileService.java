@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
+import com.medals.libsdatagenerator.util.PythonUtils;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -114,20 +115,30 @@ public class InstrumentProfileService {
         optimizePlasmaParameters(profile, avgMeasuredSpectrum, wavelengthGrid, composition);
         
         // 7. Generate Jupyter Report
-        try {
-            Path calibrationDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
-            Path reportPath = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE);
-            
-            Path targetCsv = calibrationDir.resolve("target_processed.csv");
-            Path hotCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_HOT_DIR).resolve("best_hot.csv");
-            Path coolCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_COOL_DIR).resolve("best_cool.csv");
-            
-            generateJupyterReport(profile, reportPath, targetCsv, hotCsv, coolCsv);
-            executeNotebook(reportPath);
-            convertNotebookToPdf(reportPath);
-            
-        } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to generate or execute calibration report", e);
+        if (PythonUtils.getInstance().setupPythonEnvironment()) {
+            try {
+                Path jupyterPath = PythonUtils.getInstance().getVenvJupyterPath();
+                if (jupyterPath == null) {
+                    throw new IOException("Jupyter executable not found in virtual environment.");
+                }
+
+                Path calibrationDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
+                Path reportPath = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE);
+                
+                Path targetCsv = calibrationDir.resolve("target_processed.csv");
+                Path hotCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_HOT_DIR).resolve("best_hot.csv");
+                Path coolCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_COOL_DIR).resolve("best_cool.csv");
+                
+                generateJupyterReport(profile, reportPath, targetCsv, hotCsv, coolCsv);
+                executeNotebook(reportPath, jupyterPath);
+                convertNotebookToPdf(reportPath, jupyterPath);
+                
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to generate or execute calibration report", e);
+            }
+        } else {
+            System.out.println("Warning: Calibration report could not be generated because Python 3 is not installed or environment setup failed.");
+            logger.warning("Python environment setup failed. Skipping report generation.");
         }
 
         logger.info("Profile generation complete: " + profile);
@@ -347,11 +358,11 @@ public class InstrumentProfileService {
     /**
      * Executes the Jupyter Notebook in place.
      */
-    private void executeNotebook(Path notebookPath) {
-        logger.info("Executing Jupyter Notebook: " + notebookPath);
+    private void executeNotebook(Path notebookPath, Path jupyterPath) {
+        logger.info("Executing Jupyter Notebook: " + notebookPath + " using " + jupyterPath);
         try {
             ProcessBuilder pb = new ProcessBuilder(
-                "jupyter", "nbconvert", 
+                jupyterPath.toString(), "nbconvert", 
                 "--to", "notebook", 
                 "--execute", 
                 "--inplace", 
@@ -376,18 +387,18 @@ public class InstrumentProfileService {
             }
             
         } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to execute Jupyter Notebook. Ensure jupyter is installed.", e);
+            logger.log(Level.WARNING, "Failed to execute Jupyter Notebook.", e);
         }
     }
     
     /**
      * Converts the Jupyter Notebook to PDF.
      */
-    private void convertNotebookToPdf(Path notebookPath) {
+    private void convertNotebookToPdf(Path notebookPath, Path jupyterPath) {
         logger.info("Converting Notebook to PDF...");
         try {
             ProcessBuilder pb = new ProcessBuilder(
-                "jupyter", "nbconvert", 
+                jupyterPath.toString(), "nbconvert", 
                 "--to", "pdf", 
                 notebookPath.toString()
             );

@@ -84,4 +84,18 @@ Ensure the entire flow works as expected and is documented.
 - [ ] Task: Update User Documentation
     - [ ] Add a section to `README.md` and create/update `docs/CALIBRATION.md` explaining the instrument profiling workflow.
 
-- [ ] Task: Conductor - User Manual Verification 'Phase 6: E2E Verification' (Protocol in workflow.md) [checkpoint: ]
+## Phase 7: Python Environment Management
+Ensure robust report generation by managing a local Python environment.
+
+- [x] Task: Implement `PythonUtils`
+    - [x] **Implement:** Check for local Python 3 installation.
+    - [x] **Implement:** Logic to create `venv` at `<TOOL_HOME>/python_env` if it doesn't exist.
+    - [x] **Implement:** `installRequirements` to `pip install` necessary packages.
+    - [x] **Implement:** Helper to get the absolute path to `jupyter` executable within the venv.
+
+- [x] Task: Integrate Python Env with `InstrumentProfileService`
+    - [x] **Refactor:** `generateProfile` to call `PythonUtils` setup before report generation.
+    - [x] **Refactor:** `executeNotebook` and `convertNotebookToPdf` to use the venv paths.
+    - [x] **Implement:** Graceful fallback (skip reporting) if Python is missing.
+
+- [ ] Task: Conductor - User Manual Verification 'Phase 7: Python Env' (Protocol in workflow.md) [checkpoint: ]
