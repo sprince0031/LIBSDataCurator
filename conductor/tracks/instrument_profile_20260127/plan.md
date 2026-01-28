@@ -27,13 +27,13 @@ Implement logic to read, average, and clean the reference measurements.
 ## Phase 3: Calibration Logic (Grid Search)
 Implement the core optimization logic by comparing real data with NIST-generated theoretical spectra.
 
-- [ ] Task: Integrate NIST Theoretical Spectrum Generation
-    - [ ] **Refactor/Reuse:** Ensure `LIBSDataService` can be invoked with specific Te/Ne parameters to return spectral data without writing to disk.
-    - [ ] **Implement:** A wrapper to generate combined two-zone synthetic spectra for a given composition.
+- [x] Task: Integrate NIST Theoretical Spectrum Generation 26b930f
+    - [x] **Refactor/Reuse:** Ensure `LIBSDataService` can be invoked with specific Te/Ne parameters to return spectral data without writing to disk.
+    - [x] **Implement:** A wrapper to generate combined two-zone synthetic spectra for a given composition.
 
-- [ ] Task: Implement Grid Search & Optimization
-    - [ ] **Test:** Verify that the grid search correctly identifies parameters that minimize MSE for a mock dataset.
-    - [ ] **Implement:** Grid search over $T_e$ and $N_e$ ranges. Use MSE as the objective function to compare the preprocessed real spectrum vs. the NIST synthetic spectrum.
+- [x] Task: Implement Grid Search & Optimization 26b930f
+    - [x] **Test:** Verify that the grid search correctly identifies parameters that minimize MSE for a mock dataset.
+    - [x] **Implement:** Grid search over $T_e$ and $N_e$ ranges. Use MSE as the objective function to compare the preprocessed real spectrum vs. the NIST synthetic spectrum.
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Calibration Service Logic' (Protocol in workflow.md) [checkpoint: ]
 
