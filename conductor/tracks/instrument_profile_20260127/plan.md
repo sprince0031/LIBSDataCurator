@@ -50,11 +50,15 @@ Wire up the service to the command-line interface using existing configuration p
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: CLI Controller Integration' (Protocol in workflow.md) [checkpoint: ]
 
-## Phase 5: E2E Verification & Documentation
-Final validation and user-facing documentation.
+## Phase 5: End-to-End Verification & Documentation
+Ensure the entire flow works as expected and is documented.
+
+- [ ] Task: Implement Jupyter Notebook Generator
+    - [ ] **Test:** Verify generation of a valid .ipynb JSON structure containing the spectral data arrays.
+    - [ ] **Implement:** Logic to create `calibration_report.ipynb` using `org.json`. It should contain pre-filled Python code cells to plot the data.
 
 - [ ] Task: End-to-End Integration Test
-    - [ ] **Test:** Run `calibrate.sh` with sample stainless steel readings -> Verify generated `instrument_profile.json` accuracy and structure.
+    - [ ] **Test:** Create a full system test: Run the CLI command with a real sample CSV -> Verify `instrument_profile.json` is created -> Verify JSON content validity.
 
 - [ ] Task: Update User Documentation
     - [ ] Add a section to `README.md` and create/update `docs/CALIBRATION.md` explaining the instrument profiling workflow.
