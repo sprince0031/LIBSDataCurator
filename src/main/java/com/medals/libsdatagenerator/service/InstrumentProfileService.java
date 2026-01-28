@@ -40,8 +40,8 @@ public class InstrumentProfileService {
     private static final double WEIGHT_MAX = 0.9;  // Maximum zone weight
 
     // Optimization settings
-    private static final int MAX_EVALUATIONS = 5000;
-    private static final double CONVERGENCE_THRESHOLD = 1e-6;
+    private static final int MAX_EVALUATIONS = 20000;
+    private static final double CONVERGENCE_THRESHOLD = 1e-4;
     
     // Default number of decimal places for composition percentages
     private static final int DEFAULT_DECIMAL_PLACES = 3;
@@ -330,18 +330,26 @@ public class InstrumentProfileService {
             return calculateRMSE(normalizedMeasured, normalizeSpectrum(syntheticSpectrum));
         };
 
-        // Initial guess
+        // Initial guess - ensure valid starting point
+        double startHotTe = profile.getHotCoreTe() > 0 ? profile.getHotCoreTe() : 1.5;
+        double startHotNe = profile.getHotCoreNe() > 0 ? profile.getHotCoreNe() : 1e17;
+        double startCoolTe = profile.getCoolPeripheryTe() > 0 ? profile.getCoolPeripheryTe() : 0.8;
+        double startCoolNe = profile.getCoolPeripheryNe() > 0 ? profile.getCoolPeripheryNe() : 5e16;
+        double startHotWeight = profile.getHotCoreWeight() > 0 ? profile.getHotCoreWeight() : 0.5;
+
         double[] initialGuess = {
-                profile.getHotCoreTe(),
-                Math.log10(profile.getHotCoreNe()),
-                profile.getCoolPeripheryTe(),
-                Math.log10(profile.getCoolPeripheryNe()),
-                profile.getHotCoreWeight()
+                startHotTe,
+                Math.log10(startHotNe),
+                startCoolTe,
+                Math.log10(startCoolNe),
+                startHotWeight
         };
 
         try {
-            // Use Nelder-Mead simplex optimizer
-            NelderMeadSimplex simplex = new NelderMeadSimplex(5);
+            // Use Nelder-Mead simplex optimizer with defined steps
+            // Step sizes: 0.1 eV for Te, 0.1 log units for Ne, 0.05 for weight
+            double[] steps = {0.1, 0.1, 0.1, 0.1, 0.05};
+            NelderMeadSimplex simplex = new NelderMeadSimplex(steps);
             SimplexOptimizer optimizer = new SimplexOptimizer(CONVERGENCE_THRESHOLD, CONVERGENCE_THRESHOLD);
             
             PointValuePair result = optimizer.optimize(
@@ -393,7 +401,7 @@ public class InstrumentProfileService {
      * @param hotCoreWeight Weight of hot core contribution (0-1)
      * @return Synthetic spectrum intensity array
      */
-    private double[] generateTwoZoneSyntheticSpectrum(List<Double> wavelengthGrid, List<Element> composition,
+    double[] generateTwoZoneSyntheticSpectrum(List<Double> wavelengthGrid, List<Element> composition,
                                                        double hotCoreTe, double hotCoreNe,
                                                        double coolPeripheryTe, double coolPeripheryNe,
                                                        double hotCoreWeight) {
