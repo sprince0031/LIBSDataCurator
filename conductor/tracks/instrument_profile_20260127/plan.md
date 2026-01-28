@@ -40,13 +40,13 @@ Implement the core optimization logic by comparing real data with NIST-generated
 ## Phase 4: CLI Controller Integration
 Wire up the service to the command-line interface using existing configuration patterns.
 
-- [ ] Task: Implement `InstrumentProfileController`
-    - [ ] **Reuse:** Integrate `UserInputConfig` for handling shared parameters (wavelength range, resolution).
-    - [ ] **Test:** Integration tests mocking CLI arguments and verifying service orchestration.
-    - [ ] **Implement:** CLI parsing for `-i`, `-c`, `-o`, `-n` and invocation of `InstrumentProfileService`.
+- [x] Task: Implement `InstrumentProfileController` 4e9bf57
+    - [x] **Reuse:** Integrate `UserInputConfig` for handling shared parameters (wavelength range, resolution).
+    - [x] **Test:** Integration tests mocking CLI arguments and verifying service orchestration.
+    - [x] **Implement:** CLI parsing for `-i`, `-c`, `-o`, `-n` and invocation of `InstrumentProfileService`.
 
-- [ ] Task: Create `calibrate.sh` / `calibrate.bat`
-    - [ ] **Implement:** Shell scripts similar to `run.sh` that target the `InstrumentProfileController`.
+- [x] Task: Create `calibrate.sh` / `calibrate.bat` 4e9bf57
+    - [x] **Implement:** Shell scripts similar to `run.sh` that target the `InstrumentProfileController`.
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: CLI Controller Integration' (Protocol in workflow.md) [checkpoint: ]
 
