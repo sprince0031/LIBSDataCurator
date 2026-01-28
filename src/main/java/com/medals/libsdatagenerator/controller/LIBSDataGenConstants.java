@@ -173,6 +173,12 @@ public class LIBSDataGenConstants {
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
     public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
+    public static final String CALIBRATION_DIR = "calibration";
+    public static final String CALIBRATION_HOT_DIR = "hot";
+    public static final String CALIBRATION_COOL_DIR = "cool";
+    public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
+    public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report.ipynb";
+
     /**
      * #### NIST LIBS Constants ####
      */
@@ -202,6 +208,8 @@ public class LIBSDataGenConstants {
     
     // HTML element selectors for recalculation form
     public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
+    public static final String NIST_LIBS_RECALC_TEMP_INPUT_NAME = "temp";
+    public static final String NIST_LIBS_RECALC_EDEN_INPUT_NAME = "eden";
     public static final String NIST_LIBS_RECALC_BUTTON_NAME = "recalc";
     public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";  // For element percentage input field labels
     public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";  // For element percentage input fields

@@ -37,6 +37,8 @@ public class SeleniumUtils {
         options = new ChromeOptions();
         if (!UserInputConfig.debugModeEnabled()) {
             options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
         }
 
         options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Configure Selenium to ignore unexpected alert prompts and not dismiss it automatically.
