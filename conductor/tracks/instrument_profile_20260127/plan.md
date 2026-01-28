@@ -14,13 +14,13 @@ Define the data model for the Instrument Profile and ensure it can be serialized
 ## Phase 2: Input Processing & Preprocessing
 Implement logic to read, average, and clean the reference measurements.
 
-- [ ] Task: Implement `CalibrationDataParser` with Averaging
-    - [ ] **Test:** Verify parsing of wavelengths and averaging of multiple shots into a single spectrum.
-    - [ ] **Implement:** Logic using Apache Commons CSV to produce an averaged `double[]` spectrum.
+- [x] Task: Implement `CalibrationDataParser` with Averaging 6f6cf6b
+    - [x] **Test:** Verify parsing of wavelengths and averaging of multiple shots into a single spectrum.
+    - [x] **Implement:** Logic using Apache Commons CSV to produce an averaged `double[]` spectrum.
 
-- [ ] Task: Implement Baseline Correction
-    - [ ] **Test:** Verify that a spectrum with a known background offset is correctly corrected.
-    - [ ] **Implement:** A baseline correction utility (e.g., polynomial fit or simple subtraction) in `InstrumentProfileService`.
+- [x] Task: Implement Baseline Correction 6f6cf6b
+    - [x] **Test:** Verify that a spectrum with a known background offset is correctly corrected.
+    - [x] **Implement:** A baseline correction utility (e.g., polynomial fit or simple subtraction) in `InstrumentProfileService`.
 
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Input Preprocessing' (Protocol in workflow.md) [checkpoint: ]
 
