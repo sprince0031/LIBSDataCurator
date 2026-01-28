@@ -54,8 +54,13 @@ Wire up the service to the command-line interface using existing configuration p
 Ensure the entire flow works as expected and is documented.
 
 - [ ] Task: Implement Jupyter Notebook Generator
-    - [ ] **Test:** Verify generation of a valid .ipynb JSON structure containing the spectral data arrays.
-    - [ ] **Implement:** Logic to create `calibration_report.ipynb` using `org.json`. It should contain pre-filled Python code cells to plot the data.
+    - [ ] **Test:** Verify generation of a valid .ipynb JSON structure containing the spectral data arrays and plotting code.
+    - [ ] **Implement:** Logic to create `calibration_report.ipynb` using `org.json`. It should contain pre-filled Python code cells to plot:
+        -   Raw and Averaged Measured Spectra.
+        -   Baseline Corrected Spectrum.
+        -   Individual Hot/Cool Synthetic Spectra.
+        -   Combined Synthetic vs. Measured Overlay.
+        -   Parameter Context (Te, Ne, Weight).
 
 - [ ] Task: End-to-End Integration Test
     - [ ] **Test:** Create a full system test: Run the CLI command with a real sample CSV -> Verify `instrument_profile.json` is created -> Verify JSON content validity.

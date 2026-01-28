@@ -45,12 +45,18 @@ Implement a feature to generate an `instrument_profile.json` file from real-worl
 ### 5. Data & Output
 - **Output:** Validated, indented `instrument_profile.json`.
 - **Integrity:** Ensure the generated profile is structurally compatible with the main generation engine's input requirements.
+- **Data Organization:**
+    -   Calibration spectral data fetched from NIST must be saved to `data/Calibration/` (not the default `data/NIST LIBS/`).
+    -   Use subfolders `hot` and `cool` for respective spectra.
 - **Visualization:** Generate a `calibration_report.ipynb` (Jupyter Notebook) in the output directory.
     -   Plots:
         -   Raw measured spectra (all shots overlaid).
         -   Averaged measured spectrum.
         -   Baseline-corrected spectrum.
-        -   Final fitted theoretical spectrum vs. processed measured spectrum.
+        -   **Individual Zone Spectra:** Plot of the optimized "Hot Core" spectrum and "Cool Periphery" spectrum separately.
+        -   **Combined Synthetic Spectrum:** Plot of the final weighted sum ($I_{total} = w \cdot I_{hot} + (1-w) \cdot I_{cool}$).
+        -   **Comparison:** Overlay of Averaged Measured vs. Combined Synthetic spectra with residual error.
+    -   Context: Display final Te, Ne, and Weight parameters in the notebook.
 
 ## Technical Constraints
 - **Language:** Java 21.
