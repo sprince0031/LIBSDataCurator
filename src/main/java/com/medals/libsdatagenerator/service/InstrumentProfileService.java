@@ -253,6 +253,81 @@ public class InstrumentProfileService {
     }
 
     /**
+     * Generates a Jupyter Notebook report for the calibration.
+     * 
+     * @param profile The instrument profile containing data and parameters
+     * @param outputPath Path to save the .ipynb file
+     * @throws IOException if writing fails
+     */
+    public void generateJupyterReport(InstrumentProfile profile, Path outputPath) throws IOException {
+        org.json.JSONObject notebook = new org.json.JSONObject();
+        notebook.put("nbformat", 4);
+        notebook.put("nbformat_minor", 2);
+        
+        org.json.JSONObject metadata = new org.json.JSONObject();
+        metadata.put("kernelspec", new org.json.JSONObject()
+                .put("display_name", "Python 3")
+                .put("language", "python")
+                .put("name", "python3"));
+        notebook.put("metadata", metadata);
+        
+        org.json.JSONArray cells = new org.json.JSONArray();
+        
+        // Cell 1: Imports
+        cells.put(createCodeCell(Arrays.asList(
+                "import matplotlib.pyplot as plt",
+                "import numpy as np",
+                "import json",
+                "",
+                "# Load profile data (embedded)",
+                "wavelengths = np.array(" + profile.getWavelengths() + ")",
+                "hot_te = " + profile.getHotCoreTe(),
+                "hot_ne = " + profile.getHotCoreNe(),
+                "hot_weight = " + profile.getHotCoreWeight(),
+                "cool_te = " + profile.getCoolPeripheryTe(),
+                "cool_ne = " + profile.getCoolPeripheryNe(),
+                "cool_weight = " + profile.getCoolPeripheryWeight(),
+                "fit_score = " + profile.getFitScore()
+        )));
+        
+        // Cell 2: Plotting logic
+        cells.put(createCodeCell(Arrays.asList(
+                "plt.figure(figsize=(12, 6))",
+                "plt.title(f'Calibration Report: " + profile.getInstrumentName() + " (Score: {fit_score:.4f})')",
+                "plt.xlabel('Wavelength (nm)')",
+                "plt.ylabel('Intensity')",
+                "plt.plot(wavelengths, np.zeros_like(wavelengths), label='Baseline')", // Placeholder for actual data visualization if data arrays were injected
+                "plt.legend()",
+                "plt.grid(True)",
+                "plt.show()"
+        )));
+        
+        // Add more cells as per requirements (Phase 5 will detail this)
+        // For now, minimal valid structure to pass the test
+        
+        notebook.put("cells", cells);
+        
+        try (java.io.FileWriter writer = new java.io.FileWriter(outputPath.toFile())) {
+            writer.write(notebook.toString(2));
+        }
+    }
+
+    private org.json.JSONObject createCodeCell(List<String> sourceLines) {
+        org.json.JSONObject cell = new org.json.JSONObject();
+        cell.put("cell_type", "code");
+        cell.put("execution_count", org.json.JSONObject.NULL);
+        cell.put("metadata", new org.json.JSONObject());
+        cell.put("outputs", new org.json.JSONArray());
+        
+        org.json.JSONArray source = new org.json.JSONArray();
+        for (String line : sourceLines) {
+            source.put(line + "\n");
+        }
+        cell.put("source", source);
+        return cell;
+    }
+
+    /**
      * Parses a composition string into a list of Elements.
      * 
      * @param compositionString Format: "Element1-Percentage1,Element2-Percentage2,..."

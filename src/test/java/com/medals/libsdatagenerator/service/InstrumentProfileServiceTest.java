@@ -238,6 +238,20 @@ public class InstrumentProfileServiceTest {
     }
 
     @Test
+    void testDefaultProfileParameters() {
+        InstrumentProfile profile = new InstrumentProfile();
+        
+        // Verify default two-zone parameters
+        assertEquals(1.5, profile.getHotCoreTe(), 0.01);
+        assertEquals(1e17, profile.getHotCoreNe(), 1e16);
+        assertEquals(0.4, profile.getHotCoreWeight(), 0.01);
+        
+        assertEquals(0.8, profile.getCoolPeripheryTe(), 0.01);
+        assertEquals(5e16, profile.getCoolPeripheryNe(), 1e15);
+        assertEquals(0.6, profile.getCoolPeripheryWeight(), 0.01);
+    }
+
+    @Test
     void testApplyBaselineCorrection() {
         double[] spectrum = {105.0, 110.0, 150.0, 110.0, 105.0}; // Peak on a baseline of ~100
         
@@ -250,5 +264,25 @@ public class InstrumentProfileServiceTest {
         assertEquals(0.0, corrected[0], 0.01); // 105 - 105
         assertEquals(5.0, corrected[1], 0.01); // 110 - 105
         assertEquals(45.0, corrected[2], 0.01); // 150 - 105
+    }
+
+    @Test
+    void testGenerateJupyterReport() throws IOException {
+        // Create a dummy profile
+        List<Double> wavelengths = Arrays.asList(200.0, 300.0, 400.0);
+        InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
+        profile.setHotCoreTe(1.0);
+        
+        Path reportPath = tempDir.resolve("report.ipynb");
+        service.generateJupyterReport(profile, reportPath);
+        
+        assertTrue(Files.exists(reportPath));
+        String content = Files.readString(reportPath);
+        assertTrue(content.contains("\"cells\""));
+        assertTrue(content.contains("metadata"));
+        assertTrue(content.contains("nbformat"));
+        // Check for plotting code presence
+        assertTrue(content.contains("import matplotlib.pyplot as plt"));
+        assertTrue(content.contains("plt.plot"));
     }
 }
