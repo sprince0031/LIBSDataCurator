@@ -1,14 +1,19 @@
 # Specification: Instrument Profile Generation
 
 ## Overview
-Implement a feature to generate an `instrument_profile.json` file from a set of real-world LIBS measurements (provided as a CSV). This profile captures the specific characteristics of the target instrument, specifically the wavelength grid and the plasma parameters (Electron Temperature $T_e$ and Electron Density $N_e$) for a two-zone model (hot core and cool periphery). This profile allows the `LIBSDataCurator` to generate synthetic data that closely mimics the actual instrument's output.
+Implement a feature to generate an `instrument_profile.json` file from real-world LIBS measurements (CSV format). This profile captures the specific characteristics of the target instrument, including the exact wavelength grid and optimized plasma parameters (Electron Temperature $T_e$ and Electron Density $N_e$) for a two-zone model (hot core and cool periphery). This profile enables the `LIBSDataCurator` to generate synthetic data that is highly representative of physical hardware.
 
 ## Core Requirements
 
-### 1. Input Data Processing
-- **Input Format:** CSV file containing spectral data.
-- **Content:** Rows represent individual measurements (shots). Columns represent wavelength channels.
-- **Parsing:** Extract the wavelength grid from the CSV header or first row. Extract intensity values for processing.
+### 1. Input Data Processing & Preprocessing
+- **Input Format:** CSV file where rows are individual measurement shots and columns represent wavelength channels.
+- **Parsing:** Extract the wavelength grid from headers/first row.
+- **Preprocessing:**
+    - **Averaging:** Calculate the mean intensity across all shots to create a single representative spectrum.
+    - **Baseline Correction:** Implement or utilize a method to remove the spectral baseline/background noise from the averaged spectrum.
+- **Code Reuse Mandate:** 
+    - Utilize the existing `UserInputConfig` and `NistUrlOptions` flow for consistency.
+    - Leverage existing NIST-interaction services (`LIBSDataService`, `SeleniumUtils`) to fetch theoretical line data. Avoid any logic duplication.
 
 ### 2. Instrument Profile Model (`InstrumentProfile`)
 - **Structure:** JSON-serializable object.
@@ -18,29 +23,30 @@ Implement a feature to generate an `instrument_profile.json` file from a set of 
     - `plasmaParameters` (Object):
         - `hotCore`: { `Te`: double, `Ne`: double }
         - `coolPeriphery`: { `Te`: double, `Ne`: double }
-    - `calibrationStats` (Object): Metadata about the fit quality (e.g., $R^2$, RMSE).
+    - `calibrationStats` (Object): Metadata about the fit quality (e.g., $R^2$, RMSE, MSE).
 
 ### 3. Calibration Logic (`InstrumentProfileService`)
-- **Wavelength Extraction:** reliably parse wavelengths from the input CSV.
-- **Parameter Estimation:**
-    - Implement (or finalize) logic to estimate $T_e$ and $N_e$ for two zones based on the input reference spectra and a known reference composition.
-    - *Note:* If complex fitting algorithms are required, standardized Apache Commons Math optimization can be used.
-- **Profile Generation:** Construct the `InstrumentProfile` object.
+- **Theoretical Spectrum Generation:**
+    - For the provided reference composition, generate synthetic spectra using the existing tool logic for various combinations of $T_e$ and $N_e$.
+- **Parameter Estimation (Grid Search):**
+    - Implement a grid search algorithm to find the optimal $T_e$ and $N_e$ for both the hot core and cool periphery.
+    - **Optimization Goal:** Minimize the difference (e.g., Mean Squared Error) between the preprocessed real spectrum and the combined synthetic two-zone spectrum.
+    - **Combined Spectrum Model:** $I_{total}(\lambda) = I_{hot}(\lambda) + I_{cool}(\lambda)$.
+- **Library Usage:** Use Apache Commons Math for optimization or statistical calculations where appropriate.
 
 ### 4. CLI Integration
-- **Command:** Support a new execution mode (likely via `calibrate.sh` invoking a specific main class or flag).
+- **Command:** `calibrate.sh` / `calibrate.bat` invoking the `InstrumentProfileController`.
 - **Arguments:**
-    - `-i, --input`: Path to input CSV.
+    - `-i, --input`: Path to input CSV (reference shots).
     - `-c, --composition`: Reference material composition (e.g., "Fe-98,C-2").
     - `-o, --output`: Path to save `instrument_profile.json`.
-    - `-n, --name`: Instrument name (optional).
+    - `-n, --name`: Instrument identifier.
 
 ### 5. Data & Output
-- **Output File:** `instrument_profile.json` formatted with indentation for readability.
-- **Validation:** Ensure generated JSON is valid and loadable by the main generation engine (future integration).
+- **Output:** Validated, indented `instrument_profile.json`.
+- **Integrity:** Ensure the generated profile is structurally compatible with the main generation engine's input requirements.
 
 ## Technical Constraints
 - **Language:** Java 21.
-- **Libraries:** Apache Commons CSV, Jackson or org.json (as per stack), Apache Commons Math.
-- **Testing:** >95% code coverage.
-- **Code Style:** Clean, DRY, modular.
+- **Libraries:** Apache Commons CSV, `org.json`, Apache Commons Math.
+- **Quality Gate:** >95% code coverage; zero code duplication; strictly modular design.
