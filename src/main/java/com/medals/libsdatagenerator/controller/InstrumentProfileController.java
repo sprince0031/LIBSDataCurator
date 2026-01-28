@@ -126,7 +126,7 @@ public class InstrumentProfileController {
      * @param args Command-line arguments
      * @return Parsed CommandLine object, or null if parsing fails
      */
-    private static CommandLine parseCommandLineArgs(String[] args) {
+    static CommandLine parseCommandLineArgs(String[] args) {
         Options options = new Options();
         
         // Input file (required)
