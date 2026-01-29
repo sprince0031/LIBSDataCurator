@@ -220,6 +220,7 @@ public class InstrumentProfileServiceTest {
         List<Double> wavelengths = Arrays.asList(200.0, 300.0, 400.0);
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
         profile.setHotCoreTe(1.0);
+        profile.setInstrumentName("Test Spectrometer");
         
         Path reportPath = tempDir.resolve("calibration_report.ipynb");
         Path dummyPath = tempDir.resolve("dummy.csv");
