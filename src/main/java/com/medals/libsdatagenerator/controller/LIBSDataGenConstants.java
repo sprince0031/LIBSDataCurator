@@ -166,18 +166,27 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SEED_DESC = "Seed for the samplers to ensure reproducibility.";
     public static final String CMD_OPT_N_DECIMAL_PLACES_SHORT = "nd";
     public static final String CMD_OPT_N_DECIMAL_PLACES_LONG = "num-decimal-places";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
     public static final String CMD_OPT_DEBUG_MODE_SHORT = "d";
     public static final String CMD_OPT_DEBUG_MODE_LONG = "debug";
     public static final String CMD_OPT_DEBUG_MODE_DESC = "Run tool in debug mode to see selenium browser execution.";
-    public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
-    public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
-    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
-    public static final String CALIBRATION_DIR = "calibration";
-    public static final String CALIBRATION_HOT_DIR = "hot";
-    public static final String CALIBRATION_COOL_DIR = "cool";
-    public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
-    public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report.ipynb";
+    // Cmdline options for instrument profile calibration
+    public static final String CMD_OPT_INPUT_SHORT = "i";
+    public static final String CMD_OPT_INPUT_LONG = "input";
+    public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
+
+    public static final String CMD_OPT_OUTPUT_SHORT = "o";
+    public static final String CMD_OPT_OUTPUT_LONG = "output";
+    public static final String CMD_OPT_OUTPUT_DESC = "Output path for the instrument profile JSON file (default: conf/instrument_profile.json)";
+
+    public static final String CMD_OPT_NAME_SHORT = "n";
+    public static final String CMD_OPT_NAME_LONG = "name";
+    public static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";
+
+    public static final String CMD_OPT_HELP_SHORT = "h";
+    public static final String CMD_OPT_HELP_LONG = "help";
+    public static final String CMD_OPT_HELP_DESC = "Show this help message";
 
     /**
      * #### NIST LIBS Constants ####
@@ -205,7 +214,7 @@ public class LIBSDataGenConstants {
     public static final String NIST_LIBS_QUERY_PARAM_LIBS = "libs";
 
     public static final String NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT = "ViewDataCSV";
-    
+
     // HTML element selectors for recalculation form
     public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
     public static final String NIST_LIBS_RECALC_TEMP_INPUT_NAME = "temp";
@@ -233,6 +242,15 @@ public class LIBSDataGenConstants {
     public static final String ARCHIVE_BASE_URL = "https://web.archive.org/web/";
 
     /**
+     * #### Instrument Profile Calibration Constants ####
+     */
+    public static final String CALIBRATION_DIR = "calibration";
+    public static final String CALIBRATION_HOT_DIR = "hot";
+    public static final String CALIBRATION_COOL_DIR = "cool";
+    public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
+    public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report.ipynb";
+
+    /**
      * #### Miscellaneous Constants ####
      */
     public static final String MASTER_DATASET_FILENAME = "master_dataset.csv";
@@ -246,6 +264,8 @@ public class LIBSDataGenConstants {
     public static final String SPECTRAL_DATA_MAP_KEY_SPECTRA = "spectra";
     public static final String SPECTRAL_DATA_MAP_KEY_COMPOSITIONS = "compositions";
     public static final String SPECTRAL_DATA_MAP_KEY_WAVELENGTHS = "wavelengths";
+    public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
+    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cr", "Mo", "Ni", "Fe", "Cu", "Al", "V",

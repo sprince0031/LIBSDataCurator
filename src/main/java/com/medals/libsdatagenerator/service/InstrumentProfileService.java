@@ -303,6 +303,7 @@ public class InstrumentProfileService {
     public void generateJupyterReport(InstrumentProfile profile, Path outputPath, Path targetCsv, Path hotCsv, Path coolCsv) throws IOException {
         // Load template from conf directory
         Path templatePath = Paths.get(CommonUtils.CONF_PATH, LIBSDataGenConstants.CALIBRATION_REPORT_TEMPLATE_FILE);
+        String templateContent;
         if (!Files.exists(templatePath)) {
              // Fallback to resources if not in conf (e.g. during dev/test before deployment)
              logger.warning("Template not found in conf: " + templatePath + ". Checking resources.");
@@ -335,6 +336,7 @@ public class InstrumentProfileService {
         String content = templateContent
                 .replace("<INSTRUMENT_NAME>", profile.getInstrumentName())
                 .replace("\"<FIT_SCORE>\"", String.format("%.4f", profile.getFitScore()))
+                .replace("<FIT_SCORE>", String.format("%.4f", profile.getFitScore()))
                 .replace("\"<RMSE>\"", String.format("%.4f", profile.getRmse()))
                 .replace("<RMSE>", String.format("%.4f", profile.getRmse()))
                 .replace("<INPUT_CSV_PATH>", inputCsvPath)
@@ -351,9 +353,6 @@ public class InstrumentProfileService {
         Files.write(outputPath, content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         logger.info("Jupyter notebook report generated: " + outputPath);
     }
-    
-    // Field for template content to handle scope in previous method logic (simplification)
-    private String templateContent;
 
     /**
      * Executes the Jupyter Notebook in place.

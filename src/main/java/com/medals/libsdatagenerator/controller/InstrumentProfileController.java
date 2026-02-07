@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
+import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.*;
 
@@ -24,33 +25,12 @@ public class InstrumentProfileController {
 
     private static final Logger logger = Logger.getLogger(InstrumentProfileController.class.getName());
 
-    // CLI option constants
-    private static final String CMD_OPT_INPUT_SHORT = "i";
-    private static final String CMD_OPT_INPUT_LONG = "input";
-    private static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
-
-    private static final String CMD_OPT_COMPOSITION_SHORT = "c";
-    private static final String CMD_OPT_COMPOSITION_LONG = "composition";
-    private static final String CMD_OPT_COMPOSITION_DESC = "Exact composition of the reference material in format 'Element1-Percentage1,Element2-Percentage2,...'";
-
-    private static final String CMD_OPT_OUTPUT_SHORT = "o";
-    private static final String CMD_OPT_OUTPUT_LONG = "output";
-    private static final String CMD_OPT_OUTPUT_DESC = "Output path for the instrument profile JSON file (default: ./instrument_profile.json)";
-
-    private static final String CMD_OPT_NAME_SHORT = "n";
-    private static final String CMD_OPT_NAME_LONG = "name";
-    private static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";
-
-    private static final String CMD_OPT_HELP_SHORT = "h";
-    private static final String CMD_OPT_HELP_LONG = "help";
-    private static final String CMD_OPT_HELP_DESC = "Show this help message";
-
-    private static String outputDir = CommonUtils.HOME_PATH + File.separator + ".." + File.separator + "conf";
+    private static String outputDir = CommonUtils.CONF_PATH;
 
     public static void main(String[] args) {
         logger.info("Starting LIBS Instrument Profile Calibration...");
         
-        CommandLine cmd = parseCommandLineArgs(args);
+        CommandLine cmd = new CmdlineParserUtil().parseCommandLineArgsForCalibration(args);
         if (cmd == null) {
             System.exit(1);
             return;
@@ -58,10 +38,10 @@ public class InstrumentProfileController {
         
         try {
             // Get input parameters
-            String inputPath = cmd.getOptionValue(CMD_OPT_INPUT_SHORT);
-            String composition = cmd.getOptionValue(CMD_OPT_COMPOSITION_SHORT);
-            String outputPath = cmd.getOptionValue(CMD_OPT_OUTPUT_SHORT,  outputDir + File.separator + "instrument_profile.json");
-            String instrumentName = cmd.getOptionValue(CMD_OPT_NAME_SHORT, "Unknown");
+            String inputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INPUT_SHORT);
+            String composition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
+            String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,  outputDir + File.separator + "instrument_profile.json");
+            String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
             
             // Validate input file exists
             File inputFile = new File(inputPath);
@@ -120,85 +100,4 @@ public class InstrumentProfileController {
         }
     }
 
-    /**
-     * Parses command-line arguments for calibration mode.
-     * 
-     * @param args Command-line arguments
-     * @return Parsed CommandLine object, or null if parsing fails
-     */
-    static CommandLine parseCommandLineArgs(String[] args) {
-        Options options = new Options();
-        
-        // Input file (required)
-        Option input = new Option(CMD_OPT_INPUT_SHORT, CMD_OPT_INPUT_LONG, true, CMD_OPT_INPUT_DESC);
-        input.setRequired(true);
-        options.addOption(input);
-        
-        // Composition (required)
-        Option composition = new Option(CMD_OPT_COMPOSITION_SHORT, CMD_OPT_COMPOSITION_LONG, true, CMD_OPT_COMPOSITION_DESC);
-        composition.setRequired(true);
-        options.addOption(composition);
-        
-        // Output path (optional)
-        Option output = new Option(CMD_OPT_OUTPUT_SHORT, CMD_OPT_OUTPUT_LONG, true, CMD_OPT_OUTPUT_DESC);
-        output.setRequired(false);
-        options.addOption(output);
-        
-        // Instrument name (optional)
-        Option name = new Option(CMD_OPT_NAME_SHORT, CMD_OPT_NAME_LONG, true, CMD_OPT_NAME_DESC);
-        name.setRequired(false);
-        options.addOption(name);
-        
-        // Help (optional)
-        Option help = new Option(CMD_OPT_HELP_SHORT, CMD_OPT_HELP_LONG, false, CMD_OPT_HELP_DESC);
-        help.setRequired(false);
-        options.addOption(help);
-        
-        CommandLineParser parser = new DefaultParser();
-        HelpFormatter helpFormatter = new HelpFormatter();
-        
-        try {
-            // Check for help first
-            if (args.length == 0 || containsHelp(args)) {
-                printHelp(helpFormatter, options);
-                return null;
-            }
-            
-            return parser.parse(options, args);
-            
-        } catch (ParseException e) {
-            logger.log(Level.SEVERE, "Failed to parse command line arguments", e);
-            System.out.println("Error: " + e.getMessage());
-            System.out.println();
-            printHelp(helpFormatter, options);
-            return null;
-        }
-    }
-
-    private static boolean containsHelp(String[] args) {
-        for (String arg : args) {
-            if ("-h".equals(arg) || "--help".equals(arg)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static void printHelp(HelpFormatter helpFormatter, Options options) {
-        String header = "\nGenerates an instrument profile from real LIBS measurement data.\n" +
-                "The profile contains wavelength grid and two-zone plasma parameters\n" +
-                "(Te, Ne for hot core and cool periphery) optimized to match measured spectra.\n\n";
-        
-        String footer = "\nExamples:\n" +
-                "  java -cp LIBSDataCurator.jar " + InstrumentProfileController.class.getName() + " \\\n" +
-                "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\"\n\n" +
-                "  java -cp LIBSDataCurator.jar " + InstrumentProfileController.class.getName() + " \\\n" +
-                "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\" \\\n" +
-                "    -o my_instrument_profile.json -n \"Ocean Optics HR2000\"\n\n" +
-                "Note: The input CSV should have wavelength values as column headers\n" +
-                "and each row should represent one shot/measurement.\n";
-        
-        helpFormatter.printHelp("java -cp LIBSDataCurator.jar " + InstrumentProfileController.class.getName(),
-                header, options, footer, true);
-    }
 }

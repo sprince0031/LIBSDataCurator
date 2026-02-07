@@ -8,6 +8,7 @@ import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.DatasetStatisticsService;
 import com.medals.libsdatagenerator.service.LIBSDataService;
+import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
@@ -39,7 +40,7 @@ public class LIBSDataController {
                 logger.log(Level.WARNING, "NIST LIBS reachable is not available");
             }
 
-            CommandLine cmd = commonUtils.getTerminalArgHandler(args);
+            CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(args);
 
             if (cmd == null) {
                 logger.severe("Failed to parse command line arguments. Aborting.");

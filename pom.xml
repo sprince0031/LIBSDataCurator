@@ -6,7 +6,7 @@
 
     <groupId>com.medals</groupId>
     <artifactId>libsdatagenerator</artifactId>
-    <version>0.9.0</version>
+    <version>0.9.4</version>
 
     <properties>
         <!-- Use Java 21 -->
@@ -133,6 +133,7 @@
                     <archive>
                         <manifest>
                             <mainClass>com.medals.libsdatagenerator.controller.LIBSDataController</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                         </manifest>
                     </archive>
                     <outputDirectory>${project.build.directory}</outputDirectory>
