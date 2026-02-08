@@ -276,6 +276,13 @@ public class CmdlineParserUtil {
         input.setRequired(true);
         options.addOption(input);
 
+        // Input CSV delimiter (optional | default: ;)
+        Option delimiter = new Option(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DELIMITER_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_DELIMITER_DESC);
+        delimiter.setRequired(false);
+        options.addOption(delimiter);
+
         // Composition (required)
         Option composition = new Option(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT,
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,

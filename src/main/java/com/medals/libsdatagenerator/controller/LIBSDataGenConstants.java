@@ -175,11 +175,12 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_INPUT_SHORT = "i";
     public static final String CMD_OPT_INPUT_LONG = "input";
     public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
-
+    public static final String CMD_OPT_DELIMITER_SHORT = "d";
+    public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
+    public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";
     public static final String CMD_OPT_OUTPUT_SHORT = "o";
     public static final String CMD_OPT_OUTPUT_LONG = "output";
     public static final String CMD_OPT_OUTPUT_DESC = "Output path for the instrument profile JSON file (default: conf/instrument_profile.json)";
-
     public static final String CMD_OPT_NAME_SHORT = "n";
     public static final String CMD_OPT_NAME_LONG = "name";
     public static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";

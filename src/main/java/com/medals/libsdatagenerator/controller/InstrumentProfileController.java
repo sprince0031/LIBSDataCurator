@@ -39,6 +39,7 @@ public class InstrumentProfileController {
         try {
             // Get input parameters
             String inputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INPUT_SHORT);
+            String delimiter = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT, ";");
             String composition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
             String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,  outputDir + File.separator + "instrument_profile.json");
             String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
@@ -62,7 +63,7 @@ public class InstrumentProfileController {
             System.out.println("Instrument name: " + instrumentName);
             System.out.println();
             
-            InstrumentProfile profile = profileService.generateProfile(inputFilePath, composition, instrumentName);
+            InstrumentProfile profile = profileService.generateProfile(inputFilePath, delimiter, composition, instrumentName);
             
             // Save profile
             Path outputFilePath = Paths.get(outputPath);

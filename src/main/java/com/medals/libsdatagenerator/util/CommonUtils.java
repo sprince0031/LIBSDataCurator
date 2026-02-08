@@ -2,7 +2,6 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
-import com.medals.libsdatagenerator.model.UserInputConfig;
 import org.apache.commons.cli.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.JSONArray;
