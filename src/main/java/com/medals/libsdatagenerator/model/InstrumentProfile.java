@@ -29,7 +29,7 @@ public class InstrumentProfile {
             new PlasmaZone(1.5, 1e17, 0.4), 
             new PlasmaZone(0.8, 5e16, 0.6)
         );
-        this.calibrationStats = new CalibrationStats(0, 0, 0);
+        this.calibrationStats = new CalibrationStats(0, 0);
     }
 
     // Constructor used in tests and spec
@@ -46,7 +46,7 @@ public class InstrumentProfile {
         this.sourceFile = sourceFile;
         this.referenceComposition = referenceComposition;
         this.plasmaParameters = new PlasmaParameters(new PlasmaZone(0, 0), new PlasmaZone(0, 0));
-        this.calibrationStats = new CalibrationStats(0, 0, 0);
+        this.calibrationStats = new CalibrationStats(0, 0);
     }
 
     public String getInstrumentName() {

@@ -506,7 +506,7 @@ public class LIBSDataService {
      *         Also add each encountered wavelength to 'allWavelengths'.
      */
     private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException, IllegalArgumentException {
-        Map<Double, Double> waveMap = new HashMap<>();
+        Map<Double, Double> waveMap = new TreeMap<>();
 
         // Check if CSV string is correctly parsed
 

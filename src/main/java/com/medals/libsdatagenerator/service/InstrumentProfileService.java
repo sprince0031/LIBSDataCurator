@@ -7,9 +7,10 @@ import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import com.medals.libsdatagenerator.util.PythonUtils;
+import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 
 import java.io.BufferedReader;
@@ -19,7 +20,12 @@ import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,20 +40,6 @@ public class InstrumentProfileService {
 
     private static final Logger logger = Logger.getLogger(InstrumentProfileService.class.getName());
 
-    // Default optimization bounds
-    private static final double TE_MIN = 0.3; // Minimum plasma temperature (eV)
-    private static final double TE_MAX = 3.0; // Maximum plasma temperature (eV)
-    private static final double NE_MIN = 1e15; // Minimum electron density (cm^-3)
-    private static final double NE_MAX = 1e18; // Maximum electron density (cm^-3)
-    private static final double WEIGHT_MIN = 0.1; // Minimum zone weight
-    private static final double WEIGHT_MAX = 0.9; // Maximum zone weight
-
-    // Optimization settings
-    private static final int MAX_EVALUATIONS = 20000;
-    private static final double CONVERGENCE_THRESHOLD = 1e-4;
-    
-    // Default number of decimal places for composition percentages
-    private static final int DEFAULT_DECIMAL_PLACES = 3;
 
     private static InstrumentProfileService instance = null;
 
@@ -69,8 +61,7 @@ public class InstrumentProfileService {
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-            String instrumentName)
-            throws IOException {
+            String instrumentName) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -90,7 +81,7 @@ public class InstrumentProfileService {
         double[] avgMeasuredSpectrum = calculateAverageSpectrum(measuredSpectra);
 
         // 3b. Apply Baseline Correction (Simple Minimum Subtraction)
-        avgMeasuredSpectrum = applyBaselineCorrection(avgMeasuredSpectrum);
+        avgMeasuredSpectrum = BaselineCorrectionService.getInstance().correctBaseline(avgMeasuredSpectrum);
 
         // 4. Parse composition
         List<Element> composition = parseComposition(compositionString);
@@ -117,7 +108,7 @@ public class InstrumentProfileService {
                 }
 
                 Path calibrationDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
-                Path reportPath = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE);
+                Path reportPath = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + ".ipynb");
 
                 Path targetCsv = calibrationDir.resolve("target_processed.csv");
                 Path hotCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_HOT_DIR).resolve("best_hot.csv");
@@ -126,7 +117,7 @@ public class InstrumentProfileService {
 
                 generateJupyterReport(profile, reportPath, targetCsv, hotCsv, coolCsv);
                 executeNotebook(reportPath, jupyterPath);
-                convertNotebookToPdf(reportPath, jupyterPath);
+                convertNotebookToPdf(reportPath, jupyterPath, instrumentName);
 
             } catch (Exception e) {
                 logger.log(Level.WARNING, "Failed to generate or execute calibration report", e);
@@ -245,17 +236,6 @@ public class InstrumentProfileService {
     }
 
     /**
-     * Applies baseline correction to the spectrum.
-     * Current implementation subtracts the minimum value from all points.
-     * 
-     * @param spectrum Averaged input spectrum
-     * @return Baseline corrected spectrum
-     */
-    public double[] applyBaselineCorrection(double[] spectrum) {
-        return BaselineCorrectionService.getInstance().correctBaseline(spectrum);
-    }
-
-    /**
      * Generates a Jupyter Notebook report for the calibration.
      * 
      * @param profile    The instrument profile containing data and parameters
@@ -352,13 +332,13 @@ public class InstrumentProfileService {
     /**
      * Converts the Jupyter Notebook to PDF.
      */
-    private void convertNotebookToPdf(Path notebookPath, Path jupyterPath) {
+    private void convertNotebookToPdf(Path notebookPath, Path jupyterPath, String instrumentName) {
         logger.info("Converting Notebook to PDF...");
+        String pdfReportPath = LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_" + instrumentName + "_" + System.currentTimeMillis();
         try {
             ProcessBuilder pb = new ProcessBuilder(
                     jupyterPath.toString(), "nbconvert",
-                    "--to", "pdf",
-                    notebookPath.toString());
+                    "--to", "pdf", notebookPath.toString(), "--output", pdfReportPath);
             pb.directory(notebookPath.getParent().toFile()); // Run in same dir
             pb.redirectErrorStream(true);
             Process process = pb.start();
@@ -395,7 +375,7 @@ public class InstrumentProfileService {
             // Convert composition string to list format expected by generateElementsList
             List<String> compositionArray = Arrays.asList(compositionString.split(","));
             Map<String, Object> result = InputCompositionProcessor.getInstance()
-                    .generateElementsList(compositionArray, DEFAULT_DECIMAL_PLACES);
+                    .generateElementsList(compositionArray, Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
 
             @SuppressWarnings("unchecked")
             List<Element> elements = (List<Element>) result.get("elementsList");
@@ -452,11 +432,12 @@ public class InstrumentProfileService {
 
         // Define Grid Search Space
         // Ranges for Te (eV)
-        double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 2.0 };
+        double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
         // Ranges for Ne (cm^-3) - using exponents
-        double[] neExponents = { 16.0, 16.5, 17.0, 17.5 };
+        double[] neExponents = { 15.0, 15.5, 16.0, 16.5, 17.0, 17.5 };
 
         double bestRmse = Double.MAX_VALUE;
+        double bestRSquared = Double.MIN_VALUE;
         double bestHotTe = 0;
         double bestHotNe = 0;
         double bestCoolTe = 0;
@@ -466,7 +447,7 @@ public class InstrumentProfileService {
         // Temporary storage for spectra to avoid re-fetching
         // Key: "Te_Ne" -> double[] spectrum
         Map<String, double[]> spectrumCache = new HashMap<>();
-
+        SpectrumUtils spectrumUtils = new SpectrumUtils();
         try {
             // Setup output directories
             Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
@@ -495,7 +476,7 @@ public class InstrumentProfileService {
                     if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
                         // Parse and cache
                         Map<Double, Double> waveMap = parseNistCsv(csvData);
-                        double[] spectrum = alignSpectrum(waveMap, wavelengthGrid);
+                        double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
                         spectrumCache.put(key, spectrum);
                     }
 
@@ -508,9 +489,9 @@ public class InstrumentProfileService {
             if (maxMeasuredIntensity == 0)
                 maxMeasuredIntensity = 1.0;
 
-            double[] normalizedMeasuredSpectrum = new double[avgMeasuredSpectrum.length];
+            double[] normalisedMeasuredSpectrum = new double[avgMeasuredSpectrum.length];
             for (int i = 0; i < avgMeasuredSpectrum.length; i++) {
-                normalizedMeasuredSpectrum[i] = avgMeasuredSpectrum[i] / maxMeasuredIntensity;
+                normalisedMeasuredSpectrum[i] = avgMeasuredSpectrum[i] / maxMeasuredIntensity;
             }
 
             // Grid Search Logic (Combinatorial)
@@ -538,13 +519,15 @@ public class InstrumentProfileService {
                                 continue;
 
                             // Optimize Weight (0.1 to 0.9)
-                            for (double w = 0.1; w <= 0.9; w += 0.1) {
-                                double[] combined = combineSpectra(hotSpectrum, coolSpectrum, w);
-                                // Use normalized measured spectrum for RMSE calculation
-                                double rmse = calculateRMSE(normalizedMeasuredSpectrum, normalizeSpectrum(combined));
-
-                                if (rmse < bestRmse) {
+                            for (double w = 0.1; w <= 0.9; w += 0.05) {
+                                double[] combined = spectrumUtils.combineSpectra(hotSpectrum, coolSpectrum, w);
+                                double[] normalisedCombined = spectrumUtils.normalizeSpectrum(combined);
+                                // Use normalized measured spectrum for RMSE and r^2 calculation
+                                double rmse = spectrumUtils.calculateRMSE(normalisedMeasuredSpectrum, normalisedCombined);
+                                double rSquared = spectrumUtils.calculateSpectralSimilarity(normalisedMeasuredSpectrum, normalisedCombined);
+                                if (rmse < bestRmse && rSquared > bestRSquared) {
                                     bestRmse = rmse;
+                                    bestRSquared = rSquared;
                                     bestHotTe = hotTe;
                                     bestHotNe = hotNe;
                                     bestCoolTe = coolTe;
@@ -565,7 +548,7 @@ public class InstrumentProfileService {
             profile.setHotCoreWeight(bestHotWeight);
             profile.setCoolPeripheryWeight(1.0 - bestHotWeight);
             profile.setRmse(bestRmse);
-            profile.setFitScore(1.0 - Math.min(bestRmse, 1.0));
+            profile.setFitScore(bestRSquared);
 
             logger.info("Optimization complete. Best RMSE: " + bestRmse);
 
@@ -610,8 +593,9 @@ public class InstrumentProfileService {
         }
 
         Map<Double, Double> waveMap = parseNistCsv(csvData);
-        double[] spectrum = alignSpectrum(waveMap, wavelengthGrid);
-        double[] normalized = normalizeSpectrum(spectrum);
+        SpectrumUtils spectrumUtils = new SpectrumUtils();
+        double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
+        double[] normalized = spectrumUtils.normalizeSpectrum(spectrum);
 
         double[] scaled = new double[normalized.length];
         for (int i = 0; i < normalized.length; i++) {
@@ -632,21 +616,7 @@ public class InstrumentProfileService {
         }
     }
 
-    private double[] alignSpectrum(Map<Double, Double> waveMap, List<Double> targetGrid) {
-        double[] aligned = new double[targetGrid.size()];
-        // Simple nearest neighbor or interpolation could be used.
-        // For now, mapping closest existing wavelength.
-        for (int i = 0; i < targetGrid.size(); i++) {
-            double targetWl = targetGrid.get(i);
-            // Find closest key in map (inefficient for large maps, but acceptable for
-            // prototype)
-            // Ideally, waveMap keys should be navigable
-            // Using exact match or very close tolerance for simplicity if grid matches NIST
-            aligned[i] = waveMap.getOrDefault(targetWl, 0.0);
-        }
-        return aligned;
-    }
-
+    // TODO: Consolidate NIST CSV parsing logic with LIBSDataService.parseNistCsv() - Code duplication
     private Map<Double, Double> parseNistCsv(String csvData) throws IOException {
         Map<Double, Double> map = new HashMap<>();
         try (java.io.StringReader sr = new java.io.StringReader(csvData);
@@ -664,56 +634,5 @@ public class InstrumentProfileService {
             }
         }
         return map;
-    }
-
-    private double[] combineSpectra(double[] hot, double[] cool, double weight) {
-        double[] combined = new double[hot.length];
-        for (int i = 0; i < hot.length; i++) {
-            combined[i] = weight * hot[i] + (1.0 - weight) * cool[i];
-        }
-        return combined;
-    }
-
-    /**
-     * Normalizes a spectrum to [0, 1] range.
-     * If spectrum is empty or has no positive values, returns array of zeros.
-     * 
-     * @param spectrum Input intensity array
-     * @return Normalized array with values in [0, 1] range
-     */
-    double[] normalizeSpectrum(double[] spectrum) {
-        if (spectrum == null || spectrum.length == 0) {
-            logger.warning("Empty spectrum provided for normalization, returning empty array");
-            return new double[0];
-        }
-
-        double max = Arrays.stream(spectrum).max().orElse(0.0);
-        if (max <= 0) {
-            logger.fine("Spectrum has no positive values, returning zeros");
-            return new double[spectrum.length]; // Returns array of zeros
-        }
-
-        double[] normalized = new double[spectrum.length];
-        for (int i = 0; i < spectrum.length; i++) {
-            normalized[i] = spectrum[i] / max;
-        }
-        return normalized;
-    }
-
-    /**
-     * Calculates Root Mean Square Error between two spectra.
-     */
-    double calculateRMSE(double[] spectrum1, double[] spectrum2) {
-        if (spectrum1.length != spectrum2.length || spectrum1.length == 0) {
-            return Double.MAX_VALUE;
-        }
-
-        double sumSquaredError = 0;
-        for (int i = 0; i < spectrum1.length; i++) {
-            double diff = spectrum1[i] - spectrum2[i];
-            sumSquaredError += diff * diff;
-        }
-
-        return Math.sqrt(sumSquaredError / spectrum1.length);
     }
 }

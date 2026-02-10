@@ -167,6 +167,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_N_DECIMAL_PLACES_SHORT = "nd";
     public static final String CMD_OPT_N_DECIMAL_PLACES_LONG = "num-decimal-places";
     public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
+    public static final String DEFAULT_N_DECIMAL_PLACES = "3";
     public static final String CMD_OPT_DEBUG_MODE_SHORT = "d";
     public static final String CMD_OPT_DEBUG_MODE_LONG = "debug";
     public static final String CMD_OPT_DEBUG_MODE_DESC = "Run tool in debug mode to see selenium browser execution.";
@@ -249,7 +250,7 @@ public class LIBSDataGenConstants {
     public static final String CALIBRATION_HOT_DIR = "hot";
     public static final String CALIBRATION_COOL_DIR = "cool";
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
-    public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report.ipynb";
+    public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
 
     /**
      * #### Miscellaneous Constants ####

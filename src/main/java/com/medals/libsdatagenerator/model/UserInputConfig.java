@@ -121,7 +121,7 @@ public class UserInputConfig {
             this.seed = null;
         }
         try {
-            this.numDecimalPlaces = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT, "3"));
+            this.numDecimalPlaces = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT, LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
             if (this.numDecimalPlaces < 0) {
                 throw new IllegalArgumentException("Invalid number of decimal places. Must be a valid positive integer.");
             }

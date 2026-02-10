@@ -20,7 +20,7 @@ class InstrumentProfileTest {
         PlasmaZone coolPeriphery = new PlasmaZone(0.8, 1e16, 0.3);
         PlasmaParameters plasmaParameters = new PlasmaParameters(hotCore, coolPeriphery);
         
-        CalibrationStats calibrationStats = new CalibrationStats(0.99, 0.05, 0.0025);
+        CalibrationStats calibrationStats = new CalibrationStats(0.99, 0.05);
 
         InstrumentProfile profile = new InstrumentProfile(instrumentName, wavelengths, plasmaParameters, calibrationStats);
 
