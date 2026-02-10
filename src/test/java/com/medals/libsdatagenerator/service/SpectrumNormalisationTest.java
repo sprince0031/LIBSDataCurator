@@ -72,4 +72,15 @@ class SpectrumNormalisationTest {
         double rmse2 = spectrumUtils.calculateRMSE(s1, s3);
         assertEquals(Math.sqrt(1.25 / 3.0), rmse2, 0.001);
     }
+
+    @Test
+    void testRSquared() {
+        double[] s1 = { 0.0, 0.5, 1.0 };
+        double[] s2 = { 0.0, 0.5, 1.0 };
+        double rSquared = spectrumUtils.calculateSpectralSimilarity(s1, s2);
+        assertEquals(1.0, rSquared, 0.001);
+        double[] s3 = { 0.0, 1.0, 0.5 };
+        double rSquared2 = spectrumUtils.calculateSpectralSimilarity(s1, s3);
+        assertEquals(0.25, rSquared2, 0.001);
+    }
 }
