@@ -1,8 +1,10 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.Spectrum;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
@@ -40,7 +42,6 @@ public class InstrumentProfileService {
 
     private static final Logger logger = Logger.getLogger(InstrumentProfileService.class.getName());
 
-
     private static InstrumentProfileService instance = null;
 
     public static InstrumentProfileService getInstance() {
@@ -57,31 +58,40 @@ public class InstrumentProfileService {
      * @param compositionString Composition of the reference material (e.g.,
      *                          "Fe-80,C-20")
      * @param instrumentName    Optional name for the instrument
+     * @param baselineParams    object containing lambda, p and maxIter values for baseline correction
      * @return Generated InstrumentProfile
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-            String instrumentName) throws IOException {
+                                             String instrumentName, BaselineCorrectionParams baselineParams) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
 
         // 1. Extract wavelength grid from CSV header
-        List<Double> wavelengthGrid = extractWavelengthGrid(sampleCsvPath, delimiter);
-        if (wavelengthGrid.isEmpty()) {
+        double[] wavelengthGrid = extractWavelengthGrid(sampleCsvPath, delimiter);
+        if (wavelengthGrid.length == 0) {
             throw new IOException("Failed to extract wavelength grid from CSV header");
         }
-        logger.info("Extracted wavelength grid with " + wavelengthGrid.size() + " points");
+        logger.info("Extracted wavelength grid with " + wavelengthGrid.length + " points");
 
         // 2. Extract measured spectra (all shots)
         List<double[]> measuredSpectra = extractMeasuredSpectra(sampleCsvPath, wavelengthGrid, delimiter);
         logger.info("Extracted " + measuredSpectra.size() + " measurement shots");
 
-        // 3. Calculate average measured spectrum
-        double[] avgMeasuredSpectrum = calculateAverageSpectrum(measuredSpectra);
+        SpectrumUtils spectrumUtils = new SpectrumUtils();
 
-        // 3b. Apply Baseline Correction (Simple Minimum Subtraction)
-        avgMeasuredSpectrum = BaselineCorrectionService.getInstance().correctBaseline(avgMeasuredSpectrum);
+        // 3. Calculate average measured spectrum
+        double[] avgMeasuredSpectrum = spectrumUtils.calculateAverageSpectrum(measuredSpectra);
+
+        // 3a. Clip spectrum
+        Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgMeasuredSpectrum);
+
+        // 3b. Apply Baseline Correction (Asymmetric Least Squares)
+        double[] baselineCorrectedIntensities = BaselineCorrectionService.getInstance().correctBaseline(
+                clippedSpectrum.getIntensities(), baselineParams.getLambda(), baselineParams.getP(),
+                baselineParams.getMaxIterations());
+        Spectrum processedMeasuredSpectrum = new Spectrum(clippedSpectrum.getWavelengths(), baselineCorrectedIntensities);
 
         // 4. Parse composition
         List<Element> composition = parseComposition(compositionString);
@@ -90,14 +100,15 @@ public class InstrumentProfileService {
         }
 
         // 5. Create initial profile
-        InstrumentProfile profile = new InstrumentProfile(wavelengthGrid,
+        InstrumentProfile profile = new InstrumentProfile(processedMeasuredSpectrum.getWavelengths(),
                 sampleCsvPath.toString(), compositionString);
         profile.setInstrumentName(instrumentName != null ? instrumentName : "Unknown");
         profile.setNumShots(measuredSpectra.size());
+        profile.setBaselineParams(baselineParams);
 
         // 6. Optimize plasma parameters
         logger.info("Starting two-zone plasma parameter optimization...");
-        optimizePlasmaParameters(profile, avgMeasuredSpectrum, wavelengthGrid, composition);
+        optimizePlasmaParameters(profile, processedMeasuredSpectrum, composition);
 
         // 7. Generate Jupyter Report
         if (PythonUtils.getInstance().setupPythonEnvironment()) {
@@ -135,13 +146,13 @@ public class InstrumentProfileService {
     /**
      * Extracts the wavelength grid from the CSV header line.
      * Expects wavelengths as column headers (numeric values).
-     * 
+     *
      * @param csvPath   Path to the CSV file
      * @param delimiter Delimiter character used in source spectra CSV
      * @return List of wavelength values
      * @throws IOException if file cannot be read
      */
-    public List<Double> extractWavelengthGrid(Path csvPath, String delimiter) throws IOException {
+    public double[] extractWavelengthGrid(Path csvPath, String delimiter) throws IOException {
         List<Double> wavelengths = new ArrayList<>();
 
         try (BufferedReader reader = Files.newBufferedReader(csvPath)) {
@@ -167,7 +178,14 @@ public class InstrumentProfileService {
         
         // Sort wavelengths
         Collections.sort(wavelengths);
-        return wavelengths;
+
+        // Convert to double[] for compatibility with interpolation utilities downstream
+        double[] finalWavelengths = new double[wavelengths.size()];
+        for (int i = 0; i < wavelengths.size(); i++) {
+            finalWavelengths[i] = wavelengths.get(i);
+        }
+
+        return finalWavelengths;
     }
 
     /**
@@ -180,7 +198,7 @@ public class InstrumentProfileService {
      * @return List of intensity arrays, one per shot
      * @throws IOException if file cannot be read
      */
-    public List<double[]> extractMeasuredSpectra(Path csvPath, List<Double> wavelengthGrid, String delimiter)
+    public List<double[]> extractMeasuredSpectra(Path csvPath, double[] wavelengthGrid, String delimiter)
             throws IOException {
         List<double[]> spectra = new ArrayList<>();
 
@@ -190,10 +208,10 @@ public class InstrumentProfileService {
 
             // Extract spectra
             for (CSVRecord record : parser) {
-                double[] spectrum = new double[wavelengthGrid.size()];
-                for (int i = 0; i < wavelengthGrid.size(); i++) {
+                double[] spectrum = new double[wavelengthGrid.length];
+                for (int i = 0; i < wavelengthGrid.length; i++) {
                     try {
-                        spectrum[i] = Double.parseDouble(record.get(String.valueOf(wavelengthGrid.get(i))).trim());
+                        spectrum[i] = Double.parseDouble(record.get(String.valueOf(wavelengthGrid[i])).trim());
                     } catch (IllegalArgumentException e) {
                         // IllegalArgumentException catches both NumberFormatException (which extends
                         // it)
@@ -206,33 +224,6 @@ public class InstrumentProfileService {
         }
 
         return spectra;
-    }
-
-    /**
-     * Calculates the average spectrum from multiple shots.
-     * 
-     * @param spectra List of intensity arrays
-     * @return Average intensity array
-     */
-    public double[] calculateAverageSpectrum(List<double[]> spectra) {
-        if (spectra.isEmpty()) {
-            return new double[0];
-        }
-        
-        int length = spectra.get(0).length;
-        double[] avg = new double[length];
-
-        for (double[] spectrum : spectra) {
-            for (int i = 0; i < Math.min(length, spectrum.length); i++) {
-                avg[i] += spectrum[i];
-            }
-        }
-
-        for (int i = 0; i < length; i++) {
-            avg[i] /= spectra.size();
-        }
-
-        return avg;
     }
 
     /**
@@ -275,8 +266,8 @@ public class InstrumentProfileService {
         // Replace placeholders
         String content = templateContent
                 .replace("<INSTRUMENT_NAME>", profile.getInstrumentName())
-                .replace("\"<FIT_SCORE>\"", String.format("%.4f", profile.getFitScore()))
-                .replace("<FIT_SCORE>", String.format("%.4f", profile.getFitScore()))
+                .replace("\"<FIT_SCORE>\"", String.format("%.4f", profile.getRSquaredValue()))
+                .replace("<FIT_SCORE>", String.format("%.4f", profile.getRSquaredValue()))
                 .replace("\"<RMSE>\"", String.format("%.4f", profile.getRmse()))
                 .replace("<RMSE>", String.format("%.4f", profile.getRmse()))
                 .replace("<INPUT_CSV_PATH>", inputCsvPath)
@@ -287,7 +278,10 @@ public class InstrumentProfileService {
                 .replace("<HOT_CORE_NE>", String.valueOf(profile.getHotCoreNe()))
                 .replace("<WEIGHT>", String.valueOf(profile.getHotCoreWeight())) // NOTE: Template uses WEIGHT, verify
                 .replace("<COOL_PERIPHERY_TE>", String.valueOf(profile.getCoolPeripheryTe()))
-                .replace("<COOL_PERIPHERY_NE>", String.valueOf(profile.getCoolPeripheryNe()));
+                .replace("<COOL_PERIPHERY_NE>", String.valueOf(profile.getCoolPeripheryNe()))
+                .replace("<LAMBDA>", String.valueOf(profile.getLambda()))
+                .replace("<P>", String.valueOf(profile.getP()))
+                .replace("<MAX_ITERATIONS>", String.valueOf(profile.getMaxIterations()));
 
         // Save filled notebook
         Files.write(outputPath, content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -334,7 +328,8 @@ public class InstrumentProfileService {
      */
     private void convertNotebookToPdf(Path notebookPath, Path jupyterPath, String instrumentName) {
         logger.info("Converting Notebook to PDF...");
-        String pdfReportPath = LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_" + instrumentName + "_" + System.currentTimeMillis();
+        String pdfReportPath = LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_" + instrumentName + "_"
+                + System.currentTimeMillis();
         try {
             ProcessBuilder pb = new ProcessBuilder(
                     jupyterPath.toString(), "nbconvert",
@@ -413,14 +408,15 @@ public class InstrumentProfileService {
      * Optimizes the two-zone plasma parameters to best match measured spectrum.
      * Uses a Grid Search approach with Selenium-based spectrum generation.
      * 
-     * @param profile             InstrumentProfile to update with optimized
-     *                            parameters
-     * @param avgMeasuredSpectrum Average measured spectrum
-     * @param wavelengthGrid      Wavelength values
-     * @param composition         Material composition
+     * @param profile InstrumentProfile to update with optimized parameters
+     * @param processedMeasuredSpectrum Average measured spectrum
+     * @param composition Material composition
      */
-    private void optimizePlasmaParameters(InstrumentProfile profile, double[] avgMeasuredSpectrum,
-            List<Double> wavelengthGrid, List<Element> composition) {
+    private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
+                                          List<Element> composition) {
+
+        double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
+        double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
 
         logger.info("Starting Grid Search optimization for plasma parameters...");
 
@@ -459,7 +455,7 @@ public class InstrumentProfileService {
 
             // Save Target Spectrum
             Path targetPath = calibDir.resolve("target_processed.csv");
-            saveSpectrumToCsv(targetPath, wavelengthGrid, avgMeasuredSpectrum);
+            saveSpectrumToCsv(targetPath, wavelengthGrid, measuredIntensities);
 
             // Pre-fetch all necessary spectra using the single Selenium session
             for (double te : teValues) {
@@ -485,13 +481,13 @@ public class InstrumentProfileService {
             }
 
             // Normalization for RMSE calculation
-            double maxMeasuredIntensity = Arrays.stream(avgMeasuredSpectrum).max().orElse(1.0);
+            double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
             if (maxMeasuredIntensity == 0)
                 maxMeasuredIntensity = 1.0;
 
-            double[] normalisedMeasuredSpectrum = new double[avgMeasuredSpectrum.length];
-            for (int i = 0; i < avgMeasuredSpectrum.length; i++) {
-                normalisedMeasuredSpectrum[i] = avgMeasuredSpectrum[i] / maxMeasuredIntensity;
+            double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
+            for (int i = 0; i < measuredIntensities.length; i++) {
+                normalisedMeasuredSpectrum[i] = measuredIntensities[i] / maxMeasuredIntensity;
             }
 
             // Grid Search Logic (Combinatorial)
@@ -548,7 +544,7 @@ public class InstrumentProfileService {
             profile.setHotCoreWeight(bestHotWeight);
             profile.setCoolPeripheryWeight(1.0 - bestHotWeight);
             profile.setRmse(bestRmse);
-            profile.setFitScore(bestRSquared);
+            profile.setRSquaredValue(bestRSquared);
 
             logger.info("Optimization complete. Best RMSE: " + bestRmse);
 
@@ -585,7 +581,7 @@ public class InstrumentProfileService {
      * Processes raw CSV data, normalizes it, scales it by the measured intensity
      * factor, and saves it.
      */
-    private void processAndSaveSpectrum(String csvData, Path outputPath, List<Double> wavelengthGrid,
+    private void processAndSaveSpectrum(String csvData, Path outputPath, double[] wavelengthGrid,
             double scaleFactor) throws IOException {
         if (csvData == null || csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
             logger.warning("Failed to fetch spectrum data for saving: " + outputPath);
@@ -605,12 +601,12 @@ public class InstrumentProfileService {
         saveSpectrumToCsv(outputPath, wavelengthGrid, scaled);
     }
 
-    private void saveSpectrumToCsv(Path path, List<Double> wavelengths, double[] intensity) throws IOException {
+    private void saveSpectrumToCsv(Path path, double[] wavelengths, double[] intensity) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(path);
                 CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
-            for (int i = 0; i < wavelengths.size(); i++) {
+            for (int i = 0; i < wavelengths.length; i++) {
                 if (i < intensity.length) {
-                    printer.printRecord(wavelengths.get(i), intensity[i]);
+                    printer.printRecord(wavelengths[i], intensity[i]);
                 }
             }
         }

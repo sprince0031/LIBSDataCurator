@@ -5,7 +5,6 @@ import org.json.JSONObject;
 public class CalibrationStats {
     private double rSquared;
     private double rmse;
-    private double mse;
 
     public CalibrationStats(double rSquared, double rmse) {
         this.rSquared = rSquared;
@@ -32,7 +31,6 @@ public class CalibrationStats {
         JSONObject json = new JSONObject();
         json.put("rSquared", rSquared);
         json.put("rmse", rmse);
-        json.put("mse", mse);
         return json;
     }
 

@@ -1,5 +1,6 @@
 package com.medals.libsdatagenerator.util;
 
+import com.medals.libsdatagenerator.model.Spectrum;
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
@@ -7,11 +8,37 @@ import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.logging.Logger;
 
 public class SpectrumUtils {
     private Logger logger = Logger.getLogger(SpectrumUtils.class.getName());
+
+    /**
+     * Calculates the average spectrum from multiple shots.
+     *
+     * @param spectra List of intensity arrays
+     * @return Average intensity array
+     */
+    public double[] calculateAverageSpectrum(List<double[]> spectra) {
+        if (spectra.isEmpty()) {
+            return new double[0];
+        }
+
+        int length = spectra.get(0).length;
+        double[] avg = new double[length];
+
+        for (double[] spectrum : spectra) {
+            for (int i = 0; i < Math.min(length, spectrum.length); i++) {
+                avg[i] += spectrum[i];
+            }
+        }
+
+        for (int i = 0; i < length; i++) {
+            avg[i] /= spectra.size();
+        }
+
+        return avg;
+    }
 
     /**
      * Performs linear interpolation on a spectrum
@@ -19,32 +46,24 @@ public class SpectrumUtils {
      * @param targetGrid List of target wavelength arrays
      * @return Array of intensities aligned to the target wavelength grid.
      */
-    public double[] interpolateSpectrum(Map<Double, Double> waveMap, List<Double> targetGrid) {
+    public double[] interpolateSpectrum(Map<Double, Double> waveMap, double[] targetGrid) {
         logger.info("Interpolating to target wavelength grid...");
-        // Ensuring waveMap is sorted
-        TreeMap<Double, Double> sortedWaveMap = new TreeMap<>(waveMap);
-        int i = 0;
-        double[] originalGrid = new double[waveMap.size()];
-        double[] originalIntensities = new double[waveMap.size()];
-        // Unzipping waveMap
-        for (Map.Entry<Double, Double> entry : sortedWaveMap.entrySet()) {
-            originalGrid[i] = entry.getKey();   // x[i]
-            originalIntensities[i] = entry.getValue(); // y[i]
-            i++;
-        }
 
+        Spectrum spectrum = new Spectrum(waveMap);
+        double[] originalGrid = spectrum.getWavelengths();
+        double[] originalIntensities = spectrum.getIntensities();
         LinearInterpolator interpolator = new LinearInterpolator();
         PolynomialSplineFunction interpolationFunction = interpolator.interpolate(originalGrid, originalIntensities);
 
-        double[] aligned = new double[targetGrid.size()];
+        double[] aligned = new double[targetGrid.length];
         double minX = originalGrid[0];
         double maxX = originalGrid[originalGrid.length - 1];
         double firstY = originalIntensities[0];
         double lastY = originalIntensities[originalIntensities.length - 1];
 
         // 2. Evaluate for every point in the new grid
-        for (i = 0; i < targetGrid.size(); i++) {
-            double x = targetGrid.get(i);
+        for (int i = 0; i < targetGrid.length; i++) {
+            double x = targetGrid[i];
 
             if (x < minX) {
                 // numpy.interp default: fill with the first value
@@ -126,5 +145,42 @@ public class SpectrumUtils {
 
         // Return r^2 (0 to 1)
         return correlation * correlation;
+    }
+
+    /**
+     * Clip spectrum of sharp drop-offs at either ends
+     */
+    public Spectrum clipSpectrum(double[] wavelengths, double[] intensities) {
+        int startindex = 0;
+        double lastAvgIntensity = intensities[0];
+        double sumIntensity = intensities[0];
+        for (int i = 1; i < 100; i++) {
+            sumIntensity += intensities[i];
+            double diff = Math.abs(sumIntensity/(i+1) - lastAvgIntensity);
+            if (diff > 100) {
+                startindex = i;
+                break;
+            }
+            lastAvgIntensity = sumIntensity/(i+1);
+        }
+
+        int endIndex = wavelengths.length - 1;
+        lastAvgIntensity = intensities[wavelengths.length - 1];
+        sumIntensity = intensities[wavelengths.length - 1];
+        for (int i = wavelengths.length - 2; i > wavelengths.length - 100; i--) {
+            sumIntensity += intensities[i];
+            int count = wavelengths.length - i;
+            double diff = Math.abs(sumIntensity/count - lastAvgIntensity);
+            if (diff > 100) {
+                endIndex = i;
+                break;
+            }
+            lastAvgIntensity = sumIntensity/count;
+        }
+
+        double[] clippedWavelengths = Arrays.copyOfRange(wavelengths, startindex, endIndex);
+        double[] clippedIntensities = Arrays.copyOfRange(intensities, startindex, endIndex);
+
+        return new Spectrum(clippedWavelengths, clippedIntensities);
     }
 }

@@ -7,6 +7,10 @@ import org.ejml.interfaces.linsol.LinearSolverDense;
 
 import java.util.logging.Logger;
 
+import static com.medals.libsdatagenerator.model.BaselineCorrectionParams.DEFAULT_LAMBDA;
+import static com.medals.libsdatagenerator.model.BaselineCorrectionParams.DEFAULT_P;
+import static com.medals.libsdatagenerator.model.BaselineCorrectionParams.MAX_ITERATIONS;
+
 /**
  * Service to apply baseline correction algorithms to spectra.
  * Implements Asymmetric Least Squares (ALS) smoothing.
@@ -16,11 +20,6 @@ import java.util.logging.Logger;
 public class BaselineCorrectionService {
 
     private static final Logger logger = Logger.getLogger(BaselineCorrectionService.class.getName());
-
-    // Default parameters for ALS
-    private static final double DEFAULT_LAMBDA = 10000; // 10^4 to 10^5 usually good
-    private static final double DEFAULT_P = 0.001;
-    private static final int MAX_ITERATIONS = 10;
 
     private static BaselineCorrectionService instance;
 
@@ -41,19 +40,21 @@ public class BaselineCorrectionService {
      * @return Baseline corrected spectrum (original - baseline)
      */
     public double[] correctBaseline(double[] spectrum) {
-        return correctBaseline(spectrum, DEFAULT_LAMBDA, DEFAULT_P);
+        return correctBaseline(spectrum, DEFAULT_LAMBDA, DEFAULT_P, MAX_ITERATIONS);
     }
 
     /**
      * Applies baseline correction using Asymmetric Least Squares (ALS).
      * 
-     * @param spectrum Intensity values
-     * @param lambda   Smoothness parameter (typically 10^2 to 10^9)
-     * @param p        Asymmetry parameter (typically 0.001 to 0.1)
+     * @param spectrum      Intensity values
+     * @param lambda        Smoothness parameter (typically 10^2 to 10^9)
+     * @param p             Asymmetry parameter (typically 0.001 to 0.1)
+     * @param maxIterations Maximum number of iterations for the solver
      * @return Baseline corrected spectrum
      */
-    public double[] correctBaseline(double[] spectrum, double lambda, double p) {
+    public double[] correctBaseline(double[] spectrum, double lambda, double p, int maxIterations) {
         logger.info("Correcting baseline of averaged input reference spectrum using Asymmetric Least Squares method...");
+        logger.info(String.format("Parameters: lambda=%.1f, p=%.4f, maxIterations=%d", lambda, p, maxIterations));
         if (spectrum == null || spectrum.length == 0) {
             return new double[0];
         }
@@ -97,7 +98,7 @@ public class BaselineCorrectionService {
 
         LinearSolverDense<DMatrixRMaj> solver = LinearSolverFactory_DDRM.chol(n);
 
-        for (int iter = 0; iter < MAX_ITERATIONS; iter++) {
+        for (int iter = 0; iter < maxIterations; iter++) {
             logger.info("Iteration #" + iter);
             // A = H + W (diagonal)
             CommonOps_DDRM.extract(H, 0, n, 0, n, A, 0, 0);

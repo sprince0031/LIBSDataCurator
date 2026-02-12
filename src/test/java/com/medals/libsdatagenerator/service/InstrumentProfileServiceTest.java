@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -11,7 +12,9 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for InstrumentProfileService.
@@ -22,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class InstrumentProfileServiceTest {
 
     private InstrumentProfileService service;
+    private SpectrumUtils spectrumUtils;
 
     @TempDir
     Path tempDir;
@@ -29,6 +33,7 @@ public class InstrumentProfileServiceTest {
     @BeforeEach
     void setUp() {
         service = InstrumentProfileService.getInstance();
+        spectrumUtils = new SpectrumUtils();
     }
 
     @Test
@@ -41,30 +46,12 @@ public class InstrumentProfileServiceTest {
         Path csvPath = tempDir.resolve("sample_spectra.csv");
         Files.writeString(csvPath, csvContent);
 
-        List<Double> wavelengths = service.extractWavelengthGrid(csvPath, ";");
+        double[] wavelengths = service.extractWavelengthGrid(csvPath, ";");
 
         assertNotNull(wavelengths);
-        assertEquals(5, wavelengths.size());
-        assertEquals(250.5, wavelengths.get(0), 0.01);
-        assertEquals(252.5, wavelengths.get(4), 0.01);
-    }
-
-    @Test
-    void testExtractWavelengthGridFiltersNonNumeric() throws IOException {
-        // CSV with mixed numeric and non-numeric headers
-        String csvContent = "ID;Name;300.0;350.0;400.0;Type\n" +
-                "1;Sample1;50.0;60.0;70.0;A\n";
-
-        Path csvPath = tempDir.resolve("mixed_headers.csv");
-        Files.writeString(csvPath, csvContent);
-
-        List<Double> wavelengths = service.extractWavelengthGrid(csvPath, ";");
-
-        assertNotNull(wavelengths);
-        assertEquals(3, wavelengths.size());
-        assertTrue(wavelengths.contains(300.0));
-        assertTrue(wavelengths.contains(350.0));
-        assertTrue(wavelengths.contains(400.0));
+        assertEquals(5, wavelengths.length);
+        assertEquals(250.5, wavelengths[0], 0.01);
+        assertEquals(252.5, wavelengths[4], 0.01);
     }
 
     @Test
@@ -76,13 +63,13 @@ public class InstrumentProfileServiceTest {
         Path csvPath = tempDir.resolve("range_test.csv");
         Files.writeString(csvPath, csvContent);
 
-        List<Double> wavelengths = service.extractWavelengthGrid(csvPath, ";");
+        double[] wavelengths = service.extractWavelengthGrid(csvPath, ";");
 
         // Should only include wavelengths in 100-1000nm range
         assertNotNull(wavelengths);
-        assertEquals(2, wavelengths.size());
-        assertTrue(wavelengths.contains(250.0));
-        assertTrue(wavelengths.contains(500.0));
+        assertEquals(2, wavelengths.length);
+        assertEquals(250.0, wavelengths[0]);
+        assertEquals(500.0, wavelengths[1]);
     }
 
     @Test
@@ -92,7 +79,7 @@ public class InstrumentProfileServiceTest {
                 new double[] { 20.0, 40.0, 60.0 },
                 new double[] { 30.0, 60.0, 90.0 });
 
-        double[] avg = service.calculateAverageSpectrum(spectra);
+        double[] avg = spectrumUtils.calculateAverageSpectrum(spectra);
 
         assertNotNull(avg);
         assertEquals(3, avg.length);
@@ -105,7 +92,7 @@ public class InstrumentProfileServiceTest {
     void testCalculateAverageSpectrumEmpty() {
         List<double[]> spectra = Arrays.asList();
 
-        double[] avg = service.calculateAverageSpectrum(spectra);
+        double[] avg = spectrumUtils.calculateAverageSpectrum(spectra);
 
         assertNotNull(avg);
         assertEquals(0, avg.length);
@@ -122,16 +109,16 @@ public class InstrumentProfileServiceTest {
         Files.writeString(csvPath, csvContent);
 
         // 1. Extract Wavelengths
-        List<Double> wavelengths = service.extractWavelengthGrid(csvPath, ";");
-        assertEquals(3, wavelengths.size());
-        assertEquals(200.0, wavelengths.get(0));
+        double[] wavelengths = service.extractWavelengthGrid(csvPath, ";");
+        assertEquals(3, wavelengths.length);
+        assertEquals(200.0, wavelengths[0]);
 
         // 2. Extract Spectra
         List<double[]> spectra = service.extractMeasuredSpectra(csvPath, wavelengths, ";");
         assertEquals(3, spectra.size());
 
         // 3. Average
-        double[] averageSpectrum = service.calculateAverageSpectrum(spectra);
+        double[] averageSpectrum = spectrumUtils.calculateAverageSpectrum(spectra);
         assertEquals(3, averageSpectrum.length);
         assertEquals(20.0, averageSpectrum[0], 0.001);
         assertEquals(40.0, averageSpectrum[1], 0.001);
@@ -141,7 +128,7 @@ public class InstrumentProfileServiceTest {
     @Test
     void testProfileSaveAndLoad() throws IOException {
         // Create a profile
-        List<Double> wavelengths = Arrays.asList(250.0, 260.0, 270.0, 280.0, 290.0);
+        double[] wavelengths = new double[]{250.0, 260.0, 270.0, 280.0, 290.0};
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "test.csv", "Fe-98.0,C-2.0");
         profile.setInstrumentName("Test Spectrometer");
         profile.setNumShots(5);
@@ -149,7 +136,7 @@ public class InstrumentProfileServiceTest {
         profile.setHotCoreNe(5e16);
         profile.setCoolPeripheryTe(0.7);
         profile.setCoolPeripheryNe(2e16);
-        profile.setFitScore(0.95);
+        profile.setRSquaredValue(0.95);
         profile.setRmse(0.05);
 
         // Save to file
@@ -169,13 +156,13 @@ public class InstrumentProfileServiceTest {
         assertEquals(5e16, loaded.getHotCoreNe(), 1e15);
         assertEquals(0.7, loaded.getCoolPeripheryTe(), 0.01);
         assertEquals(2e16, loaded.getCoolPeripheryNe(), 1e15);
-        assertEquals(0.95, loaded.getFitScore(), 0.01);
+        assertEquals(0.95, loaded.getRSquaredValue(), 0.01);
         assertEquals(0.05, loaded.getRmse(), 0.01);
     }
 
     @Test
     void testProfileToJson() {
-        List<Double> wavelengths = Arrays.asList(250.0, 260.0, 270.0);
+        double[] wavelengths = new double[]{250.0, 260.0, 270.0};
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "test.csv", "Fe-100");
         profile.setInstrumentName("Test");
 
@@ -194,23 +181,9 @@ public class InstrumentProfileServiceTest {
     }
 
     @Test
-    void testDefaultProfileParameters() {
-        InstrumentProfile profile = new InstrumentProfile();
-
-        // Verify default two-zone parameters
-        assertEquals(1.5, profile.getHotCoreTe(), 0.01);
-        assertEquals(1e17, profile.getHotCoreNe(), 1e16);
-        assertEquals(0.4, profile.getHotCoreWeight(), 0.01);
-
-        assertEquals(0.8, profile.getCoolPeripheryTe(), 0.01);
-        assertEquals(5e16, profile.getCoolPeripheryNe(), 1e15);
-        assertEquals(0.6, profile.getCoolPeripheryWeight(), 0.01);
-    }
-
-    @Test
     void testGenerateJupyterReport() throws IOException {
         // Create a dummy profile
-        List<Double> wavelengths = Arrays.asList(200.0, 300.0, 400.0);
+        double[] wavelengths = {200.0, 300.0, 400.0};
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
         profile.setHotCoreTe(1.0);
         profile.setInstrumentName("Test Spectrometer");

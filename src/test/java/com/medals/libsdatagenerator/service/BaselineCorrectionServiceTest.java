@@ -2,6 +2,9 @@ package com.medals.libsdatagenerator.service;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -46,7 +49,7 @@ public class BaselineCorrectionServiceTest {
             spectrum[i] += 500.0 * Math.exp(-(dx * dx) / (2 * 5 * 5));
         }
 
-        double[] corrected = BaselineCorrectionService.getInstance().correctBaseline(spectrum, 1e5, 0.001);
+        double[] corrected = BaselineCorrectionService.getInstance().correctBaseline(spectrum, 1e5, 0.001, 10);
 
         // Check if baseline is removed (should be close to 0 outside peak)
         Assertions.assertTrue(Math.abs(corrected[10]) < 1.0, "Start baseline removed");
@@ -66,11 +69,24 @@ public class BaselineCorrectionServiceTest {
             spectrum[i] += rand.nextGaussian(); // Noise
         }
 
-        long start = System.currentTimeMillis();
-        BaselineCorrectionService.getInstance().correctBaseline(spectrum);
-        long end = System.currentTimeMillis();
+        Assertions.assertTimeoutPreemptively(Duration.of(2, ChronoUnit.SECONDS),
+                () -> BaselineCorrectionService.getInstance().correctBaseline(spectrum),
+                "Performance check: 1000 points should be processed under 2s");
+    }
 
-        System.out.println("ALS for " + n + " points took " + (end - start) + " ms");
-        Assertions.assertTrue((end - start) < 2000, "Performance check: 1000 points should be processed under 2s");
+    @Test
+    public void testCorrectBaseline_WithCustomParameters() {
+        double[] spectrum = new double[100];
+        Arrays.fill(spectrum, 100.0);
+
+        // Different parameters should produce slightly different results (even on flat,
+        // though subtle)
+        // or effectively we check that it runs without error and returns matching
+        // length
+        double[] r1 = BaselineCorrectionService.getInstance().correctBaseline(spectrum, 1000, 0.001, 5);
+        double[] r2 = BaselineCorrectionService.getInstance().correctBaseline(spectrum, 100000, 0.01, 20);
+
+        Assertions.assertEquals(spectrum.length, r1.length);
+        Assertions.assertEquals(spectrum.length, r2.length);
     }
 }

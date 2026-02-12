@@ -1,5 +1,6 @@
 package com.medals.libsdatagenerator.controller;
 
+import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
@@ -14,10 +15,13 @@ import java.util.logging.Logger;
 
 /**
  * Controller for instrument profile calibration mode.
- * Standalone entry point for generating instrument profiles from real LIBS data.
+ * Standalone entry point for generating instrument profiles from real LIBS
+ * data.
  * 
- * Usage: java -cp LIBSDataCurator.jar com.medals.libsdatagenerator.controller.InstrumentProfileController
- *        -i <sample_csv_path> -c <composition> [-o <output_path>] [-n <instrument_name>]
+ * Usage: java -cp LIBSDataCurator.jar
+ * com.medals.libsdatagenerator.controller.InstrumentProfileController
+ * -i <sample_csv_path> -c <composition> [-o <output_path>] [-n
+ * <instrument_name>]
  * 
  * @author Siddharth Prince | 13/01/26 08:30
  */
@@ -29,21 +33,30 @@ public class InstrumentProfileController {
 
     public static void main(String[] args) {
         logger.info("Starting LIBS Instrument Profile Calibration...");
-        
+
         CommandLine cmd = new CmdlineParserUtil().parseCommandLineArgsForCalibration(args);
         if (cmd == null) {
             System.exit(1);
             return;
         }
-        
+
         try {
             // Get input parameters
             String inputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INPUT_SHORT);
             String delimiter = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT, ";");
             String composition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
-            String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,  outputDir + File.separator + "instrument_profile.json");
             String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
-            
+            String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,
+                    outputDir + File.separator + "instrument_profile.json");
+            // Baseline correction parameters
+            double lambda = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT,
+                    "10000"));
+            double p = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,
+                    "0.001"));
+            int maxIterations = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_SHORT,
+                    "10"));
+            BaselineCorrectionParams baselineCorrectionParams = new BaselineCorrectionParams(lambda, p, maxIterations);
+
             // Validate input file exists
             File inputFile = new File(inputPath);
             if (!inputFile.exists() || !inputFile.isFile()) {
@@ -61,10 +74,12 @@ public class InstrumentProfileController {
             System.out.println("Input file: " + inputPath);
             System.out.println("Reference composition: " + composition);
             System.out.println("Instrument name: " + instrumentName);
+            System.out.printf("Baseline Correction: lambda=%.1f, p=%.4f, maxIter=%d%n", lambda, p, maxIterations);
             System.out.println();
-            
-            InstrumentProfile profile = profileService.generateProfile(inputFilePath, delimiter, composition, instrumentName);
-            
+
+            InstrumentProfile profile = profileService.generateProfile(inputFilePath, delimiter, composition,
+                    instrumentName, baselineCorrectionParams);
+
             // Save profile
             Path outputFilePath = Paths.get(outputPath);
             profile.saveToFile(outputFilePath);
@@ -76,7 +91,7 @@ public class InstrumentProfileController {
             System.out.println("Profile Summary:");
             System.out.println("  Wavelength range: " + profile.getMinWavelength() + " - " + 
                     profile.getMaxWavelength() + " nm");
-            System.out.println("  Wavelength points: " + profile.getWavelengthGrid().size());
+            System.out.println("  Wavelength points: " + profile.getWavelengthGrid().length);
             System.out.println("  Number of shots analyzed: " + profile.getNumShots());
             System.out.println();
             System.out.println("  Two-Zone Plasma Parameters:");
@@ -89,7 +104,7 @@ public class InstrumentProfileController {
             System.out.printf("      Electron Density: %.3e cm^-3%n", profile.getCoolPeripheryNe());
             System.out.printf("      Weight: %.3f%n", profile.getCoolPeripheryWeight());
             System.out.println();
-            System.out.printf("  Fit Score: %.4f%n", profile.getFitScore());
+            System.out.printf("  R^2: %.4f%n", profile.getRSquaredValue());
             System.out.printf("  RMSE: %.4f%n", profile.getRmse());
             
             logger.info("Profile generation complete. Output: " + outputFilePath.toAbsolutePath());

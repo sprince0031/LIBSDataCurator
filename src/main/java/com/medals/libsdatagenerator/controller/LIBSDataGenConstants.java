@@ -185,7 +185,15 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_NAME_SHORT = "n";
     public static final String CMD_OPT_NAME_LONG = "name";
     public static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";
-
+    public static final String CMD_OPT_BASELINE_LAMBDA_SHORT = "bl";
+    public static final String CMD_OPT_BASELINE_LAMBDA_LONG = "lambda";
+    public static final String CMD_OPT_BASELINE_LAMBDA_DESC = "Baseline correction smoothness parameter (lambda). Default: 10000";
+    public static final String CMD_OPT_BASELINE_P_SHORT = "bp";
+    public static final String CMD_OPT_BASELINE_P_LONG = "p";
+    public static final String CMD_OPT_BASELINE_P_DESC = "Baseline correction asymmetry parameter (p). Default: 0.001";
+    public static final String CMD_OPT_BASELINE_ITER_SHORT = "bi";
+    public static final String CMD_OPT_BASELINE_ITER_LONG = "max-iterations";
+    public static final String CMD_OPT_BASELINE_ITER_DESC = "Baseline correction maximum iterations. Default: 10";
     public static final String CMD_OPT_HELP_SHORT = "h";
     public static final String CMD_OPT_HELP_LONG = "help";
     public static final String CMD_OPT_HELP_DESC = "Show this help message";
@@ -222,8 +230,10 @@ public class LIBSDataGenConstants {
     public static final String NIST_LIBS_RECALC_TEMP_INPUT_NAME = "temp";
     public static final String NIST_LIBS_RECALC_EDEN_INPUT_NAME = "eden";
     public static final String NIST_LIBS_RECALC_BUTTON_NAME = "recalc";
-    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";  // For element percentage input field labels
-    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";  // For element percentage input fields
+    // For element percentage input field labels
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";
+    // For element percentage input fields
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";
 
     /**
      * #### Matweb Constants ####
@@ -282,14 +292,14 @@ public class LIBSDataGenConstants {
     static {
         Map<String, Double> elements = new HashMap<>();
         elements.put("C", 0.113);
-        elements.put("Mn", 0.396); 
-        elements.put("Si", 0.211); 
-        elements.put("Ni", 0.526); 
+        elements.put("Mn", 0.396);
+        elements.put("Si", 0.211);
+        elements.put("Ni", 0.526);
         elements.put("Cr", 3.212);
-        elements.put("V", 0.219); 
-        elements.put("Mo", 0.370); 
-        elements.put("Cu", 0.242); 
-        elements.put("Fe", 2.841); 
+        elements.put("V", 0.219);
+        elements.put("Mo", 0.370);
+        elements.put("Cu", 0.242);
+        elements.put("Fe", 2.841);
         elements.put("S", 0.05);
         elements.put("P", 0.05);
         // Add other elements with estimated SDs if needed for Gaussian fallback
@@ -297,6 +307,5 @@ public class LIBSDataGenConstants {
         ELEMENT_STD_DEVS_FALLBACK = Collections.unmodifiableMap(elements);
 
     }
-
 
 }
