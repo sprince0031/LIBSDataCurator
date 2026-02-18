@@ -332,6 +332,12 @@ public class CmdlineParserUtil {
         maxIter.setRequired(false);
         options.addOption(maxIter);
 
+        // Activate debug mode
+        options.addOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_DESC);
+
         // Help (optional)
         Option help = new Option(LIBSDataGenConstants.CMD_OPT_HELP_SHORT,
                 LIBSDataGenConstants.CMD_OPT_HELP_LONG,

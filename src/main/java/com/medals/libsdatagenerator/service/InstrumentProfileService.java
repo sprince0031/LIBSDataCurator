@@ -2,11 +2,11 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
-import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import com.medals.libsdatagenerator.model.UserInputConfig;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import com.medals.libsdatagenerator.util.PythonUtils;
@@ -55,18 +55,20 @@ public class InstrumentProfileService {
 
     /**
      * Generates an instrument profile from a sample LIBS measurement CSV file.
-     * 
+     *
      * @param sampleCsvPath     Path to the sample CSV file with real LIBS readings
      * @param compositionString Composition of the reference material (e.g.,
      *                          "Fe-80,C-20")
      * @param instrumentName    Optional name for the instrument
      * @param baselineParams    object containing lambda, p and maxIter values for
      *                          baseline correction
+     * @param debugMode
      * @return Generated InstrumentProfile
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-            String instrumentName, BaselineCorrectionParams baselineParams, int plasmaZones) throws IOException {
+                                             String instrumentName, BaselineCorrectionParams baselineParams,
+                                             int plasmaZones, boolean debugMode) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -98,8 +100,9 @@ public class InstrumentProfileService {
                 baselineCorrectedIntensities);
 
         // 4. Parse composition
-        List<Element> composition = parseComposition(compositionString);
-        if (composition.isEmpty()) {
+        MaterialGrade materialGrade = InputCompositionProcessor.getInstance()
+                .getMaterial(compositionString, null, Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
+        if (materialGrade.getComposition() == null) {
             throw new IllegalArgumentException("Invalid composition string: " + compositionString);
         }
 
@@ -112,7 +115,7 @@ public class InstrumentProfileService {
 
         // 6. Optimize plasma parameters
         logger.info("Starting " + plasmaZones + "-zone plasma parameter optimization...");
-        optimizePlasmaParameters(profile, processedMeasuredSpectrum, composition, plasmaZones);
+        optimizePlasmaParameters(profile, processedMeasuredSpectrum, materialGrade, plasmaZones, debugMode);
 
         // 7. Generate Jupyter Report
         if (PythonUtils.getInstance().setupPythonEnvironment()) {
@@ -353,65 +356,19 @@ public class InstrumentProfileService {
     }
 
     /**
-     * Parses a composition string into a list of Elements.
-     * 
-     * @param compositionString Format:
-     *                          "Element1-Percentage1,Element2-Percentage2,..."
-     * @return List of Element objects
-     */
-    private List<Element> parseComposition(String compositionString) {
-        try {
-            // Convert composition string to list format expected by generateElementsList
-            List<String> compositionArray = Arrays.asList(compositionString.split(","));
-            Map<String, Object> result = InputCompositionProcessor.getInstance()
-                    .generateElementsList(compositionArray,
-                            Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
-
-            @SuppressWarnings("unchecked")
-            List<Element> elements = (List<Element>) result.get("elementsList");
-            return elements != null ? elements : new ArrayList<>();
-        } catch (Exception e) {
-            logger.log(Level.WARNING, "Failed to parse composition using standard parser, using fallback", e);
-            return parseCompositionFallback(compositionString);
-        }
-    }
-
-    /**
-     * Fallback composition parser for simple format "Element-Percentage,..."
-     */
-    private List<Element> parseCompositionFallback(String compositionString) {
-        List<Element> elements = new ArrayList<>();
-        String[] parts = compositionString.split(",");
-
-        for (String part : parts) {
-            String[] elemParts = part.trim().split("-");
-            if (elemParts.length == 2) {
-                try {
-                    String symbol = elemParts[0].trim();
-                    double percentage = Double.parseDouble(elemParts[1].trim());
-                    elements.add(new Element(symbol, symbol, percentage, null, null, null));
-                } catch (NumberFormatException e) {
-                    logger.warning("Failed to parse element: " + part);
-                }
-            }
-        }
-
-        return elements;
-    }
-
-    /**
      * Optimizes the n-zone plasma parameters to best match measured spectrum.
      * Uses a recursive Grid Search approach with Selenium-based spectrum
      * generation.
-     * 
+     *
      * @param profile                   InstrumentProfile to update with optimized
      *                                  parameters
      * @param processedMeasuredSpectrum Average measured spectrum
      * @param composition               Material composition
      * @param plasmaZones               Number of plasma zones to combine
+     * @param debugMode
      */
     private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
-            List<Element> composition, int plasmaZones) {
+                                          MaterialGrade composition, int plasmaZones, boolean debugMode) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
@@ -423,6 +380,7 @@ public class InstrumentProfileService {
         config.minWavelength = String.valueOf(profile.getMinWavelength());
         config.maxWavelength = String.valueOf(profile.getMaxWavelength());
         config.resolution = "1000";
+        config.setDebugMode(debugMode);
 
         // Define Grid Search Space
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
@@ -602,11 +560,15 @@ public class InstrumentProfileService {
                 // Selection Criteria: Strictly better RMSE and R^2, or improvement in R^2
                 if (rmse < bestResult.rmse && rSquared > bestResult.rSquared) {
                     bestResult.rmse = rmse;
-                    bestResult.rSquared = rSquared; 
+                    bestResult.rSquared = rSquared;
                     bestResult.parameters = params;
                     bestResult.weights = weights;
                 } else if (rmse == bestResult.rmse && rSquared > bestResult.rSquared) {
                     bestResult.rSquared = rSquared;
+                    bestResult.parameters = params;
+                    bestResult.weights = weights;
+                } else if (rSquared == bestResult.rSquared && rmse < bestResult.rmse) {
+                    bestResult.rmse = rmse;
                     bestResult.parameters = params;
                     bestResult.weights = weights;
                 }

@@ -90,6 +90,7 @@ public class UserInputConfig {
         this.appendMode = true;
         this.forceFetch = false;
         this.genStats = false;
+        UserInputConfig.debugMode = false;
     }
 
     /**
@@ -149,11 +150,15 @@ public class UserInputConfig {
         this.appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
         this.forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
-        this.debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+        debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
     }
 
     public static boolean debugModeEnabled() {
         return debugMode;
+    }
+
+    public void setDebugMode(boolean debugMode) {
+        UserInputConfig.debugMode = debugMode;
     }
 
 }

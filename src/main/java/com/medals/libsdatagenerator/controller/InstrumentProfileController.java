@@ -63,6 +63,7 @@ public class InstrumentProfileController {
                                                         "10"));
                         BaselineCorrectionParams baselineCorrectionParams = new BaselineCorrectionParams(lambda, p,
                                         maxIterations);
+                        boolean debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
 
                         // Validate input file exists
                         File inputFile = new File(inputPath);
@@ -88,7 +89,7 @@ public class InstrumentProfileController {
 
                         InstrumentProfile profile = profileService.generateProfile(inputFilePath, delimiter,
                                         composition,
-                                        instrumentName, baselineCorrectionParams, plasmaZones);
+                                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode);
 
                         // Save profile
                         Path outputFilePath = Paths.get(outputPath);
