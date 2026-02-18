@@ -84,7 +84,7 @@ fi
 
 # Copy docs if they exist
 if [ -d "docs" ]; then
-    cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} build/release-package/docs/ 2>/dev/null || true
+    cp -r docs/{CHANGELOG.md,README.md} build/release-package/docs/ 2>/dev/null || true
 fi
 
 # Create run script

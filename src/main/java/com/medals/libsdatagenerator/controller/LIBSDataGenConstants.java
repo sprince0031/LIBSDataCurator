@@ -176,7 +176,7 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_INPUT_SHORT = "i";
     public static final String CMD_OPT_INPUT_LONG = "input";
     public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
-    public static final String CMD_OPT_DELIMITER_SHORT = "d";
+    public static final String CMD_OPT_DELIMITER_SHORT = "dl";
     public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
     public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";
     public static final String CMD_OPT_OUTPUT_SHORT = "o";

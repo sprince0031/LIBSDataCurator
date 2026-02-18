@@ -131,7 +131,7 @@ if exist "conf" (
 
 REM Copy docs if they exist
 if exist "docs" (
-    for %%f in (docs\CHANGELOG.md docs\TOOL_DESCRIPTION.md) do copy "%%f" "build\release-package\docs\"
+    for %%f in (docs\CHANGELOG.md docs\README.md) do copy "%%f" "build\release-package\docs\"
 )
 
 REM Create run script

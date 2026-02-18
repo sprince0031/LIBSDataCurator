@@ -8,16 +8,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Debug Mode for Calibration**: `-d, --debug` option now available in calibration flow to visualise browser execution during NIST data fetching
+
+### Fixed
+- **Calibration Composition Handling**: Use `MaterialGrade` model for enhanced composition parsing in the calibration flow, improving consistency with the data generation workflow
+
+## [0.9.5] - 2026-02-18
+
+### Added
+- **Multi-Zone Plasma Model**: Instrument profile calibration now supports configurable n-zone plasma models instead of fixed two-zone (hot/cool)
+  - New `-z, --plasma-zones` CLI option to specify number of plasma zones (default: 2)
+  - Each zone independently optimised with its own Te, Ne, and weight parameters
+  - Updated calibration report generation to display multi-zone results
+- **Asymmetric Least Squares (ALS) Baseline Correction**: Automatic baseline subtraction for measured spectra prior to calibration fitting
+  - New `BaselineCorrectionService` with configurable smoothness (λ), asymmetry (p), and iteration parameters
+  - CLI options: `-bl, --lambda` (default: 10000), `-bp, --p` (default: 0.001), `-bi, --max-iterations` (default: 10)
+  - Steep fall-off clipping at extreme spectrum ends to improve baseline estimation
+- **Spectrum Utilities**: New `SpectrumUtils` class extracting spectrum-related logic from `InstrumentProfileService`
+  - Interpolation of NIST synthetic spectra onto instrument wavelength grids (`SpectrumUtils.interpolateSpectrum`)
+- **Spectrum and Baseline Models**: Introduced `Spectrum` and `BaselineCorrectionParams` model classes for cleaner data handling
+- **CSV Delimiter Option**: New `-dl, --delimiter` CLI option for calibration to specify the delimiter used in input CSV files (default: `;`)
+- **EJML Dependency**: Added Efficient Java Matrix Library (EJML) for matrix operations required by baseline correction
+- **JaCoCo Code Coverage**: Added JaCoCo Maven plugin for test coverage reporting
+
+### Changed
+- **InstrumentProfile Refactored**: Wavelength data now stored as `double[]` arrays instead of `List<Double>` for improved performance and memory efficiency
+- **Calibration Report Timestamps**: PDF report filenames now include timestamps to prevent overwriting previous calibration reports
+
+### Fixed
+- **R² Calculation**: Corrected R-squared calculation logic; R² is now used alongside RMSE as an optimisation objective
+- **Spectrum Interpolation**: Fixed NIST hot and cold spectrum interpolation logic with the new `SpectrumUtils.interpolateSpectrum` method
+
+## [0.9.1–0.9.4] - 2026-02-07
+
+### Added
 - **Instrument Profile Calibration Mode**: New standalone calibration tool to generate instrument profiles from real LIBS measurement data (issue #84)
-  - Extract wavelength grid from instrument sample CSV headers
-  - Two-zone plasma parameter optimization (Te, Ne for hot core and cool periphery)
-  - Nelder-Mead optimization algorithm to match synthetic spectrum to measured data
+  - Extract wavelength grid from instrument sample CSV column headers
+  - Plasma parameter optimisation (Te, Ne) using grid search. The Te, Ne grid is not customisable for now. The combinations are taken from the following grid:
+    - $T_e \in [ 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 ] \text{ eV}$  
+    - $N_e \in [15.0, 15.5, 16.0, 16.5, 17.0, 17.5] \text{ cm}^{-3}$
   - JSON output format with metadata, wavelength grid, plasma parameters, and fit quality metrics
-  - `./bin/calibrate.sh` (Linux/macOS) and `bin\calibrate.bat` (Windows) scripts
-  - Future enhancement placeholders for Voigt profile and n-zone support
-- **InstrumentProfile Model**: New model class for storing instrument calibration data
-- **InstrumentProfileService**: Service for wavelength extraction, spectrum averaging, and plasma parameter optimization
-- **InstrumentProfileController**: Standalone entry point for calibration mode with CLI support
+  - `./bin/calibrate.sh` (Linux/macOS) and `bin\calibrate.bat` (Windows) launcher scripts
+- **InstrumentProfileController**: Standalone entry point for calibration mode with dedicated CLI argument parsing
+- **InstrumentProfileService**: Service for wavelength extraction, spectrum averaging, and plasma parameter optimisation
+- **InstrumentProfile Model**: New model classes (`InstrumentProfile`, `PlasmaParameters`, `PlasmaZone`, `CalibrationStats`) for storing calibration data
+- **Automated Calibration Reports**: Jupyter Notebook-based PDF report generation with spectrum comparison plots
+  - Python virtual environment management (`PythonUtils`) for report dependencies
+  - Calibration report template (`calibration_report_template.ipynb`)
+- **Dedicated CLI Parser Utility**: Refactored command-line argument parsing into `CmdlineParserUtil` (extracted from `CommonUtils`)
+  - Separate argument parsers for data generation and calibration modes
+  - Version display via `addDefaultImplementationEntries` in Maven manifest
+- **Calibration Logging Configuration**: Dedicated `logging_calibration.properties` for calibration-specific log output
+- **NIST Augmentations for Calibration**: Extended NIST data recalculation and fetching logic to support calibration spectrum generation
+- **End-to-End Test Structure**: Added `CalibrationE2ETest`, `InstrumentProfileControllerTest`, and `InstrumentProfileServiceTest`
+
+### Changed
+- **CLI Argument Parsing**: Moved from `CommonUtils` to dedicated `CmdlineParserUtil` class for better separation of concerns
+- **Instrument Profile Save Location**: Profile JSON now saved to `conf/` directory instead of project root
+
+### Fixed
+- **CSV Delimiter Incompatibility**: Fixed issues with CSV delimiter handling for instrument calibration input files
 
 ## [0.9.0] - 2025-11-28
 
