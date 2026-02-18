@@ -304,6 +304,13 @@ public class CmdlineParserUtil {
         name.setRequired(false);
         options.addOption(name);
 
+        // Plasma zones (optional)
+        Option plasmaZones = new Option(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT,
+                LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_DESC);
+        plasmaZones.setRequired(false);
+        options.addOption(plasmaZones);
+
         // Baseline Lambda (optional)
         Option lambda = new Option(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT,
                 LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_LONG,
@@ -332,45 +339,45 @@ public class CmdlineParserUtil {
         help.setRequired(false);
         options.addOption(help);
 
-                CommandLineParser parser = new DefaultParser();
-                HelpFormatter helpFormatter = new HelpFormatter();
+        CommandLineParser parser = new DefaultParser();
+        HelpFormatter helpFormatter = new HelpFormatter();
 
-                try {
-                        // Check for help first
-                        if (args.length == 0 || containsHelp(args)) {
-                                printHelpCalibration(helpFormatter, options);
-                                return null;
-                        }
+        try {
+            // Check for help first
+            if (args.length == 0 || containsHelp(args)) {
+                printHelpCalibration(helpFormatter, options);
+                return null;
+            }
 
-                        return parser.parse(options, args);
+                return parser.parse(options, args);
 
-                } catch (ParseException e) {
-                        logger.log(Level.SEVERE, "Failed to parse command line arguments", e);
-                        System.out.println("Error: invalid command line arguments");
-                        System.out.println();
-                        printHelpCalibration(helpFormatter, options);
-                        return null;
-                }
+        } catch (ParseException e) {
+            logger.log(Level.SEVERE, "Failed to parse command line arguments", e);
+            System.out.println("Error: invalid command line arguments");
+            System.out.println();
+            printHelpCalibration(helpFormatter, options);
+            return null;
         }
+    }
 
-        public void printHelpCalibration(HelpFormatter helpFormatter, Options options) {
-                String header = """
+    public void printHelpCalibration(HelpFormatter helpFormatter, Options options) {
+        String header = """
 
-                                Generates an instrument profile from real LIBS measurement data.
-                                The profile contains wavelength grid and two-zone plasma parameters
-                                (Te, Ne for hot core and cool periphery) optimized to match measured spectra.
+            Generates an instrument profile from real LIBS measurement data.
+            The profile contains wavelength grid and two-zone plasma parameters
+            (Te, Ne for hot core and cool periphery) optimized to match measured spectra.
 
-                                """;
+            """;
 
-                String footer = "\nExamples:\n" +
-                                "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
-                                "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\"\n\n" +
-                                "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
-                                "    -i sample_readings.csv -c \"Fe...\" \\\n" +
-                                "    --lambda 100000 --p 0.001 --max-iterations 20\n\n" +
-                                "Note: The input CSV should have wavelength values as column headers\n" +
-                                "and each row should represent one shot/measurement.\n";
+        String footer = "\nExamples:\n" +
+            "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
+            "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\"\n\n" +
+            "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
+            "    -i sample_readings.csv -c \"Fe...\" \\\n" +
+            "    --lambda 100000 --p 0.001 --max-iterations 20\n\n" +
+            "Note: The input CSV should have wavelength values as column headers\n" +
+            "and each row should represent one shot/measurement.\n";
 
-                helpFormatter.printHelp("calibrate" + osSpecificScriptExtension, header, options, footer, true);
-        }
+        helpFormatter.printHelp("calibrate" + osSpecificScriptExtension, header, options, footer, true);
+    }
 }

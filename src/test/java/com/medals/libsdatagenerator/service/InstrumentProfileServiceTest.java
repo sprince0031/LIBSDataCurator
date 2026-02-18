@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -128,14 +130,15 @@ public class InstrumentProfileServiceTest {
     @Test
     void testProfileSaveAndLoad() throws IOException {
         // Create a profile
-        double[] wavelengths = new double[]{250.0, 260.0, 270.0, 280.0, 290.0};
+        double[] wavelengths = new double[] { 250.0, 260.0, 270.0, 280.0, 290.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "test.csv", "Fe-98.0,C-2.0");
         profile.setInstrumentName("Test Spectrometer");
         profile.setNumShots(5);
-        profile.setHotCoreTe(1.2);
-        profile.setHotCoreNe(5e16);
-        profile.setCoolPeripheryTe(0.7);
-        profile.setCoolPeripheryNe(2e16);
+
+        List<PlasmaZone> zones = new ArrayList<>();
+        zones.add(new PlasmaZone(1.2, 5e16, 0.6));
+        zones.add(new PlasmaZone(0.7, 2e16, 0.4));
+        profile.setZones(zones);
         profile.setRSquaredValue(0.95);
         profile.setRmse(0.05);
 
@@ -152,17 +155,18 @@ public class InstrumentProfileServiceTest {
         assertEquals("Test Spectrometer", loaded.getInstrumentName());
         assertEquals("Fe-98.0,C-2.0", loaded.getComposition());
         assertEquals(5, loaded.getNumShots());
-        assertEquals(1.2, loaded.getHotCoreTe(), 0.01);
-        assertEquals(5e16, loaded.getHotCoreNe(), 1e15);
-        assertEquals(0.7, loaded.getCoolPeripheryTe(), 0.01);
-        assertEquals(2e16, loaded.getCoolPeripheryNe(), 1e15);
+        assertEquals(2, loaded.getZones().size());
+        assertEquals(1.2, loaded.getZones().get(0).getTe(), 0.01);
+        assertEquals(5e16, loaded.getZones().get(0).getNe(), 1e15);
+        assertEquals(0.7, loaded.getZones().get(1).getTe(), 0.01);
+        assertEquals(2e16, loaded.getZones().get(1).getNe(), 1e15);
         assertEquals(0.95, loaded.getRSquaredValue(), 0.01);
         assertEquals(0.05, loaded.getRmse(), 0.01);
     }
 
     @Test
     void testProfileToJson() {
-        double[] wavelengths = new double[]{250.0, 260.0, 270.0};
+        double[] wavelengths = new double[] { 250.0, 260.0, 270.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "test.csv", "Fe-100");
         profile.setInstrumentName("Test");
 
@@ -176,23 +180,25 @@ public class InstrumentProfileServiceTest {
 
         // Check plasma parameters structure
         org.json.JSONObject params = json.getJSONObject("plasmaParameters");
-        assertTrue(params.has("hotCore"));
-        assertTrue(params.has("coolPeriphery"));
+        assertTrue(params.has("zones"));
+        assertEquals(0, params.getJSONArray("zones").length());
     }
 
     @Test
     void testGenerateJupyterReport() throws IOException {
         // Create a dummy profile
-        double[] wavelengths = {200.0, 300.0, 400.0};
+        double[] wavelengths = { 200.0, 300.0, 400.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
-        profile.setHotCoreTe(1.0);
+        List<PlasmaZone> zones = new ArrayList<>();
+        zones.add(new PlasmaZone(1.0, 1e16, 1.0));
+        profile.setZones(zones);
         profile.setInstrumentName("Test Spectrometer");
 
         Path reportPath = tempDir.resolve("calibration_report.ipynb");
         Path dummyPath = tempDir.resolve("dummy.csv");
         Files.writeString(dummyPath, "Wavelength,Intensity\n200,100");
 
-        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath, dummyPath);
+        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath);
 
         assertTrue(Files.exists(reportPath));
         String content = Files.readString(reportPath);

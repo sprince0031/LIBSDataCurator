@@ -4,6 +4,7 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
@@ -19,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -58,12 +60,13 @@ public class InstrumentProfileService {
      * @param compositionString Composition of the reference material (e.g.,
      *                          "Fe-80,C-20")
      * @param instrumentName    Optional name for the instrument
-     * @param baselineParams    object containing lambda, p and maxIter values for baseline correction
+     * @param baselineParams    object containing lambda, p and maxIter values for
+     *                          baseline correction
      * @return Generated InstrumentProfile
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-                                             String instrumentName, BaselineCorrectionParams baselineParams) throws IOException {
+            String instrumentName, BaselineCorrectionParams baselineParams, int plasmaZones) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -91,7 +94,8 @@ public class InstrumentProfileService {
         double[] baselineCorrectedIntensities = BaselineCorrectionService.getInstance().correctBaseline(
                 clippedSpectrum.getIntensities(), baselineParams.getLambda(), baselineParams.getP(),
                 baselineParams.getMaxIterations());
-        Spectrum processedMeasuredSpectrum = new Spectrum(clippedSpectrum.getWavelengths(), baselineCorrectedIntensities);
+        Spectrum processedMeasuredSpectrum = new Spectrum(clippedSpectrum.getWavelengths(),
+                baselineCorrectedIntensities);
 
         // 4. Parse composition
         List<Element> composition = parseComposition(compositionString);
@@ -107,8 +111,8 @@ public class InstrumentProfileService {
         profile.setBaselineParams(baselineParams);
 
         // 6. Optimize plasma parameters
-        logger.info("Starting two-zone plasma parameter optimization...");
-        optimizePlasmaParameters(profile, processedMeasuredSpectrum, composition);
+        logger.info("Starting " + plasmaZones + "-zone plasma parameter optimization...");
+        optimizePlasmaParameters(profile, processedMeasuredSpectrum, composition, plasmaZones);
 
         // 7. Generate Jupyter Report
         if (PythonUtils.getInstance().setupPythonEnvironment()) {
@@ -119,14 +123,13 @@ public class InstrumentProfileService {
                 }
 
                 Path calibrationDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
-                Path reportPath = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + ".ipynb");
+                Path reportPath = calibrationDir
+                        .resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + ".ipynb");
 
                 Path targetCsv = calibrationDir.resolve("target_processed.csv");
-                Path hotCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_HOT_DIR).resolve("best_hot.csv");
-                Path coolCsv = calibrationDir.resolve(LIBSDataGenConstants.CALIBRATION_COOL_DIR)
-                        .resolve("best_cool.csv");
+                Path zonesCsv = calibrationDir.resolve("best_zones.csv");
 
-                generateJupyterReport(profile, reportPath, targetCsv, hotCsv, coolCsv);
+                generateJupyterReport(profile, reportPath, targetCsv, zonesCsv);
                 executeNotebook(reportPath, jupyterPath);
                 convertNotebookToPdf(reportPath, jupyterPath, instrumentName);
 
@@ -175,7 +178,7 @@ public class InstrumentProfileService {
                 }
             }
         }
-        
+
         // Sort wavelengths
         Collections.sort(wavelengths);
 
@@ -233,8 +236,8 @@ public class InstrumentProfileService {
      * @param outputPath Path to save the .ipynb file
      * @throws IOException if writing fails
      */
-    public void generateJupyterReport(InstrumentProfile profile, Path outputPath, Path targetCsv, Path hotCsv,
-            Path coolCsv) throws IOException {
+    public void generateJupyterReport(InstrumentProfile profile, Path outputPath, Path targetCsv, Path zonesCsv)
+            throws IOException {
         // Load template from conf directory
         Path templatePath = Paths.get(CommonUtils.CONF_PATH, LIBSDataGenConstants.CALIBRATION_REPORT_TEMPLATE_FILE);
         String templateContent;
@@ -246,8 +249,6 @@ public class InstrumentProfileService {
                 if (is == null) {
                     throw new IOException("Template file not found in conf or resources");
                 }
-                // Read from stream to temp file to read as string later or just read bytes
-                // Simplest:
                 templateContent = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
             } catch (Exception e) {
                 throw new IOException("Failed to load template", e);
@@ -258,34 +259,27 @@ public class InstrumentProfileService {
 
         // Prepare data strings for replacement
         // Using raw strings for paths, escaped for Python
-        String inputCsvPath = profile.getSourceFile().replace("\\", "\\\\");
-        String targetCsvPath = targetCsv.toAbsolutePath().toString().replace("\\", "\\\\");
-        String hotCsvPath = hotCsv.toAbsolutePath().toString().replace("\\", "\\\\");
-        String coolCsvPath = coolCsv.toAbsolutePath().toString().replace("\\", "\\\\");
-
-        // Replace placeholders
-        String content = templateContent
-                .replace("<INSTRUMENT_NAME>", profile.getInstrumentName())
-                .replace("\"<FIT_SCORE>\"", String.format("%.4f", profile.getRSquaredValue()))
-                .replace("<FIT_SCORE>", String.format("%.4f", profile.getRSquaredValue()))
-                .replace("\"<RMSE>\"", String.format("%.4f", profile.getRmse()))
-                .replace("<RMSE>", String.format("%.4f", profile.getRmse()))
-                .replace("<INPUT_CSV_PATH>", inputCsvPath)
-                .replace("<PROCESSED_SPECTRUM_PATH>", targetCsvPath)
-                .replace("<HOT_SPECTRUM_PATH>", hotCsvPath)
-                .replace("<COOL_SPECTRUM_PATH>", coolCsvPath)
-                .replace("<HOT_CORE_TE>", String.valueOf(profile.getHotCoreTe()))
-                .replace("<HOT_CORE_NE>", String.valueOf(profile.getHotCoreNe()))
-                .replace("<WEIGHT>", String.valueOf(profile.getHotCoreWeight())) // NOTE: Template uses WEIGHT, verify
-                .replace("<COOL_PERIPHERY_TE>", String.valueOf(profile.getCoolPeripheryTe()))
-                .replace("<COOL_PERIPHERY_NE>", String.valueOf(profile.getCoolPeripheryNe()))
-                .replace("<LAMBDA>", String.valueOf(profile.getLambda()))
-                .replace("<P>", String.valueOf(profile.getP()))
-                .replace("<MAX_ITERATIONS>", String.valueOf(profile.getMaxIterations()));
+        String content = getProcessedNotebook(profile, zonesCsv, templateContent);
 
         // Save filled notebook
         Files.write(outputPath, content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         logger.info("Jupyter notebook report generated: " + outputPath);
+    }
+
+    private String getProcessedNotebook(InstrumentProfile profile, Path zonesCsv, String templateContent) {
+        String inputCsvPath = profile.getSourceFile().replace("\\", "\\\\");
+        String zonesCsvPath = zonesCsv.toAbsolutePath().toString().replace("\\", "\\\\");
+
+        // Replace placeholders
+        return templateContent
+                .replace(LIBSDataGenConstants.INSTRUMENT_NAME, profile.getInstrumentName())
+                .replace(LIBSDataGenConstants.RSQUARE_SCORE, String.format("%.4f", profile.getRSquaredValue()))
+                .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", profile.getRmse()))
+                .replace(LIBSDataGenConstants.INPUT_CSV_PATH, inputCsvPath)
+                .replace(LIBSDataGenConstants.ZONES_CSV_PATH, zonesCsvPath)
+                .replace(LIBSDataGenConstants.LAMBDA, String.valueOf(profile.getLambda()))
+                .replace(LIBSDataGenConstants.P, String.valueOf(profile.getP()))
+                .replace(LIBSDataGenConstants.MAX_ITERATIONS, String.valueOf(profile.getMaxIterations()));
     }
 
     /**
@@ -370,7 +364,8 @@ public class InstrumentProfileService {
             // Convert composition string to list format expected by generateElementsList
             List<String> compositionArray = Arrays.asList(compositionString.split(","));
             Map<String, Object> result = InputCompositionProcessor.getInstance()
-                    .generateElementsList(compositionArray, Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
+                    .generateElementsList(compositionArray,
+                            Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
 
             @SuppressWarnings("unchecked")
             List<Element> elements = (List<Element>) result.get("elementsList");
@@ -405,205 +400,132 @@ public class InstrumentProfileService {
     }
 
     /**
-     * Optimizes the two-zone plasma parameters to best match measured spectrum.
-     * Uses a Grid Search approach with Selenium-based spectrum generation.
+     * Optimizes the n-zone plasma parameters to best match measured spectrum.
+     * Uses a recursive Grid Search approach with Selenium-based spectrum
+     * generation.
      * 
-     * @param profile InstrumentProfile to update with optimized parameters
+     * @param profile                   InstrumentProfile to update with optimized
+     *                                  parameters
      * @param processedMeasuredSpectrum Average measured spectrum
-     * @param composition Material composition
+     * @param composition               Material composition
+     * @param plasmaZones               Number of plasma zones to combine
      */
     private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
-                                          List<Element> composition) {
+            List<Element> composition, int plasmaZones) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
 
-        logger.info("Starting Grid Search optimization for plasma parameters...");
+        logger.info("Starting Grid Search optimization for " + plasmaZones + " plasma zones...");
 
         // Configuration for fetching
         UserInputConfig config = new UserInputConfig();
         config.minWavelength = String.valueOf(profile.getMinWavelength());
         config.maxWavelength = String.valueOf(profile.getMaxWavelength());
-        config.resolution = "1000"; // Should match input data resolution logic if possible
+        config.resolution = "1000";
 
         // Define Grid Search Space
-        // Ranges for Te (eV)
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
-        // Ranges for Ne (cm^-3) - using exponents
         double[] neExponents = { 15.0, 15.5, 16.0, 16.5, 17.0, 17.5 };
 
-        double bestRmse = Double.MAX_VALUE;
-        double bestRSquared = Double.MIN_VALUE;
-        double bestHotTe = 0;
-        double bestHotNe = 0;
-        double bestCoolTe = 0;
-        double bestCoolNe = 0;
-        double bestHotWeight = 0;
+        // Normalization for RMSE calculation
+        double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
+        if (maxMeasuredIntensity == 0)
+            maxMeasuredIntensity = 1.0;
+        double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
+        for (int i = 0; i < measuredIntensities.length; i++) {
+            normalisedMeasuredSpectrum[i] = measuredIntensities[i] / maxMeasuredIntensity;
+        }
 
-        // Temporary storage for spectra to avoid re-fetching
-        // Key: "Te_Ne" -> double[] spectrum
-        Map<String, double[]> spectrumCache = new HashMap<>();
         SpectrumUtils spectrumUtils = new SpectrumUtils();
+        Map<String, double[]> spectrumCache = new HashMap<>();
+        PrintStream out = System.out;
+
         try {
             // Setup output directories
             Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
-            Path hotDir = calibDir.resolve(LIBSDataGenConstants.CALIBRATION_HOT_DIR);
-            Path coolDir = calibDir.resolve(LIBSDataGenConstants.CALIBRATION_COOL_DIR);
-
-            Files.createDirectories(hotDir);
-            Files.createDirectories(coolDir);
+            Files.createDirectories(calibDir);
 
             // Save Target Spectrum
             Path targetPath = calibDir.resolve("target_processed.csv");
             saveSpectrumToCsv(targetPath, wavelengthGrid, measuredIntensities);
 
-            // Pre-fetch all necessary spectra using the single Selenium session
+            // Pre-fetch all necessary spectra
+            logger.info("Starting grid search...");
+            int i = 0;
+            int gridSize = teValues.length * neExponents.length;
             for (double te : teValues) {
                 for (double neExp : neExponents) {
                     double ne = Math.pow(10, neExp);
                     String key = String.format("%.2f_%.2e", te, ne);
 
-                    logger.info("Fetching spectrum for " + key);
+                    if (spectrumCache.containsKey(key))
+                        continue;
 
+                    logger.info("Fetching spectrum for " + key);
                     Path tempPath = Files.createTempFile("libs_calib_", ".csv");
                     String csvData = LIBSDataService.getInstance().fetchCalibrationSpectrum(
                             composition, config, te, ne, tempPath);
 
                     if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
-                        // Parse and cache
                         Map<Double, Double> waveMap = parseNistCsv(csvData);
                         double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
+                        // Store NON-NORMALIZED spectrum in cache for final combination
                         spectrumCache.put(key, spectrum);
                     }
-
                     Files.deleteIfExists(tempPath);
+                    CommonUtils.printProgressBar(i + 1, gridSize, "spectra fetched from NIST LIBS db", out);
+                    i++;
                 }
             }
+            CommonUtils.finishProgressBar(gridSize, out);
 
-            // Normalization for RMSE calculation
-            double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
-            if (maxMeasuredIntensity == 0)
-                maxMeasuredIntensity = 1.0;
+            // normalize cached spectra for optimization comparison
+            Map<String, double[]> normalizedSpectrumCache = new HashMap<>();
+            i = 0;
+            for (Map.Entry<String, double[]> entry : spectrumCache.entrySet()) {
+                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normalizeSpectrum(entry.getValue()));
+                CommonUtils.printProgressBar(i + 1, gridSize, "Spectra normalised", out);
+                i++;
+            }
+            CommonUtils.finishProgressBar(gridSize, out);
 
-            double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
-            for (int i = 0; i < measuredIntensities.length; i++) {
-                normalisedMeasuredSpectrum[i] = measuredIntensities[i] / maxMeasuredIntensity;
+            // Recursive Grid Search
+            OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
+                    normalizedSpectrumCache, normalisedMeasuredSpectrum, spectrumUtils);
+
+            // Update profile with best parameters
+            List<PlasmaZone> zones = new ArrayList<>();
+            for (i = 0; i < bestResult.parameters.size(); i++) {
+                ZoneParams params = bestResult.parameters.get(i);
+                double weight = bestResult.weights.get(i);
+                zones.add(new PlasmaZone(params.te, params.ne, weight));
             }
 
-            // Grid Search Logic (Combinatorial)
-            // Iterate Hot Core candidates
-            for (double hotTe : teValues) {
-                for (double hotNeExp : neExponents) {
-                    double hotNe = Math.pow(10, hotNeExp);
-                    String hotKey = String.format("%.2f_%.2e", hotTe, hotNe);
-                    double[] hotSpectrum = spectrumCache.get(hotKey);
+            profile.setZones(zones);
+            profile.setRmse(bestResult.rmse);
+            profile.setRSquaredValue(bestResult.rSquared);
 
-                    if (hotSpectrum == null)
-                        continue;
+            logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
 
-                    // Iterate Cool Periphery candidates
-                    for (double coolTe : teValues) {
-                        if (coolTe >= hotTe)
-                            continue; // Constraint: Cool zone must be cooler
+            // Save Best Zones and Spectra to Single CSV
+            Path zonesCsvPath = calibDir.resolve("best_zones.csv");
 
-                        for (double coolNeExp : neExponents) {
-                            double coolNe = Math.pow(10, coolNeExp);
-                            String coolKey = String.format("%.2f_%.2e", coolTe, coolNe);
-                            double[] coolSpectrum = spectrumCache.get(coolKey);
-
-                            if (coolSpectrum == null)
-                                continue;
-
-                            // Optimize Weight (0.1 to 0.9)
-                            for (double w = 0.1; w <= 0.9; w += 0.05) {
-                                double[] combined = spectrumUtils.combineSpectra(hotSpectrum, coolSpectrum, w);
-                                double[] normalisedCombined = spectrumUtils.normalizeSpectrum(combined);
-                                // Use normalized measured spectrum for RMSE and r^2 calculation
-                                double rmse = spectrumUtils.calculateRMSE(normalisedMeasuredSpectrum, normalisedCombined);
-                                double rSquared = spectrumUtils.calculateSpectralSimilarity(normalisedMeasuredSpectrum, normalisedCombined);
-                                if (rmse < bestRmse && rSquared > bestRSquared) {
-                                    bestRmse = rmse;
-                                    bestRSquared = rSquared;
-                                    bestHotTe = hotTe;
-                                    bestHotNe = hotNe;
-                                    bestCoolTe = coolTe;
-                                    bestCoolNe = coolNe;
-                                    bestHotWeight = w;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Update profile with best found parameters
-            profile.setHotCoreTe(bestHotTe);
-            profile.setHotCoreNe(bestHotNe);
-            profile.setCoolPeripheryTe(bestCoolTe);
-            profile.setCoolPeripheryNe(bestCoolNe);
-            profile.setHotCoreWeight(bestHotWeight);
-            profile.setCoolPeripheryWeight(1.0 - bestHotWeight);
-            profile.setRmse(bestRmse);
-            profile.setRSquaredValue(bestRSquared);
-
-            logger.info("Optimization complete. Best RMSE: " + bestRmse);
-
-            // Save Best Spectra to Persistent Files
-            logger.info("Saving best fit spectra...");
-            Path bestHotPath = hotDir.resolve("best_hot.csv");
-            Path bestCoolPath = coolDir.resolve("best_cool.csv");
-
-            // Re-fetch best hot and save scaled
-            logger.info("Fetching best Hot Core spectrum for saving...");
-            Path tempHot = Files.createTempFile("temp_hot", ".csv");
-            String hotCsvData = LIBSDataService.getInstance().fetchCalibrationSpectrum(
-                    composition, config, bestHotTe, bestHotNe, tempHot);
-            processAndSaveSpectrum(hotCsvData, bestHotPath, wavelengthGrid, maxMeasuredIntensity);
-            Files.deleteIfExists(tempHot);
-
-            // Re-fetch best cool and save scaled
-            logger.info("Fetching best Cool Periphery spectrum for saving...");
-            Path tempCool = Files.createTempFile("temp_cool", ".csv");
-            String coolCsvData = LIBSDataService.getInstance().fetchCalibrationSpectrum(
-                    composition, config, bestCoolTe, bestCoolNe, tempCool);
-            processAndSaveSpectrum(coolCsvData, bestCoolPath, wavelengthGrid, maxMeasuredIntensity);
-            Files.deleteIfExists(tempCool);
+            // For saving, we need the original (or scaled) intensities, not just normalized
+            // We'll save the normalized * maxMeasured (similar to before) for visual
+            // consistency
+            saveZonesToCsv(zonesCsvPath, zones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Grid search optimization failed", e);
         } finally {
-            // Close Selenium session
             com.medals.libsdatagenerator.util.SeleniumUtils.getInstance().quitSelenium();
         }
     }
 
-    /**
-     * Processes raw CSV data, normalizes it, scales it by the measured intensity
-     * factor, and saves it.
-     */
-    private void processAndSaveSpectrum(String csvData, Path outputPath, double[] wavelengthGrid,
-            double scaleFactor) throws IOException {
-        if (csvData == null || csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
-            logger.warning("Failed to fetch spectrum data for saving: " + outputPath);
-            return;
-        }
-
-        Map<Double, Double> waveMap = parseNistCsv(csvData);
-        SpectrumUtils spectrumUtils = new SpectrumUtils();
-        double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
-        double[] normalized = spectrumUtils.normalizeSpectrum(spectrum);
-
-        double[] scaled = new double[normalized.length];
-        for (int i = 0; i < normalized.length; i++) {
-            scaled[i] = normalized[i] * scaleFactor;
-        }
-
-        saveSpectrumToCsv(outputPath, wavelengthGrid, scaled);
-    }
-
     private void saveSpectrumToCsv(Path path, double[] wavelengths, double[] intensity) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(path);
-                CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
+             CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
             for (int i = 0; i < wavelengths.length; i++) {
                 if (i < intensity.length) {
                     printer.printRecord(wavelengths[i], intensity[i]);
@@ -612,7 +534,182 @@ public class InstrumentProfileService {
         }
     }
 
-    // TODO: Consolidate NIST CSV parsing logic with LIBSDataService.parseNistCsv() - Code duplication
+    private static class ZoneParams {
+        double te;
+        double ne;
+
+        public ZoneParams(double te, double ne) {
+            this.te = te;
+            this.ne = ne;
+        }
+    }
+
+    private static class OptimizationResult {
+        List<ZoneParams> parameters = new ArrayList<>();
+        List<Double> weights = new ArrayList<>();
+        double rmse = Double.MAX_VALUE;
+        double rSquared = Double.MIN_VALUE;
+    }
+
+    private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neExponents,
+            Map<String, double[]> normalizedCache,
+            double[] targetSpectrum, SpectrumUtils spectrumUtils) {
+
+        PrintStream out = System.out;
+        OptimizationResult bestResult = new OptimizationResult();
+
+        out.println("Generating parameter and weight combinations for grid search...");
+        // Generate parameter combinations
+        List<List<ZoneParams>> allParamCombinations = new ArrayList<>();
+        generateParamCombinations(numZones, teValues, neExponents, new ArrayList<>(), allParamCombinations);
+
+        // Generate weight combinations (simplex steps of 0.1)
+        List<List<Double>> allWeightCombinations = new ArrayList<>();
+        generateWeightCombinations(numZones, 1.0, new ArrayList<>(), allWeightCombinations);
+
+        // Iterate and find best
+        int progress = 0;
+        int totalCombinations = allParamCombinations.size() * allWeightCombinations.size();
+        for (List<ZoneParams> params : allParamCombinations) {
+            for (List<Double> weights : allWeightCombinations) {
+                // Combine spectra
+                double[] combined = new double[targetSpectrum.length];
+                boolean possible = true;
+
+                for (int i = 0; i < numZones; i++) {
+                    ZoneParams p = params.get(i);
+                    String key = String.format("%.2f_%.2e", p.te, p.ne);
+                    double[] s = normalizedCache.get(key);
+                    if (s == null) {
+                        possible = false;
+                        break;
+                    }
+                    double w = weights.get(i);
+                    for (int j = 0; j < combined.length; j++) {
+                        combined[j] += s[j] * w;
+                    }
+                }
+
+                if (!possible)
+                    continue;
+
+                // Normalize combined result for comparison against normalized target
+                double[] finalCombined = spectrumUtils.normalizeSpectrum(combined);
+
+                double rmse = spectrumUtils.calculateRMSE(targetSpectrum, finalCombined);
+                double rSquared = spectrumUtils.calculateSpectralSimilarity(targetSpectrum, finalCombined);
+
+                // Selection Criteria: Strictly better RMSE and R^2, or improvement in R^2
+                if (rmse < bestResult.rmse && rSquared > bestResult.rSquared) {
+                    bestResult.rmse = rmse;
+                    bestResult.rSquared = rSquared; 
+                    bestResult.parameters = params;
+                    bestResult.weights = weights;
+                } else if (rmse == bestResult.rmse && rSquared > bestResult.rSquared) {
+                    bestResult.rSquared = rSquared;
+                    bestResult.parameters = params;
+                    bestResult.weights = weights;
+                }
+                CommonUtils.printProgressBar(progress + 1, totalCombinations, "combinations processed", out);
+                progress++;
+            }
+        }
+        CommonUtils.finishProgressBar(totalCombinations, out);
+
+        return bestResult;
+    }
+
+    private void generateParamCombinations(int zonesLeft, double[] teValues, double[] neExponents,
+            List<ZoneParams> current, List<List<ZoneParams>> results) {
+        if (zonesLeft == 0) {
+            results.add(new ArrayList<>(current));
+            return;
+        }
+
+        double lastTe = current.isEmpty() ? Double.MAX_VALUE : current.get(current.size() - 1).te;
+
+        for (double te : teValues) {
+            // Constraint: Te must be <= previous Te (Hot to Cool ordering)
+            if (te > lastTe)
+                continue;
+
+            for (double neExp : neExponents) {
+                double ne = Math.pow(10, neExp);
+                current.add(new ZoneParams(te, ne));
+                generateParamCombinations(zonesLeft - 1, teValues, neExponents, current, results);
+                current.remove(current.size() - 1);
+            }
+        }
+    }
+
+    private void generateWeightCombinations(int zonesLeft, double remainingWeight,
+            List<Double> current, List<List<Double>> results) {
+        if (zonesLeft == 1) {
+            // Last zone gets all remaining weight
+            // Rounding to avoid precision errors, though double precision usually suffices
+            // for step 0.1
+            double w = Math.round(remainingWeight * 100.0) / 100.0;
+            if (w < 0)
+                return; // Should not happen
+            List<Double> full = new ArrayList<>(current);
+            full.add(w);
+            results.add(full);
+            return;
+        }
+
+        // Step size 0.1, up to remaining weight
+        for (double w = 0.05; w <= remainingWeight - 0.05 * (zonesLeft - 1); w += 0.05) {
+            current.add(w);
+            generateWeightCombinations(zonesLeft - 1, remainingWeight - w, current, results);
+            current.remove(current.size() - 1);
+        }
+    }
+
+    private void saveZonesToCsv(Path outputPath, List<PlasmaZone> zones,
+            double[] wavelengthGrid, Map<String, double[]> spectrumCache,
+            double scaleFactor) throws IOException {
+
+        try (BufferedWriter writer = Files.newBufferedWriter(outputPath);
+                CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
+
+            // Header: Te, Ne, Weight, <Wavelengths>
+            List<String> header = new ArrayList<>();
+            header.add("Te");
+            header.add("Ne");
+            header.add("Weight");
+            for (double w : wavelengthGrid)
+                header.add(String.valueOf(w));
+            printer.printRecord(header);
+
+            SpectrumUtils spectrumUtils = new SpectrumUtils();
+
+            for (PlasmaZone zone : zones) {
+                String key = String.format("%.2f_%.2e", zone.getTe(), zone.getNe());
+                double[] rawSpectrum = spectrumCache.get(key);
+
+                List<Object> record = new ArrayList<>();
+                record.add(zone.getTe());
+                record.add(zone.getNe());
+                record.add(zone.getWeight());
+
+                if (rawSpectrum != null) {
+                    // Normalize and then scale
+                    double[] normalized = spectrumUtils.normalizeSpectrum(rawSpectrum);
+                    for (double val : normalized) {
+                        record.add(val * scaleFactor);
+                    }
+                } else {
+                    // Should not happen if cache is hit, but fill zeros
+                    for (int i = 0; i < wavelengthGrid.length; i++)
+                        record.add(0.0);
+                }
+                printer.printRecord(record);
+            }
+        }
+    }
+
+    // TODO: Consolidate NIST CSV parsing logic with LIBSDataService.parseNistCsv()
+    // - Code duplication
     private Map<Double, Double> parseNistCsv(String csvData) throws IOException {
         Map<Double, Double> map = new HashMap<>();
         try (java.io.StringReader sr = new java.io.StringReader(csvData);

@@ -160,7 +160,7 @@ if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
     LOGS_DIR_ESCAPED=$(printf '%s\n' "$LOGS_DIR" | sed -e 's/[\/&]/\\&/g')
 
     # Replace placeholder in ALL properties files in the conf directory
-    for f in "$MAIN_DIR/conf/"*.properties; do
+    for f in "$MAIN_DIR/conf/logging"*.properties; do
         if [ -f "$f" ]; then
             sed -i.bak "s|__LOG_PATH_PLACEHOLDER__|${LOGS_DIR_ESCAPED}|g" "$f"
         fi

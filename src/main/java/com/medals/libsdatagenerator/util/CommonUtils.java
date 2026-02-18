@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
@@ -258,7 +259,7 @@ public class CommonUtils {
             return; // Don't show progress bar for single items
         }
         
-        int progress = current * progressBarWidth / total;
+        int progress = (BigInteger.valueOf((long) current * progressBarWidth).divide(BigInteger.valueOf(total))).intValue();
         String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
         out.printf("\r[%s] %d/%d %s", bar, current, total, message);
     }

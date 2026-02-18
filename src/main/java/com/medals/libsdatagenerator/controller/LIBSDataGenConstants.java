@@ -185,6 +185,9 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_NAME_SHORT = "n";
     public static final String CMD_OPT_NAME_LONG = "name";
     public static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";
+    public static final String CMD_OPT_PLASMA_ZONES_SHORT = "z";
+    public static final String CMD_OPT_PLASMA_ZONES_LONG = "plasma-zones";
+    public static final String CMD_OPT_PLASMA_ZONES_DESC = "Number of plasma zones to consider and combine";
     public static final String CMD_OPT_BASELINE_LAMBDA_SHORT = "bl";
     public static final String CMD_OPT_BASELINE_LAMBDA_LONG = "lambda";
     public static final String CMD_OPT_BASELINE_LAMBDA_DESC = "Baseline correction smoothness parameter (lambda). Default: 10000";
@@ -257,10 +260,17 @@ public class LIBSDataGenConstants {
      * #### Instrument Profile Calibration Constants ####
      */
     public static final String CALIBRATION_DIR = "calibration";
-    public static final String CALIBRATION_HOT_DIR = "hot";
-    public static final String CALIBRATION_COOL_DIR = "cool";
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
     public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
+    // Calibration report template placeholders
+    public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
+    public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
+    public static final String RMSE = "<RMSE>";
+    public static final String INPUT_CSV_PATH = "<INPUT_CSV_PATH>";
+    public static final String ZONES_CSV_PATH = "<ZONES_CSV_PATH>";
+    public static final String LAMBDA = "<LAMBDA>";
+    public static final String P = "<P>";
+    public static final String MAX_ITERATIONS = "<MAX_ITERATIONS>";
 
     /**
      * #### Miscellaneous Constants ####

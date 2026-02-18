@@ -1,10 +1,12 @@
 package com.medals.libsdatagenerator.service;
 
+import com.medals.libsdatagenerator.util.CommonUtils;
 import org.ejml.data.DMatrixRMaj;
 import org.ejml.dense.row.CommonOps_DDRM;
 import org.ejml.dense.row.factory.LinearSolverFactory_DDRM;
 import org.ejml.interfaces.linsol.LinearSolverDense;
 
+import java.io.PrintStream;
 import java.util.logging.Logger;
 
 import static com.medals.libsdatagenerator.model.BaselineCorrectionParams.DEFAULT_LAMBDA;
@@ -64,16 +66,23 @@ public class BaselineCorrectionService {
             return spectrum.clone(); // Cannot compute 2nd derivative
         }
 
+        PrintStream out = System.out;
+
         // Create y vector
         DMatrixRMaj y = new DMatrixRMaj(n, 1);
         for (int i = 0; i < n; i++) {
             y.set(i, 0, spectrum[i]);
+            CommonUtils.printProgressBar(i + 1, n, "Initialising baseline correction", out);
         }
+        CommonUtils.finishProgressBar(n, out);
 
         // Initialize weights to 1.0 (vector w)
         double[] w = new double[n];
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < n; i++) {
             w[i] = 1.0;
+            CommonUtils.printProgressBar(i + 1, n, "Weights initialised for baseline correction", out);
+        }
+        CommonUtils.finishProgressBar(n, out);
 
         // Construct D (n-2 x n), second difference matrix
         DMatrixRMaj D = new DMatrixRMaj(n - 2, n);
@@ -81,8 +90,11 @@ public class BaselineCorrectionService {
             D.set(i, i, 1);
             D.set(i, i + 1, -2);
             D.set(i, i + 2, 1);
+            CommonUtils.printProgressBar(i + 1, n-2, "Second difference matrices constructed for baseline correction", out);
         }
+        CommonUtils.finishProgressBar(n, out);
 
+        out.println("\nInitialising parameters. Please wait...");
         // H = lambda * D' * D
         DMatrixRMaj Dt = new DMatrixRMaj(n, n - 2);
         CommonOps_DDRM.transpose(D, Dt);
@@ -132,7 +144,9 @@ public class BaselineCorrectionService {
                     w[i] = 1.0 - p;
                 }
             }
+            CommonUtils.printProgressBar(iter + 1, maxIterations, "iterations completed for baseline correction", out);
         }
+        CommonUtils.finishProgressBar(maxIterations, out);
 
         // Compute corrected spectrum: max(0, y - z)
         double[] corrected = new double[n];
