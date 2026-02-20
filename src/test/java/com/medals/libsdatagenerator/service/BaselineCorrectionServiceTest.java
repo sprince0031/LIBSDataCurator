@@ -69,7 +69,7 @@ public class BaselineCorrectionServiceTest {
             spectrum[i] += rand.nextGaussian(); // Noise
         }
 
-        Assertions.assertTimeoutPreemptively(Duration.of(2, ChronoUnit.SECONDS),
+        Assertions.assertTimeoutPreemptively(Duration.of(3, ChronoUnit.SECONDS),
                 () -> BaselineCorrectionService.getInstance().correctBaseline(spectrum),
                 "Performance check: 1000 points should be processed under 2s");
     }

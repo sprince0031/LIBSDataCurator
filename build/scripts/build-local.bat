@@ -150,31 +150,31 @@ echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
 echo.
 echo REM --- First-Time Setup for Logging ---
 echo findstr /C:"__LOG_PATH_PLACEHOLDER__" "%%LOG_PROPERTIES%%" ^>nul
-echo if ^^!errorlevel^^! equ 0 (
+echo if ^^!errorlevel^^! equ 0 ^(
 echo     echo Performing first-time setup for logging path...
 echo.
 echo     REM Create logs directory if it doesn't exist
 echo     if not exist "%%LOGS_DIR%%" mkdir "%%LOGS_DIR%%"
 echo.
-echo     REM Get the log path and format it for the properties file (using forward slashes^)
+echo     REM Get the log path and format it for the properties file ^(using forward slashes^)
 echo     set "LOG_PATH_FOR_PROPS=%%LOGS_DIR%%"
 echo     set "LOG_PATH_FOR_PROPS=^!LOG_PATH_FOR_PROPS:\=/^!"
 echo.
 echo     REM Replace placeholder in ALL properties files in the conf directory
-echo     for %%%%F in ("%%MAIN_DIR%%\conf\logging*.properties") do (
+echo     for %%%%F in ^("%%MAIN_DIR%%\conf\logging*.properties"^) do ^(
 echo         echo Configuring %%%%~nxF...
 echo         REM Create a new properties file by replacing the placeholder
-echo         (for /f "usebackq delims=" %%%%L in ("%%%%F"^) do (
+echo         ^(for /f "usebackq delims=" %%%%L in ^("%%%%F"^) do ^(
 echo             set "line=%%%%L"
 echo             REM Check if the line contains the placeholder
 echo             set "replace=^!LOG_PATH_FOR_PROPS^!"
-echo             for /f "delims=" %%%%v in ("^!replace^!") do set "line=^!line:__LOG_PATH_PLACEHOLDER__=%%%%v^!"
-echo             echo ^!line^!
+echo             for /f "delims=" %%%%v in ^("^!replace^!"^) do set "line=^!line:__LOG_PATH_PLACEHOLDER__=%%%%v^!"
+echo             echo ^^!line^^!
 echo         ^)^) ^> "%%%%F.tmp"
-echo         
+echo.
 echo         REM Replace the original file with the new one
 echo         move /Y "%%%%F.tmp" "%%%%F" ^>nul
-echo     )
+echo     ^)
 echo     echo Log paths configured.
 echo ^)
 echo.
@@ -205,31 +205,31 @@ echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
 echo.
 echo REM --- First-Time Setup for Logging ---
 echo findstr /C:"__LOG_PATH_PLACEHOLDER__" "%%LOG_PROPERTIES%%" ^>nul
-echo if ^^!errorlevel^^! equ 0 (
+echo if ^^!errorlevel^^! equ 0 ^(
 echo     echo Performing first-time setup for logging path...
 echo.
 echo     REM Create logs directory if it doesn't exist
 echo     if not exist "%%LOGS_DIR%%" mkdir "%%LOGS_DIR%%"
 echo.
-echo     REM Get the log path and format it for the properties file (using forward slashes^)
+echo     REM Get the log path and format it for the properties file ^(using forward slashes^)
 echo     set "LOG_PATH_FOR_PROPS=%%LOGS_DIR%%"
 echo     set "LOG_PATH_FOR_PROPS=^!LOG_PATH_FOR_PROPS:\=/^!"
 echo.
 echo     REM Replace placeholder in ALL properties files in the conf directory
-echo     for %%%%F in ("%%MAIN_DIR%%\conf\logging*.properties") do (
+echo     for %%%%F in ^("%%MAIN_DIR%%\conf\logging*.properties"^) do ^(
 echo         echo Configuring %%%%~nxF...
 echo         REM Create a new properties file by replacing the placeholder
-echo         (for /f "usebackq delims=" %%%%L in ("%%%%F"^) do (
+echo         ^(for /f "usebackq delims=" %%%%L in ^("%%%%F"^) do ^(
 echo             set "line=%%%%L"
 echo             REM Check if the line contains the placeholder
 echo             set "replace=^!LOG_PATH_FOR_PROPS^!"
-echo             for /f "delims=" %%%%v in ("^!replace^!") do set "line=^!line:__LOG_PATH_PLACEHOLDER__=%%%%v^!"
-echo             echo ^!line^!
+echo             for /f "delims=" %%%%v in ^("^!replace^!"^) do set "line=^!line:__LOG_PATH_PLACEHOLDER__=%%%%v^!"
+echo             echo ^^!line^^!
 echo         ^)^) ^> "%%%%F.tmp"
-echo         
+echo.
 echo         REM Replace the original file with the new one
 echo         move /Y "%%%%F.tmp" "%%%%F" ^>nul
-echo     )
+echo     ^)
 echo     echo Log paths configured.
 echo ^)
 echo.
