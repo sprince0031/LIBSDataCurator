@@ -212,16 +212,49 @@ public class InstrumentProfileService {
                 CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
                         .withFirstRecordAsHeader().parse(reader)) {
 
-            // Extract spectra
+            // Build a mapping from wavelengthGrid index to CSV column index using the
+            // actual header strings, avoiding mismatches between Double.toString() and
+            // the original header format (e.g. "200" vs "200.0").
+            Map<String, Integer> headerMap = parser.getHeaderMap();
+            int[] columnIndices = new int[wavelengthGrid.length];
+            Arrays.fill(columnIndices, -1);
+            if (headerMap != null) {
+                // Pre-build a reverse map from wavelength value to grid index for O(1) lookup
+                Map<Double, Integer> wavelengthToGridIndex = new HashMap<>();
+                for (int i = 0; i < wavelengthGrid.length; i++) {
+                    wavelengthToGridIndex.put(wavelengthGrid[i], i);
+                }
+                for (Map.Entry<String, Integer> entry : headerMap.entrySet()) {
+                    String headerName = entry.getKey().trim().replaceAll("\"", "");
+                    try {
+                        double headerValue = Double.parseDouble(headerName);
+                        Integer gridIndex = wavelengthToGridIndex.get(headerValue);
+                        if (gridIndex != null) {
+                            columnIndices[gridIndex] = entry.getValue();
+                        }
+                    } catch (NumberFormatException e) {
+                        // Not a wavelength column, skip
+                    }
+                }
+            }
+
+            // Warn once about any wavelengths that could not be mapped to a CSV column
+            for (int i = 0; i < wavelengthGrid.length; i++) {
+                if (columnIndices[i] < 0) {
+                    logger.warning("Wavelength column not found in CSV for wavelength: " + wavelengthGrid[i]
+                            + " nm; intensities for this wavelength will be zero-filled.");
+                }
+            }
+
+            // Extract spectra using column indices to avoid header-name format issues
             for (CSVRecord record : parser) {
                 double[] spectrum = new double[wavelengthGrid.length];
                 for (int i = 0; i < wavelengthGrid.length; i++) {
                     try {
-                        spectrum[i] = Double.parseDouble(record.get(String.valueOf(wavelengthGrid[i])).trim());
-                    } catch (IllegalArgumentException e) {
-                        // IllegalArgumentException catches both NumberFormatException (which extends
-                        // it)
-                        // and cases where the column is missing from the record
+                        if (columnIndices[i] >= 0) {
+                            spectrum[i] = Double.parseDouble(record.get(columnIndices[i]).trim());
+                        }
+                    } catch (NumberFormatException e) {
                         spectrum[i] = 0.0;
                     }
                 }
