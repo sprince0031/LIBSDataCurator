@@ -153,7 +153,7 @@ public class InstrumentProfileService {
      * Extracts the wavelength grid from the CSV header line.
      * Expects wavelengths as column headers (numeric values).
      *
-     * @param csvPath   Path to the CSV file
+     * @param csvPath Path to the CSV file
      * @param delimiter Delimiter character used in source spectra CSV
      * @return List of wavelength values
      * @throws IOException if file cannot be read
@@ -161,14 +161,15 @@ public class InstrumentProfileService {
     public double[] extractWavelengthGrid(Path csvPath, String delimiter) throws IOException {
         List<Double> wavelengths = new ArrayList<>();
 
-        try (BufferedReader reader = Files.newBufferedReader(csvPath)) {
-            String headerLine = reader.readLine();
+        try (BufferedReader reader = Files.newBufferedReader(csvPath);
+             CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
+                     .withFirstRecordAsHeader().parse(reader)) {
+            List<String> headerLine = parser.getHeaderNames();
             if (headerLine == null) {
                 throw new IOException("Empty CSV file");
             }
 
-            String[] headers = headerLine.split(delimiter);
-            for (String header : headers) {
+            for (String header : headerLine) {
                 String trimmed = header.trim().replaceAll("\"", "");
                 try {
                     double wavelength = Double.parseDouble(trimmed);
@@ -198,9 +199,9 @@ public class InstrumentProfileService {
      * Extracts measured intensity spectra from the CSV file.
      * Each row represents one shot/measurement.
      *
-     * @param csvPath        Path to the CSV file
+     * @param csvPath Path to the CSV file
      * @param wavelengthGrid Wavelength list extracted from input spectra file
-     * @param delimiter      Delimiter character used in source spectra CSV
+     * @param delimiter Delimiter character used in source spectra CSV
      * @return List of intensity arrays, one per shot
      * @throws IOException if file cannot be read
      */
@@ -212,50 +213,21 @@ public class InstrumentProfileService {
                 CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
                         .withFirstRecordAsHeader().parse(reader)) {
 
-            // Build a mapping from wavelengthGrid index to CSV column index using the
-            // actual header strings, avoiding mismatches between Double.toString() and
-            // the original header format (e.g. "200" vs "200.0").
+            // Extract spectra
             Map<String, Integer> headerMap = parser.getHeaderMap();
-            int[] columnIndices = new int[wavelengthGrid.length];
-            Arrays.fill(columnIndices, -1);
-            if (headerMap != null) {
-                // Pre-build a reverse map from wavelength value to grid index for O(1) lookup
-                Map<Double, Integer> wavelengthToGridIndex = new HashMap<>();
-                for (int i = 0; i < wavelengthGrid.length; i++) {
-                    wavelengthToGridIndex.put(wavelengthGrid[i], i);
-                }
-                for (Map.Entry<String, Integer> entry : headerMap.entrySet()) {
-                    String headerName = entry.getKey().trim().replaceAll("\"", "");
-                    try {
-                        double headerValue = Double.parseDouble(headerName);
-                        Integer gridIndex = wavelengthToGridIndex.get(headerValue);
-                        if (gridIndex != null) {
-                            columnIndices[gridIndex] = entry.getValue();
-                        }
-                    } catch (NumberFormatException e) {
-                        // Not a wavelength column, skip
-                    }
-                }
-            }
-
-            // Warn once about any wavelengths that could not be mapped to a CSV column
-            for (int i = 0; i < wavelengthGrid.length; i++) {
-                if (columnIndices[i] < 0) {
-                    logger.warning("Wavelength column not found in CSV for wavelength: " + wavelengthGrid[i]
-                            + " nm; intensities for this wavelength will be zero-filled.");
-                }
-            }
 
             // Extract spectra using column indices to avoid header-name format issues
             for (CSVRecord record : parser) {
                 double[] spectrum = new double[wavelengthGrid.length];
-                for (int i = 0; i < wavelengthGrid.length; i++) {
+                int i = 0;
+                for (Map.Entry<String, Integer> entry: headerMap.entrySet()) {//int i = 0; i < wavelengthGrid.length; i++) {
                     try {
-                        if (columnIndices[i] >= 0) {
-                            spectrum[i] = Double.parseDouble(record.get(columnIndices[i]).trim());
+                        if (Double.parseDouble(entry.getKey()) == wavelengthGrid[i]) {
+                            spectrum[i] = Double.parseDouble(record.get(entry.getValue()).trim());
+                            i++;
                         }
                     } catch (NumberFormatException e) {
-                        spectrum[i] = 0.0;
+                        // skip column as not a wavelength column
                     }
                 }
                 spectra.add(spectrum);
@@ -268,7 +240,7 @@ public class InstrumentProfileService {
     /**
      * Generates a Jupyter Notebook report for the calibration.
      * 
-     * @param profile    The instrument profile containing data and parameters
+     * @param profile The instrument profile containing data and parameters
      * @param outputPath Path to save the .ipynb file
      * @throws IOException if writing fails
      */
