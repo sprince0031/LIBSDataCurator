@@ -4,11 +4,13 @@ import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
+import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
-import org.apache.commons.cli.*;
+import org.apache.commons.cli.CommandLine;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.logging.Level;
@@ -45,6 +47,9 @@ public class InstrumentProfileController {
                         // Get input parameters
                         String inputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INPUT_SHORT);
                         String delimiter = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT, ";");
+                        if (!CSVUtils.isValidDelimiter(delimiter)) {
+                                throw new IOException("Invalid delimiter specified");
+                        }
                         String composition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
                         String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
                         String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,
@@ -124,6 +129,7 @@ public class InstrumentProfileController {
                         logger.info("Profile generation complete. Output: " + outputFilePath.toAbsolutePath());
 
                 } catch (Exception e) {
+                        System.out.println("Unable to generate profile. Please check log for details.");
                         logger.log(Level.SEVERE, "Failed to generate instrument profile", e);
                         System.out.println("Error: " + e.getMessage());
                         System.exit(1);

@@ -56,13 +56,13 @@ public class InstrumentProfileService {
     /**
      * Generates an instrument profile from a sample LIBS measurement CSV file.
      *
-     * @param sampleCsvPath     Path to the sample CSV file with real LIBS readings
-     * @param compositionString Composition of the reference material (e.g.,
-     *                          "Fe-80,C-20")
-     * @param instrumentName    Optional name for the instrument
-     * @param baselineParams    object containing lambda, p and maxIter values for
-     *                          baseline correction
-     * @param debugMode
+     * @param sampleCsvPath Path to the sample CSV file with real LIBS readings
+     * @param delimiter The delimiter character used by the sample CSV file
+     * @param compositionString Composition of the reference material (e.g.: "Fe-80,C-20")
+     * @param instrumentName Optional name for the instrument
+     * @param baselineParams Object containing lambda, p and maxIter values for baseline correction
+     * @param plasmaZones Number of plasma zones to consider and combine when comparing fit of synthetic spectrum
+     * @param debugMode Enable debug mode which shows browser actions in a browser window
      * @return Generated InstrumentProfile
      * @throws IOException if file cannot be read
      */
