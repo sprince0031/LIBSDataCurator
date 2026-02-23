@@ -128,6 +128,30 @@ public class InstrumentProfileServiceTest {
     }
 
     @Test
+    void testExtractMeasuredSpectraWithIntegerFormattedHeaders() throws IOException {
+        // CSV headers use integer format ("200") while extractWavelengthGrid produces
+        // double values (200.0). This test verifies that extractMeasuredSpectra correctly
+        // resolves columns by matching parsed header values rather than by regenerating
+        // strings from doubles (which would produce "200.0" and miss the "200" column).
+        String csvContent = "Shot;200;201;202\n" +
+                "1;10.0;20.0;30.0\n" +
+                "2;20.0;40.0;60.0\n";
+        Path csvPath = tempDir.resolve("test_integer_headers.csv");
+        Files.writeString(csvPath, csvContent);
+
+        double[] wavelengths = service.extractWavelengthGrid(csvPath, ";");
+        assertEquals(3, wavelengths.length);
+        assertEquals(200.0, wavelengths[0]);
+
+        List<double[]> spectra = service.extractMeasuredSpectra(csvPath, wavelengths, ";");
+        assertEquals(2, spectra.size());
+        assertEquals(10.0, spectra.get(0)[0], 0.001);
+        assertEquals(20.0, spectra.get(0)[1], 0.001);
+        assertEquals(30.0, spectra.get(0)[2], 0.001);
+        assertEquals(20.0, spectra.get(1)[0], 0.001);
+    }
+
+    @Test
     void testProfileSaveAndLoad() throws IOException {
         // Create a profile
         double[] wavelengths = new double[] { 250.0, 260.0, 270.0, 280.0, 290.0 };

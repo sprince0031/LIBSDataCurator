@@ -153,7 +153,7 @@ public class InstrumentProfileService {
      * Extracts the wavelength grid from the CSV header line.
      * Expects wavelengths as column headers (numeric values).
      *
-     * @param csvPath   Path to the CSV file
+     * @param csvPath Path to the CSV file
      * @param delimiter Delimiter character used in source spectra CSV
      * @return List of wavelength values
      * @throws IOException if file cannot be read
@@ -161,14 +161,15 @@ public class InstrumentProfileService {
     public double[] extractWavelengthGrid(Path csvPath, String delimiter) throws IOException {
         List<Double> wavelengths = new ArrayList<>();
 
-        try (BufferedReader reader = Files.newBufferedReader(csvPath)) {
-            String headerLine = reader.readLine();
+        try (BufferedReader reader = Files.newBufferedReader(csvPath);
+             CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
+                     .withFirstRecordAsHeader().parse(reader)) {
+            List<String> headerLine = parser.getHeaderNames();
             if (headerLine == null) {
                 throw new IOException("Empty CSV file");
             }
 
-            String[] headers = headerLine.split(delimiter);
-            for (String header : headers) {
+            for (String header : headerLine) {
                 String trimmed = header.trim().replaceAll("\"", "");
                 try {
                     double wavelength = Double.parseDouble(trimmed);
@@ -198,9 +199,9 @@ public class InstrumentProfileService {
      * Extracts measured intensity spectra from the CSV file.
      * Each row represents one shot/measurement.
      *
-     * @param csvPath        Path to the CSV file
+     * @param csvPath Path to the CSV file
      * @param wavelengthGrid Wavelength list extracted from input spectra file
-     * @param delimiter      Delimiter character used in source spectra CSV
+     * @param delimiter Delimiter character used in source spectra CSV
      * @return List of intensity arrays, one per shot
      * @throws IOException if file cannot be read
      */
@@ -213,16 +214,20 @@ public class InstrumentProfileService {
                         .withFirstRecordAsHeader().parse(reader)) {
 
             // Extract spectra
+            Map<String, Integer> headerMap = parser.getHeaderMap();
+
+            // Extract spectra using column indices to avoid header-name format issues
             for (CSVRecord record : parser) {
                 double[] spectrum = new double[wavelengthGrid.length];
-                for (int i = 0; i < wavelengthGrid.length; i++) {
+                int i = 0;
+                for (Map.Entry<String, Integer> entry: headerMap.entrySet()) {//int i = 0; i < wavelengthGrid.length; i++) {
                     try {
-                        spectrum[i] = Double.parseDouble(record.get(String.valueOf(wavelengthGrid[i])).trim());
-                    } catch (IllegalArgumentException e) {
-                        // IllegalArgumentException catches both NumberFormatException (which extends
-                        // it)
-                        // and cases where the column is missing from the record
-                        spectrum[i] = 0.0;
+                        if (Double.parseDouble(entry.getKey()) == wavelengthGrid[i]) {
+                            spectrum[i] = Double.parseDouble(record.get(entry.getValue()).trim());
+                            i++;
+                        }
+                    } catch (NumberFormatException e) {
+                        // skip column as not a wavelength column
                     }
                 }
                 spectra.add(spectrum);
@@ -235,7 +240,7 @@ public class InstrumentProfileService {
     /**
      * Generates a Jupyter Notebook report for the calibration.
      * 
-     * @param profile    The instrument profile containing data and parameters
+     * @param profile The instrument profile containing data and parameters
      * @param outputPath Path to save the .ipynb file
      * @throws IOException if writing fails
      */
