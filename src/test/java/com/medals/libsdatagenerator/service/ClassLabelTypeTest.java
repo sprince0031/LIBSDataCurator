@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.UserInputConfig;
+import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.Test;
@@ -19,12 +20,12 @@ import static org.junit.jupiter.api.Assertions.*;
 public class ClassLabelTypeTest {
 
     private LIBSDataService libsDataService;
-    private CommonUtils commonUtils;
+    private CmdlineParserUtil cmdlineParserUtil;
 
     @BeforeEach
     void setUp() {
         libsDataService = LIBSDataService.getInstance();
-        commonUtils = CommonUtils.getInstance();
+        cmdlineParserUtil = new CmdlineParserUtil();
     }
 
     @Test
@@ -55,21 +56,21 @@ public class ClassLabelTypeTest {
     void testUserInputConfigWithClassLabelType() {
         // Test default class label type (option 1)
         String[] args1 = {"-c", "Fe-80,C-20"};
-        CommandLine cmd1 = commonUtils.getTerminalArgHandler(args1);
+        CommandLine cmd1 = cmdlineParserUtil.getTerminalArgHandler(args1);
         UserInputConfig config1 = new UserInputConfig(cmd1);
         assertEquals(ClassLabelType.COMPOSITION_PERCENTAGE, config1.classLabelType);
         assertFalse(config1.classLabelTypeExplicitlySet);
 
         // Test material grade name (option 2)
         String[] args2 = {"-c", "Fe-80,C-20", "-ct", "2"};
-        CommandLine cmd2 = commonUtils.getTerminalArgHandler(args2);
+        CommandLine cmd2 = cmdlineParserUtil.getTerminalArgHandler(args2);
         UserInputConfig config2 = new UserInputConfig(cmd2);
         assertEquals(ClassLabelType.MATERIAL_GRADE_NAME, config2.classLabelType);
         assertTrue(config2.classLabelTypeExplicitlySet);
 
         // Test material type (option 3)
         String[] args3 = {"-c", "Fe-80,C-20", "-ct", "3"};
-        CommandLine cmd3 = commonUtils.getTerminalArgHandler(args3);
+        CommandLine cmd3 = cmdlineParserUtil.getTerminalArgHandler(args3);
         UserInputConfig config3 = new UserInputConfig(cmd3);
         assertEquals(ClassLabelType.MATERIAL_TYPE, config3.classLabelType);
         assertTrue(config3.classLabelTypeExplicitlySet);
@@ -79,7 +80,7 @@ public class ClassLabelTypeTest {
     void testCLIOptionParsing() {
         // Test that the new CLI option is recognized
         String[] args = {"-c", "Fe-80,C-20", "--class-type", "2"};
-        CommandLine cmd = commonUtils.getTerminalArgHandler(args);
+        CommandLine cmd = cmdlineParserUtil.getTerminalArgHandler(args);
         assertNotNull(cmd);
         assertTrue(cmd.hasOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT));
         assertEquals("2", cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT));

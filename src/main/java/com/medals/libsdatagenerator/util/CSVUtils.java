@@ -94,4 +94,11 @@ public class CSVUtils {
         Path backupPath = csvPath.resolveSibling(backupName);
         Files.move(csvPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
     }
+
+    public static Boolean isValidDelimiter(String delimiter) {
+        if (delimiter == null || delimiter.isEmpty()) {
+            return false;
+        }
+        return delimiter.length() == 1;
+    }
 }

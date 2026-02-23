@@ -37,23 +37,61 @@ public class UserInputConfig {
 
 
     // --- NIST API Parameters ---
-    public final String minWavelength;
-    public final String maxWavelength;
-    public final String resolution;
-    public final String plasmaTemp;
-    public final String electronDensity;
-    public final WavelengthUnit wavelengthUnit;
-    public final WavelengthCondition wavelengthCondition;
-    public final MaxIonCharge maxIonCharge;
-    public final MinRelativeIntensity minRelativeIntensity;
-    public final IntensityScale intensityScale;
+    public String minWavelength;
+    public String maxWavelength;
+    public String resolution;
+    public String plasmaTemp;
+    public String electronDensity;
+    public WavelengthUnit wavelengthUnit;
+    public WavelengthCondition wavelengthCondition;
+    public MaxIonCharge maxIonCharge;
+    public MinRelativeIntensity minRelativeIntensity;
+    public IntensityScale intensityScale;
 
     // --- File/Execution Parameters ---
-    public final String csvDirPath;
-    public final boolean appendMode;
-    public final boolean forceFetch;
-    public final boolean genStats;
+    public String csvDirPath;
+    public boolean appendMode;
+    public boolean forceFetch;
+    public boolean genStats;
     private static boolean debugMode;
+    
+    /**
+     * Default constructor for manual configuration.
+     */
+    public UserInputConfig() {
+        this.isCompositionMode = false;
+        this.isSeriesMode = false;
+        this.compositionInput = null;
+        this.overviewGuid = null;
+        this.performVariations = false;
+        this.numSamples = 0;
+        this.variationMode = VariationMode.DIRICHLET;
+        this.classLabelType = ClassLabelType.COMPOSITION_PERCENTAGE;
+        this.classLabelTypeExplicitlySet = false;
+        this.scaleCoating = false;
+        this.seed = null;
+        this.numDecimalPlaces = 3;
+        this.varyBy = 0.0;
+        this.maxDelta = 0.0;
+        
+        // Default NIST params
+        this.minWavelength = "200";
+        this.maxWavelength = "800";
+        this.resolution = "1000";
+        this.plasmaTemp = "1";
+        this.electronDensity = "1e17";
+        this.wavelengthUnit = WavelengthUnit.NANOMETER;
+        this.wavelengthCondition = WavelengthCondition.DEFAULT;
+        this.maxIonCharge = MaxIonCharge.TWO_PLUS;
+        this.minRelativeIntensity = MinRelativeIntensity.POINT_ZERO_ONE;
+        this.intensityScale = IntensityScale.ENERGY_FLUX;
+        
+        this.csvDirPath = CommonUtils.DATA_PATH;
+        this.appendMode = true;
+        this.forceFetch = false;
+        this.genStats = false;
+        UserInputConfig.debugMode = false;
+    }
 
     /**
      * Constructs the configuration object by parsing the command-line arguments.
@@ -84,7 +122,7 @@ public class UserInputConfig {
             this.seed = null;
         }
         try {
-            this.numDecimalPlaces = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT, "3"));
+            this.numDecimalPlaces = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT, LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
             if (this.numDecimalPlaces < 0) {
                 throw new IllegalArgumentException("Invalid number of decimal places. Must be a valid positive integer.");
             }
@@ -112,11 +150,15 @@ public class UserInputConfig {
         this.appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
         this.forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
-        this.debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+        debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
     }
 
     public static boolean debugModeEnabled() {
         return debugMode;
+    }
+
+    public void setDebugMode(boolean debugMode) {
+        UserInputConfig.debugMode = debugMode;
     }
 
 }

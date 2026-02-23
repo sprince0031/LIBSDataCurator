@@ -166,12 +166,40 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SEED_DESC = "Seed for the samplers to ensure reproducibility.";
     public static final String CMD_OPT_N_DECIMAL_PLACES_SHORT = "nd";
     public static final String CMD_OPT_N_DECIMAL_PLACES_LONG = "num-decimal-places";
+    public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
+    public static final String DEFAULT_N_DECIMAL_PLACES = "3";
     public static final String CMD_OPT_DEBUG_MODE_SHORT = "d";
     public static final String CMD_OPT_DEBUG_MODE_LONG = "debug";
     public static final String CMD_OPT_DEBUG_MODE_DESC = "Run tool in debug mode to see selenium browser execution.";
-    public static final String CMD_OPT_N_DECIMAL_PLACES_DESC = "Number of decimal places to round composition % values to.";
-    public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
-    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
+
+    // Cmdline options for instrument profile calibration
+    public static final String CMD_OPT_INPUT_SHORT = "i";
+    public static final String CMD_OPT_INPUT_LONG = "input";
+    public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
+    public static final String CMD_OPT_DELIMITER_SHORT = "dl";
+    public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
+    public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";
+    public static final String CMD_OPT_OUTPUT_SHORT = "o";
+    public static final String CMD_OPT_OUTPUT_LONG = "output";
+    public static final String CMD_OPT_OUTPUT_DESC = "Output path for the instrument profile JSON file (default: conf/instrument_profile.json)";
+    public static final String CMD_OPT_NAME_SHORT = "n";
+    public static final String CMD_OPT_NAME_LONG = "name";
+    public static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";
+    public static final String CMD_OPT_PLASMA_ZONES_SHORT = "z";
+    public static final String CMD_OPT_PLASMA_ZONES_LONG = "plasma-zones";
+    public static final String CMD_OPT_PLASMA_ZONES_DESC = "Number of plasma zones to consider and combine";
+    public static final String CMD_OPT_BASELINE_LAMBDA_SHORT = "bl";
+    public static final String CMD_OPT_BASELINE_LAMBDA_LONG = "lambda";
+    public static final String CMD_OPT_BASELINE_LAMBDA_DESC = "Baseline correction smoothness parameter (lambda). Default: 10000";
+    public static final String CMD_OPT_BASELINE_P_SHORT = "bp";
+    public static final String CMD_OPT_BASELINE_P_LONG = "p";
+    public static final String CMD_OPT_BASELINE_P_DESC = "Baseline correction asymmetry parameter (p). Default: 0.001";
+    public static final String CMD_OPT_BASELINE_ITER_SHORT = "bi";
+    public static final String CMD_OPT_BASELINE_ITER_LONG = "max-iterations";
+    public static final String CMD_OPT_BASELINE_ITER_DESC = "Baseline correction maximum iterations. Default: 10";
+    public static final String CMD_OPT_HELP_SHORT = "h";
+    public static final String CMD_OPT_HELP_LONG = "help";
+    public static final String CMD_OPT_HELP_DESC = "Show this help message";
 
     /**
      * #### NIST LIBS Constants ####
@@ -199,12 +227,16 @@ public class LIBSDataGenConstants {
     public static final String NIST_LIBS_QUERY_PARAM_LIBS = "libs";
 
     public static final String NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT = "ViewDataCSV";
-    
+
     // HTML element selectors for recalculation form
     public static final String NIST_LIBS_RECALC_RESOLUTION_INPUT_NAME = "resolution";
+    public static final String NIST_LIBS_RECALC_TEMP_INPUT_NAME = "temp";
+    public static final String NIST_LIBS_RECALC_EDEN_INPUT_NAME = "eden";
     public static final String NIST_LIBS_RECALC_BUTTON_NAME = "recalc";
-    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";  // For element percentage input field labels
-    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";  // For element percentage input fields
+    // For element percentage input field labels
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_LABELS_XPATH = "//button[@name='recalc']/preceding::span[starts-with(@id, 'elem')]";
+    // For element percentage input fields
+    public static final String NIST_LIBS_RECALC_ELEMENT_INPUT_FIELDS_XPATH = "//button[@name='recalc']/preceding::input[starts-with(@id, 'perc')]";
 
     /**
      * #### Matweb Constants ####
@@ -225,6 +257,22 @@ public class LIBSDataGenConstants {
     public static final String ARCHIVE_BASE_URL = "https://web.archive.org/web/";
 
     /**
+     * #### Instrument Profile Calibration Constants ####
+     */
+    public static final String CALIBRATION_DIR = "calibration";
+    public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
+    public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
+    // Calibration report template placeholders
+    public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
+    public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
+    public static final String RMSE = "<RMSE>";
+    public static final String INPUT_CSV_PATH = "<INPUT_CSV_PATH>";
+    public static final String ZONES_CSV_PATH = "<ZONES_CSV_PATH>";
+    public static final String LAMBDA = "<LAMBDA>";
+    public static final String P = "<P>";
+    public static final String MAX_ITERATIONS = "<MAX_ITERATIONS>";
+
+    /**
      * #### Miscellaneous Constants ####
      */
     public static final String MASTER_DATASET_FILENAME = "master_dataset.csv";
@@ -238,6 +286,8 @@ public class LIBSDataGenConstants {
     public static final String SPECTRAL_DATA_MAP_KEY_SPECTRA = "spectra";
     public static final String SPECTRAL_DATA_MAP_KEY_COMPOSITIONS = "compositions";
     public static final String SPECTRAL_DATA_MAP_KEY_WAVELENGTHS = "wavelengths";
+    public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
+    public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cr", "Mo", "Ni", "Fe", "Cu", "Al", "V",
@@ -252,14 +302,14 @@ public class LIBSDataGenConstants {
     static {
         Map<String, Double> elements = new HashMap<>();
         elements.put("C", 0.113);
-        elements.put("Mn", 0.396); 
-        elements.put("Si", 0.211); 
-        elements.put("Ni", 0.526); 
+        elements.put("Mn", 0.396);
+        elements.put("Si", 0.211);
+        elements.put("Ni", 0.526);
         elements.put("Cr", 3.212);
-        elements.put("V", 0.219); 
-        elements.put("Mo", 0.370); 
-        elements.put("Cu", 0.242); 
-        elements.put("Fe", 2.841); 
+        elements.put("V", 0.219);
+        elements.put("Mo", 0.370);
+        elements.put("Cu", 0.242);
+        elements.put("Fe", 2.841);
         elements.put("S", 0.05);
         elements.put("P", 0.05);
         // Add other elements with estimated SDs if needed for Gaussian fallback
@@ -267,6 +317,5 @@ public class LIBSDataGenConstants {
         ELEMENT_STD_DEVS_FALLBACK = Collections.unmodifiableMap(elements);
 
     }
-
 
 }

@@ -13,16 +13,16 @@ LIBS Data Curator enables systematic generation of synthetic spectral data for a
 
 Download the latest version from [GitHub Releases](https://github.com/sprince0031/LIBSDataCurator/releases/latest):
 
-- **Linux/macOS**: `LIBSDataCurator-0.9.0-linux.tar.gz`
-- **Windows**: `LIBSDataCurator-0.9.0-windows.zip`
+- **Linux/macOS**: `LIBSDataCurator-0.9.5-linux.tar.gz`
+- **Windows**: `LIBSDataCurator-0.9.5-windows.zip`
 
 ### Installation
 
 #### Linux/macOS
 ```bash
 # Download and extract
-tar -xzf LIBSDataCurator-0.9.0-linux.tar.gz
-cd LIBSDataCurator-0.9.0/
+tar -xzf LIBSDataCurator-0.9.5-linux.tar.gz
+cd LIBSDataCurator-0.9.5/
 
 # Run the application
 ./bin/run.sh [options]
@@ -48,28 +48,26 @@ bin\run.bat [options]
 
 ## Latest Changes
 
+### [0.9.5] - 2026-02-18
+- **New**: Multi-zone plasma model for calibration — configurable n-zone plasma with `-z, --plasma-zones`
+- **New**: Asymmetric Least Squares (ALS) baseline correction with `--lambda`, `--p`, `--max-iterations` options
+- **New**: `SpectrumUtils` class for spectrum interpolation and processing
+- **New**: CSV delimiter option (`-d, --delimiter`) for calibration input files
+- **Fixed**: R² calculation logic corrected; now used alongside RMSE during optimisation
+- **Fixed**: NIST spectrum interpolation for hot and cold zones
+- **Changed**: `InstrumentProfile` refactored to use `double[]` arrays for wavelength data
+
+### [0.9.1–0.9.4] - 2026-02-07
+- **New**: Instrument Profile Calibration Mode — standalone calibration tool (issue #84) with `./bin/calibrate.sh` / `bin\calibrate.bat`
+- **New**: Automated Jupyter Notebook-based PDF calibration reports with spectrum comparison plots
+- **New**: Dedicated `CmdlineParserUtil` class for cleaner argument parsing (extracted from `CommonUtils`)
+- **New**: NIST data fetching augmented for calibration spectrum generation
+- **Changed**: Profile JSON saved to `conf/` directory; CLI parsing separated from utility classes
+
 ### [0.9.0] - 2025-11-28
-- **New**: Client-side recalculation for NIST LIBS data - compositional variations are now recalculated in browser instead of making individual server requests, significantly improving performance
-- **New**: Decimal places option (`-nd, --num-decimal-places`) to control precision of composition percentage values
-- **New**: Debug mode (`-d, --debug`) to visualize Selenium browser execution for troubleshooting
-- **Fixed**: Wavelength unit default now correctly set to Nanometers instead of Angstrom (issue #74)
-- **Changed**: Default wavelength range updated to 240-420 nm for more focused spectral analysis
-
-### [0.8.9] - 2025-10-12
-- **New**: Dataset statistics generation with `-gs, --gen-stats` option for automatic calculation of mean, standard deviation and element-wise distribution; saved to `data/dataset_stats.json`
-- **Added**: DatasetStatisticsService for computing statistical measures across generated datasets
-
-### [0.8.8] - 2025-10-12
-- **New**: MatWeb composition data caching to avoid redundant network requests (see [CACHING.md](/docs/CACHING.md))
-- **New**: Coating scaling mode with `-sc, --scale-coating` option to control coating percentage application
-- **Expanded**: Materials catalogue with broader support for steel, coated, and alloyed material series
-- **Enhanced**: Test coverage for caching, MatWeb operations, and series statistics
-
-### [0.8.7] - 2025-09-10
-- **New**: Class label type selection for machine learning dataset generation with `-ct, --class-type` option
-- **Enhanced**: Default CSV output now includes both material grade name and material type columns
-- **Improved**: General purpose design using "Material" terminology instead of "Steel" for broader applicability
-- **Added**: Smart fallbacks for missing material data with "Unknown Grade" or "Unknown Type"
+- **New**: Client-side recalculation for NIST LIBS data with significant performance improvements
+- **New**: Decimal places option (`-nd, --num-decimal-places`) and debug mode (`-d, --debug`)
+- **Fixed**: Wavelength unit default corrected to Nanometers (issue #74)
 
 [See full changelog](/docs/CHANGELOG.md) for complete list of changes.
 
@@ -134,6 +132,57 @@ bin\run.bat [options]
 **Debugging Options:**
 - `-d, --debug`: Run with visible browser for troubleshooting Selenium workflows
 - `-sd, --seed`: Seed for samplers to ensure reproducibility
+
+### Instrument Profile Calibration
+
+The calibration mode generates an instrument profile from real LIBS measurement data. This profile contains the wavelength grid and n-zone plasma parameters (Te, Ne, and zone weight) optimised to match your instrument's characteristics. Measured spectra undergo automatic baseline correction (Asymmetric Least Squares) before fitting.
+
+```bash
+# Generate instrument profile from sample measurements
+./bin/calibrate.sh -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5"
+
+# With custom output path, instrument name, and 3 plasma zones
+./bin/calibrate.sh -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5" \
+    -o my_instrument_profile.json -n "Ocean Optics HR2000" -z 3
+
+# Custom baseline correction parameters
+./bin/calibrate.sh -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5" \
+    --lambda 100000 --p 0.001 --max-iterations 20
+
+# With semicolon delimiter
+./bin/calibrate.sh -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5" -dl ";"
+
+# Windows
+bin\calibrate.bat -i sample_readings.csv -c "Fe-98.0,C-0.5,Mn-1.0,Si-0.5"
+```
+
+**Calibration Options:**
+- `-i, --input`: Path to sample LIBS measurement CSV file (required)
+- `-c, --composition`: Exact composition of reference material (required)
+- `-o, --output`: Output path for profile JSON (default: `conf/instrument_profile.json`)
+- `-n, --name`: Instrument name/identifier (default: `Unknown`)
+- `-z, --plasma-zones`: Number of plasma zones to fit (default: 2)
+- `-dl, --delimiter`: Delimiter used in input CSV file (default: `;`)
+- `-d, --debug`: Run with visible browser for troubleshooting NIST data fetching
+
+**Baseline Correction Options:**
+- `-bl, --lambda`: Smoothness parameter λ (default: 10000)
+- `-bp, --p`: Asymmetry parameter p (default: 0.001)
+- `-bi, --max-iterations`: Maximum iterations (default: 10)
+
+**Input CSV Format:**
+- Column headers should contain wavelength values (in nm)
+- Each row represents one measurement shot
+- Non-numeric columns (e.g., "Shot", "ID") are ignored
+
+**Output Profile:**
+The generated JSON profile contains:
+- Wavelength grid extracted from your instrument
+- N-zone plasma parameters (configurable via `-z`):
+  - Each zone with independent Te (temperature), Ne (electron density), and weight
+- Fit quality metrics (R², RMSE)
+
+An automated PDF calibration report with spectrum comparison plots is generated at `data/calibration/`. The generated Jupyter notebook used to generate the is report is also available in the same directory location with file name, `calibration_report.ipynb`.
 
 ### Class Label Types
 

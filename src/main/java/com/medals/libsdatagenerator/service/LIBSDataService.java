@@ -70,12 +70,12 @@ public class LIBSDataService {
         }
 
         // Adding remaining elements from full composition list
-        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
-            if (!composition.contains(element)) {
-                composition = String.join(";", composition, element + ":0");
-                spectra = String.join(",", spectra, element + "0-2");
-            }
-        }
+//        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
+//            if (!composition.contains(element)) {
+//                composition = String.join(";", composition, element + ":0");
+//                spectra = String.join(",", spectra, element + "0-2");
+//            }
+//        }
 
         // Add composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
@@ -207,6 +207,48 @@ public class LIBSDataService {
             }
         }
         return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
+    }
+    
+    /**
+     * Fetches spectrum for specific plasma parameters during calibration.
+     * Reuses existing Selenium session for performance.
+     * 
+     * @param composition Material composition
+     * @param config User configuration
+     * @param te Plasma Temperature (eV)
+     * @param ne Electron Density (cm^-3)
+     * @param outputPath Path to save downloaded CSV
+     * @return CSV content string
+     */
+    public String fetchCalibrationSpectrum(MaterialGrade composition, UserInputConfig config,
+                                           double te, double ne, Path outputPath) {
+        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+        
+        try {
+            // Ensure session is active (initial fetch should have been done)
+            if (!seleniumUtils.isDriverOnline()) {
+                logger.info("Starting new session for calibration fetch");
+                // Do a full initial fetch to set up the page state
+                config.plasmaTemp = String.valueOf(te);
+                config.electronDensity = String.valueOf(ne);
+                // Reset first composition flag to ensure proper setup
+                firstComposition = true;
+                return fetchLIBSData(composition.getComposition(), config, outputPath, false,
+                        composition.getRemainderElementIdx());
+            }
+            
+            NISTUtils nistUtils = new NISTUtils(seleniumUtils);
+            
+            // Use client-side update for Te/Ne
+            nistUtils.updatePlasmaParameters(te, ne);
+            
+            // Download results
+            return nistUtils.downloadCsvData(composition.getComposition(), outputPath);
+            
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Failed to fetch calibration spectrum", e);
+            return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
+        }
     }
 
     private void processCompositionsForNIST_LIBS(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions, UserInputConfig config, MaterialGrade sourceMaterial) {
@@ -465,7 +507,7 @@ public class LIBSDataService {
      *         Also add each encountered wavelength to 'allWavelengths'.
      */
     private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException, IllegalArgumentException {
-        Map<Double, Double> waveMap = new HashMap<>();
+        Map<Double, Double> waveMap = new TreeMap<>();
 
         // Check if CSV string is correctly parsed
 

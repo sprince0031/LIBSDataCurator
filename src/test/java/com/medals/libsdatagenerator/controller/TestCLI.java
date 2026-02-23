@@ -1,5 +1,6 @@
 package com.medals.libsdatagenerator.controller;
 
+import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.Test;
@@ -10,7 +11,7 @@ public class TestCLI {
 
     @Test
     void cliTest() {
-        CommonUtils commonUtils = new CommonUtils();
+        CmdlineParserUtil cmdlineParserUtil = new CmdlineParserUtil();
         String[][] testCases = {
             {"-c", "some_guid"}, // should pass
             {"-s"}, // should pass
@@ -43,7 +44,7 @@ public class TestCLI {
         for (int i = 0; i < testCases.length; i++) {
             System.out.println("\n" + descriptions[i]);
             String[] currentArgs = testCases[i];
-            CommandLine cmd = commonUtils.getTerminalArgHandler(currentArgs);
+            CommandLine cmd = cmdlineParserUtil.getTerminalArgHandler(currentArgs);
             boolean result = (cmd != null);
 
             if (result == expectedResults[i]) {
@@ -59,11 +60,11 @@ public class TestCLI {
 
     @Test
     void testDecimalPlacesOption() {
-        CommonUtils commonUtils = new CommonUtils();
+        CmdlineParserUtil cmdlineParserUtil = new CmdlineParserUtil();
         
         // Test with decimal places option
         String[] args = {"-c", "Fe-80,C-20", "-nd", "5"};
-        CommandLine cmd = commonUtils.getTerminalArgHandler(args);
+        CommandLine cmd = cmdlineParserUtil.getTerminalArgHandler(args);
         
         assertNotNull(cmd, "Command line should be parsed successfully with -nd option");
         assertTrue(cmd.hasOption(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT), 
@@ -74,11 +75,11 @@ public class TestCLI {
 
     @Test
     void testDebugModeOption() {
-        CommonUtils commonUtils = new CommonUtils();
+        CmdlineParserUtil cmdlineParserUtil = new CmdlineParserUtil();
         
         // Test with debug mode option
         String[] args = {"-c", "Fe-80,C-20", "-d"};
-        CommandLine cmd = commonUtils.getTerminalArgHandler(args);
+        CommandLine cmd = cmdlineParserUtil.getTerminalArgHandler(args);
         
         assertNotNull(cmd, "Command line should be parsed successfully with -d option");
         assertTrue(cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT), 
@@ -87,11 +88,11 @@ public class TestCLI {
 
     @Test
     void testSeedOption() {
-        CommonUtils commonUtils = new CommonUtils();
+        CmdlineParserUtil cmdlineParserUtil = new CmdlineParserUtil();
         
         // Test with seed option
         String[] args = {"-c", "Fe-80,C-20", "-sd", "12345"};
-        CommandLine cmd = commonUtils.getTerminalArgHandler(args);
+        CommandLine cmd = cmdlineParserUtil.getTerminalArgHandler(args);
         
         assertNotNull(cmd, "Command line should be parsed successfully with -sd option");
         assertTrue(cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SEED_SHORT), 
@@ -102,11 +103,11 @@ public class TestCLI {
 
     @Test
     void testCombinedNewOptions() {
-        CommonUtils commonUtils = new CommonUtils();
+        CmdlineParserUtil cmdlineParserUtil = new CmdlineParserUtil();
         
         // Test with all new v0.9.0 options combined
         String[] args = {"-c", "Fe-80,C-20", "-nd", "4", "-d", "-sd", "42"};
-        CommandLine cmd = commonUtils.getTerminalArgHandler(args);
+        CommandLine cmd = cmdlineParserUtil.getTerminalArgHandler(args);
         
         assertNotNull(cmd, "Command line should be parsed successfully with combined new options");
         assertTrue(cmd.hasOption(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT), 

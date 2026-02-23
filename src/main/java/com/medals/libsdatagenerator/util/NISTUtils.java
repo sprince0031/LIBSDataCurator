@@ -10,7 +10,6 @@ import org.openqa.selenium.WebElement;
 import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +85,39 @@ public class NISTUtils {
         LOGGER.info("Element percentages updated");
     }
 
+    /**
+     * Updates plasma parameters (Te, Ne) in the recalculation form and recalculates.
+     * @param electronTemp Plasma temperature (eV)
+     * @param electronDensity Electron density (cm^-3)
+     */
+    public void updatePlasmaParameters(double electronTemp, double electronDensity) {
+        LOGGER.info("Updating plasma parameters: Te=" + electronTemp + " eV, Ne=" + electronDensity + " cm^-3");
+        
+        // Update Plasma Temperature
+        WebElement tempInput = seleniumUtils.waitForElementPresent(
+                By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_TEMP_INPUT_NAME)
+        );
+        tempInput.clear();
+        tempInput.sendKeys(String.valueOf(electronTemp));
+        
+        // Update Electron Density
+        WebElement edenInput = seleniumUtils.waitForElementPresent(
+                By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_EDEN_INPUT_NAME)
+        );
+        edenInput.clear();
+        edenInput.sendKeys(String.valueOf(electronDensity));
+        
+        // Click Recalculate
+        WebElement recalcButton = seleniumUtils.waitForElementClickable(
+                By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
+        );
+        recalcButton.click();
+        LOGGER.info("Clicked Recalculate button after updating plasma parameters");
+        
+        // Wait for results (check for CSV button)
+        seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+    }
+
     public void handleRecalculateAlert(List<Element> composition, int remainderElementIdx) {
         try {
             Alert alert = seleniumUtils.getDriver().switchTo().alert();
@@ -126,28 +158,28 @@ public class NISTUtils {
 
             // TODO: Remove when interpolation is incorporated and zero-value elements are eliminated
             // Check if it's non-zero (or equal to the delta) and reset
-            try {
-                double value = Double.parseDouble(liveValue);
-
-                // If the value is not 0 (meaning NIST JS autofilled it), reset it
-                if (Math.abs(value) > 0) {
-                    LOGGER.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
-
-                    // Clear and set to 0
-                    lastInput.clear();
-                    lastInput.sendKeys("0");
-
-                    // Double check update with JS to ensure the event triggered
-                    js.executeScript("arguments[0].value = '0';", lastInput);
-                }
-            } catch (NumberFormatException e) {
-                LOGGER.warning("Could not parse input value: " + liveValue);
-            }
+//            try {
+//                double value = Double.parseDouble(liveValue);
+//
+//                // If the value is not 0 (meaning NIST JS autofilled it), reset it
+//                if (Math.abs(value) > 0) {
+//                    LOGGER.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
+//
+//                    // Clear and set to 0
+//                    lastInput.clear();
+//                    lastInput.sendKeys("0");
+//
+//                    // Double check update with JS to ensure the event triggered
+//                    js.executeScript("arguments[0].value = '0';", lastInput);
+//                }
+//            } catch (NumberFormatException e) {
+//                LOGGER.warning("Could not parse input value: " + liveValue);
+//            }
 
             // Pass only element with updated value and recalculate
-            List<Element> updatedElements = new ArrayList<>();
-            updatedElements.add(newRemainderElement);
-            updateElementPercentages(updatedElements);
+//            List<Element> updatedElements = new ArrayList<>();
+//            updatedElements.add(newRemainderElement);
+//            updateElementPercentages(updatedElements);
 
             // Click recalculate button again
             WebElement recalcButton = seleniumUtils.waitForElementClickable(

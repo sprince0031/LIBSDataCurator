@@ -2,7 +2,6 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
-import com.medals.libsdatagenerator.model.UserInputConfig;
 import org.apache.commons.cli.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.JSONArray;
@@ -15,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URISyntaxException;
@@ -68,205 +68,6 @@ public class CommonUtils {
             logger.log(Level.SEVERE, "Unable to read properties file", e);
         }
         return properties;
-    }
-
-    public CommandLine getTerminalArgHandler(String[] args) {
-        Options options = new Options();
-
-        // Composition flag
-        Option composition = new Option(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT,
-                LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_COMPOSITION_DESC);
-        composition.setRequired(false);
-        options.addOption(composition);
-
-        // Series flag
-        Option series = new Option(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT,
-                LIBSDataGenConstants.CMD_OPT_SERIES_LONG,
-                true, // This enables the optional argument value
-                LIBSDataGenConstants.CMD_OPT_SERIES_DESC);
-        series.setOptionalArg(true); // Actually make the argument value optional
-        series.setRequired(false);
-        options.addOption(series);
-
-        // Number of variations
-        options.addOption(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT,
-                LIBSDataGenConstants.CMD_OPT_NUM_VARS_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_NUM_VARS_DESC);
-
-        // Min Wavelength
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_DESC);
-
-        // Max Wavelength
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_DESC);
-
-        // Wavelength resolution
-        options.addOption(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT,
-                LIBSDataGenConstants.CMD_OPT_RESOLUTION_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_RESOLUTION_DESC);
-
-        // Plasma temperature
-        options.addOption(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT,
-                LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_DESC);
-
-        // Electron density
-        options.addOption(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT,
-                LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_DESC);
-
-        // Wavelength unit
-        options.addOption(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_SHORT,
-                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_UNIT_DESC);
-
-        // Wavelength condition
-        options.addOption(LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_SHORT,
-                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_WAVELENGTH_CONDITION_DESC);
-
-        // Maximum ion charge
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MAX_ION_CHARGE_DESC);
-
-        // Minimum relative intensity
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MIN_RELATIVE_INTENSITY_DESC);
-
-        // Intensity scale
-        options.addOption(LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_SHORT,
-                LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_DESC);
-
-        // Data output path
-        options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
-                LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_DESC);
-
-        // Perform compositional variations
-        options.addOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT,
-                LIBSDataGenConstants.CMD_OPT_COMP_VAR_LONG,
-                false,
-                LIBSDataGenConstants.CMD_OPT_COMP_VAR_DESC);
-
-        // Force fetch
-        options.addOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT,
-                LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_LONG,
-                false,
-                LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_DESC);
-
-        // Scale coating
-        options.addOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT,
-                LIBSDataGenConstants.CMD_OPT_SCALE_COATING_LONG,
-                false,
-                LIBSDataGenConstants.CMD_OPT_SCALE_COATING_DESC);
-
-        // Append mode
-        options.addOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT,
-                LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_LONG,
-                false,
-                LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_DESC);
-
-        // vary by (for compositions)
-        options.addOption(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT,
-                LIBSDataGenConstants.CMD_OPT_VARY_BY_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_VARY_BY_DESC);
-
-        // Max delta value
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_DESC);
-
-        // Variation mode
-        options.addOption(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
-                LIBSDataGenConstants.CMD_OPT_VAR_MODE_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_VAR_MODE_DESC);
-
-        // Class label type
-        options.addOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT,
-                LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_DESC);
-
-        // Overview GUID
-        options.addOption(LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_SHORT,
-                LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_OVERVIEW_GUID_DESC);
-
-        // Generate statistics
-        options.addOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT,
-                LIBSDataGenConstants.CMD_OPT_GEN_STATS_LONG,
-                false,
-                LIBSDataGenConstants.CMD_OPT_GEN_STATS_DESC);
-
-        // Activate debug mode
-        options.addOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT,
-                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_LONG,
-                false,
-                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_DESC);
-
-        // RNG Seed
-        options.addOption(LIBSDataGenConstants.CMD_OPT_SEED_SHORT,
-                LIBSDataGenConstants.CMD_OPT_SEED_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_SEED_DESC);
-
-        // No. of decimal places to round comp% to
-        options.addOption(LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_SHORT,
-                LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_DESC);
-
-        CommandLineParser parser = new DefaultParser();
-        HelpFormatter helpFormatter = new HelpFormatter();
-
-        try {
-            CommandLine cmd = parser.parse(options, args);
-
-            boolean hasComposition = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
-            boolean hasSeries = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SERIES_SHORT);
-
-            if (hasComposition && hasSeries) {
-                logger.log(Level.SEVERE, "Error: Cannot use both -c and -s options simultaneously. Please choose one.");
-                helpFormatter.printHelp("java LIBSDataGenerator", options);
-                return null;
-            }
-
-            if (!hasComposition && !hasSeries) {
-                logger.log(Level.SEVERE, "Error: Either -c (composition) or -s (series) option must be provided.");
-                helpFormatter.printHelp("java LIBSDataGenerator", options);
-                return null;
-            }
-
-            return cmd;
-        } catch (ParseException e) {
-            logger.log(Level.SEVERE, "Commandline arg parse error", e);
-            helpFormatter.printHelp("java LIBSDataGenerator", options);
-            return null;
-        }
     }
 
     /**
@@ -458,7 +259,7 @@ public class CommonUtils {
             return; // Don't show progress bar for single items
         }
         
-        int progress = current * progressBarWidth / total;
+        int progress = (BigInteger.valueOf((long) current * progressBarWidth).divide(BigInteger.valueOf(total))).intValue();
         String bar = "=".repeat(progress) + ">" + " ".repeat(progressBarWidth - progress);
         out.printf("\r[%s] %d/%d %s", bar, current, total, message);
     }

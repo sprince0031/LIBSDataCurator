@@ -266,7 +266,6 @@ public class InputCompositionProcessor {
      * @throws IOException Exception for invalid command line arguments
      */
     public MaterialGrade getMaterial(String userInput, String overviewGUID, int noDecimalPlaces) throws IOException, RuntimeException {
-        MatwebDataService matwebService = MatwebDataService.getInstance();
         MaterialGrade materialGrade;
         List<String> compositionArray;
         String matGuid = null;
@@ -276,6 +275,7 @@ public class InputCompositionProcessor {
         if (COMPOSITION_STRING_PATTERN.matcher(userInput).matches()) {
             compositionArray = Arrays.asList(userInput.split(","));
         } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
+            MatwebDataService matwebService = MatwebDataService.getInstance();
             seriesInput.setIndividualMaterialGuids(Arrays.asList(userInput.split(","))); // Will only have a single GUID in array
             matGuid = userInput;
             compositionArray = matwebService.getMaterialComposition(userInput);
