@@ -5,12 +5,12 @@ import org.json.JSONObject;
 public class PlasmaZone {
     private double te;
     private double ne;
-    private double weight; // Added field
+    private double weight;
 
     public PlasmaZone(double te, double ne) {
         this(te, ne, 0.0);
     }
-    
+
     public PlasmaZone(double te, double ne, double weight) {
         this.te = te;
         this.ne = ne;
@@ -54,9 +54,8 @@ public class PlasmaZone {
             return null;
         }
         return new PlasmaZone(
-            json.getDouble("Te"), 
-            json.getDouble("Ne"),
-            json.optDouble("weight", 0.0)
-        );
+                json.getDouble("Te"),
+                json.getDouble("Ne"),
+                json.optDouble("weight", 0.0));
     }
 }

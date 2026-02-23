@@ -70,12 +70,12 @@ public class LIBSDataService {
         }
 
         // Adding remaining elements from full composition list
-        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
-            if (!composition.contains(element)) {
-                composition = String.join(";", composition, element + ":0");
-                spectra = String.join(",", spectra, element + "0-2");
-            }
-        }
+//        for (String element : LIBSDataGenConstants.STD_ELEMENT_LIST) {
+//            if (!composition.contains(element)) {
+//                composition = String.join(";", composition, element + ":0");
+//                spectra = String.join(",", spectra, element + "0-2");
+//            }
+//        }
 
         // Add composition
         queryParams.put(LIBSDataGenConstants.NIST_LIBS_QUERY_PARAM_COMPOSITION, composition.substring(1));
@@ -220,7 +220,7 @@ public class LIBSDataService {
      * @param outputPath Path to save downloaded CSV
      * @return CSV content string
      */
-    public String fetchCalibrationSpectrum(List<Element> composition, UserInputConfig config, 
+    public String fetchCalibrationSpectrum(MaterialGrade composition, UserInputConfig config,
                                            double te, double ne, Path outputPath) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
         
@@ -233,7 +233,8 @@ public class LIBSDataService {
                 config.electronDensity = String.valueOf(ne);
                 // Reset first composition flag to ensure proper setup
                 firstComposition = true;
-                return fetchLIBSData(composition, config, outputPath, false, -1);
+                return fetchLIBSData(composition.getComposition(), config, outputPath, false,
+                        composition.getRemainderElementIdx());
             }
             
             NISTUtils nistUtils = new NISTUtils(seleniumUtils);
@@ -242,7 +243,7 @@ public class LIBSDataService {
             nistUtils.updatePlasmaParameters(te, ne);
             
             // Download results
-            return nistUtils.downloadCsvData(composition, outputPath);
+            return nistUtils.downloadCsvData(composition.getComposition(), outputPath);
             
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to fetch calibration spectrum", e);
@@ -506,7 +507,7 @@ public class LIBSDataService {
      *         Also add each encountered wavelength to 'allWavelengths'.
      */
     private Map<Double, Double> parseNistCsv(String csvData, Set<Double> allWavelengths) throws IOException, IllegalArgumentException {
-        Map<Double, Double> waveMap = new HashMap<>();
+        Map<Double, Double> waveMap = new TreeMap<>();
 
         // Check if CSV string is correctly parsed
 

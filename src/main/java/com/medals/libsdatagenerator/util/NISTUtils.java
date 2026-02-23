@@ -10,7 +10,6 @@ import org.openqa.selenium.WebElement;
 import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -159,28 +158,28 @@ public class NISTUtils {
 
             // TODO: Remove when interpolation is incorporated and zero-value elements are eliminated
             // Check if it's non-zero (or equal to the delta) and reset
-            try {
-                double value = Double.parseDouble(liveValue);
-
-                // If the value is not 0 (meaning NIST JS autofilled it), reset it
-                if (Math.abs(value) > 0) {
-                    LOGGER.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
-
-                    // Clear and set to 0
-                    lastInput.clear();
-                    lastInput.sendKeys("0");
-
-                    // Double check update with JS to ensure the event triggered
-                    js.executeScript("arguments[0].value = '0';", lastInput);
-                }
-            } catch (NumberFormatException e) {
-                LOGGER.warning("Could not parse input value: " + liveValue);
-            }
+//            try {
+//                double value = Double.parseDouble(liveValue);
+//
+//                // If the value is not 0 (meaning NIST JS autofilled it), reset it
+//                if (Math.abs(value) > 0) {
+//                    LOGGER.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
+//
+//                    // Clear and set to 0
+//                    lastInput.clear();
+//                    lastInput.sendKeys("0");
+//
+//                    // Double check update with JS to ensure the event triggered
+//                    js.executeScript("arguments[0].value = '0';", lastInput);
+//                }
+//            } catch (NumberFormatException e) {
+//                LOGGER.warning("Could not parse input value: " + liveValue);
+//            }
 
             // Pass only element with updated value and recalculate
-            List<Element> updatedElements = new ArrayList<>();
-            updatedElements.add(newRemainderElement);
-            updateElementPercentages(updatedElements);
+//            List<Element> updatedElements = new ArrayList<>();
+//            updatedElements.add(newRemainderElement);
+//            updateElementPercentages(updatedElements);
 
             // Click recalculate button again
             WebElement recalcButton = seleniumUtils.waitForElementClickable(

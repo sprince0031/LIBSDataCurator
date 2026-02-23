@@ -9,44 +9,36 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class InstrumentProfile {
     private String instrumentName;
-    private List<Double> wavelengths;
+    private double[] wavelengths;
     private PlasmaParameters plasmaParameters;
     private CalibrationStats calibrationStats;
+    private BaselineCorrectionParams baselineParams;
     private int numShots;
     private String sourceFile;
     private String referenceComposition;
 
-    // No-arg constructor
-    public InstrumentProfile() {
-        this.wavelengths = new ArrayList<>();
-        // Set standard defaults matching typical LIBS plasma parameters
-        this.plasmaParameters = new PlasmaParameters(
-            new PlasmaZone(1.5, 1e17, 0.4), 
-            new PlasmaZone(0.8, 5e16, 0.6)
-        );
-        this.calibrationStats = new CalibrationStats(0, 0, 0);
-    }
-
     // Constructor used in tests and spec
-    public InstrumentProfile(String instrumentName, List<Double> wavelengths, PlasmaParameters plasmaParameters, CalibrationStats calibrationStats) {
+    public InstrumentProfile(String instrumentName, double[] wavelengths, PlasmaParameters plasmaParameters,
+            CalibrationStats calibrationStats, BaselineCorrectionParams baselineParams) {
         this.instrumentName = instrumentName;
         this.wavelengths = wavelengths;
         this.plasmaParameters = plasmaParameters;
         this.calibrationStats = calibrationStats;
+        this.baselineParams = baselineParams;
     }
 
     // Constructor used in InstrumentProfileService
-    public InstrumentProfile(List<Double> wavelengths, String sourceFile, String referenceComposition) {
+    public InstrumentProfile(double[] wavelengths, String sourceFile, String referenceComposition) {
         this.wavelengths = wavelengths;
         this.sourceFile = sourceFile;
         this.referenceComposition = referenceComposition;
-        this.plasmaParameters = new PlasmaParameters(new PlasmaZone(0, 0), new PlasmaZone(0, 0));
-        this.calibrationStats = new CalibrationStats(0, 0, 0);
+        this.baselineParams = new BaselineCorrectionParams();
+        this.plasmaParameters = new PlasmaParameters(new ArrayList<>());
+        this.calibrationStats = new CalibrationStats(0, 0);
     }
 
     public String getInstrumentName() {
@@ -57,16 +49,12 @@ public class InstrumentProfile {
         this.instrumentName = instrumentName;
     }
 
-    public List<Double> getWavelengths() {
-        return wavelengths;
-    }
-
-    public void setWavelengths(List<Double> wavelengths) {
+    public void setWavelengthGrid(double[] wavelengths) {
         this.wavelengths = wavelengths;
     }
 
     // Alias for getWavelengths to match existing code
-    public List<Double> getWavelengthGrid() {
+    public double[] getWavelengthGrid() {
         return wavelengths;
     }
 
@@ -84,6 +72,14 @@ public class InstrumentProfile {
 
     public void setCalibrationStats(CalibrationStats calibrationStats) {
         this.calibrationStats = calibrationStats;
+    }
+
+    public BaselineCorrectionParams getBaselineParams() {
+        return baselineParams;
+    }
+
+    public void setBaselineParams(BaselineCorrectionParams baselineParams) {
+        this.baselineParams = baselineParams;
     }
 
     public int getNumShots() {
@@ -111,78 +107,66 @@ public class InstrumentProfile {
     }
 
     public double getMinWavelength() {
-        if (wavelengths == null || wavelengths.isEmpty()) return 0.0;
-        return Collections.min(wavelengths);
+        if (wavelengths == null || wavelengths.length == 0)
+            return 0.0;
+        return wavelengths[0];
     }
 
     public double getMaxWavelength() {
-        if (wavelengths == null || wavelengths.isEmpty()) return 0.0;
-        return Collections.max(wavelengths);
+        if (wavelengths == null || wavelengths.length == 0)
+            return 0.0;
+        return wavelengths[wavelengths.length - 1];
     }
 
-    // Delegation methods for PlasmaParameters
-    public void setHotCoreNe(double ne) {
-        plasmaParameters.getHotCore().setNe(ne);
+    public List<PlasmaZone> getZones() {
+        return plasmaParameters.getZones();
     }
 
-    public double getHotCoreWeight() {
-        return plasmaParameters.getHotCore().getWeight();
+    public void setZones(List<PlasmaZone> zones) {
+        this.plasmaParameters.setZones(zones);
     }
 
-    public void setHotCoreWeight(double weight) {
-        plasmaParameters.getHotCore().setWeight(weight);
+    // Delegation for Baseline Correction Params
+    public double getLambda() {
+        if (baselineParams == null)
+            return 0;
+        return baselineParams.getLambda();
     }
 
-    public double getCoolPeripheryTe() {
-        return plasmaParameters.getCoolPeriphery().getTe();
+    public double getP() {
+        if (baselineParams == null)
+            return 0;
+        return baselineParams.getP();
     }
 
-    public void setCoolPeripheryTe(double te) {
-        plasmaParameters.getCoolPeriphery().setTe(te);
-    }
-
-    public double getCoolPeripheryNe() {
-        return plasmaParameters.getCoolPeriphery().getNe();
-    }
-
-    public void setCoolPeripheryNe(double ne) {
-        plasmaParameters.getCoolPeriphery().setNe(ne);
-    }
-
-    public double getCoolPeripheryWeight() {
-        return plasmaParameters.getCoolPeriphery().getWeight();
-    }
-    
-    public void setCoolPeripheryWeight(double weight) {
-        plasmaParameters.getCoolPeriphery().setWeight(weight);
-    }
-
-    public double getHotCoreTe() {
-        return plasmaParameters.getHotCore().getTe();
-    }
-
-    public void setHotCoreTe(double te) {
-        plasmaParameters.getHotCore().setTe(te);
-    }
-
-    public double getHotCoreNe() {
-        return plasmaParameters.getHotCore().getNe();
+    public int getMaxIterations() {
+        if (baselineParams == null)
+            return 0;
+        return baselineParams.getMaxIterations();
     }
 
     // Delegation for CalibrationStats
-    public double getFitScore() {
+    public double getRSquaredValue() {
+        if (calibrationStats == null)
+            return 0;
         return calibrationStats.getRSquared();
     }
 
-    public void setFitScore(double score) {
+    public void setRSquaredValue(double score) {
+        if (calibrationStats == null)
+            calibrationStats = new CalibrationStats(0, 0);
         calibrationStats.setRSquared(score);
     }
 
     public double getRmse() {
+        if (calibrationStats == null)
+            return 0;
         return calibrationStats.getRmse();
     }
 
     public void setRmse(double rmse) {
+        if (calibrationStats == null)
+            calibrationStats = new CalibrationStats(0, 0);
         calibrationStats.setRmse(rmse);
     }
 
@@ -203,7 +187,13 @@ public class InstrumentProfile {
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
         json.put("instrumentName", instrumentName);
-        json.put("wavelengths", wavelengths);
+        JSONArray wavelengthGrid = new JSONArray();
+        if (wavelengths != null) {
+            for (double d : wavelengths) {
+                wavelengthGrid.put(d);
+            }
+        }
+        json.put("wavelengths", wavelengthGrid);
         json.put("numShots", numShots);
         json.put("sourceFile", sourceFile);
         json.put("referenceComposition", referenceComposition);
@@ -213,6 +203,9 @@ public class InstrumentProfile {
         if (calibrationStats != null) {
             json.put("calibrationStats", calibrationStats.toJson());
         }
+        if (baselineParams != null) {
+            json.put("baselineCorrectionParams", baselineParams.toJson());
+        }
         return json;
     }
 
@@ -221,23 +214,25 @@ public class InstrumentProfile {
             return null;
         }
         String name = json.optString("instrumentName", "");
-        
-        List<Double> wavelengths = new ArrayList<>();
+
         JSONArray wavelengthsArray = json.optJSONArray("wavelengths");
+        double[] wavelengths = new double[wavelengthsArray != null ? wavelengthsArray.length() : 0];
         if (wavelengthsArray != null) {
             for (int i = 0; i < wavelengthsArray.length(); i++) {
-                wavelengths.add(wavelengthsArray.getDouble(i));
+                wavelengths[i] = wavelengthsArray.getDouble(i);
             }
         }
 
         PlasmaParameters params = PlasmaParameters.fromJson(json.optJSONObject("plasmaParameters"));
         CalibrationStats stats = CalibrationStats.fromJson(json.optJSONObject("calibrationStats"));
-        
-        InstrumentProfile profile = new InstrumentProfile(name, wavelengths, params, stats);
+        BaselineCorrectionParams baselineParams = BaselineCorrectionParams
+                .fromJson(json.optJSONObject("baselineCorrectionParams"));
+
+        InstrumentProfile profile = new InstrumentProfile(name, wavelengths, params, stats, baselineParams);
         profile.setNumShots(json.optInt("numShots"));
         profile.sourceFile = json.optString("sourceFile");
         profile.referenceComposition = json.optString("referenceComposition");
-        
+
         return profile;
     }
 }

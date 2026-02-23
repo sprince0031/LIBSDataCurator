@@ -276,6 +276,13 @@ public class CmdlineParserUtil {
         input.setRequired(true);
         options.addOption(input);
 
+        // Input CSV delimiter (optional | default: ;)
+        Option delimiter = new Option(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DELIMITER_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_DELIMITER_DESC);
+        delimiter.setRequired(false);
+        options.addOption(delimiter);
+
         // Composition (required)
         Option composition = new Option(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT,
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,
@@ -297,6 +304,40 @@ public class CmdlineParserUtil {
         name.setRequired(false);
         options.addOption(name);
 
+        // Plasma zones (optional)
+        Option plasmaZones = new Option(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT,
+                LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_DESC);
+        plasmaZones.setRequired(false);
+        options.addOption(plasmaZones);
+
+        // Baseline Lambda (optional)
+        Option lambda = new Option(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT,
+                LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_DESC);
+        lambda.setRequired(false);
+        options.addOption(lambda);
+
+        // Baseline P (optional)
+        Option p = new Option(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,
+                LIBSDataGenConstants.CMD_OPT_BASELINE_P_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_BASELINE_P_DESC);
+        p.setRequired(false);
+        options.addOption(p);
+
+        // Baseline Max Iterations (optional)
+        Option maxIter = new Option(LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_SHORT,
+                LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_DESC);
+        maxIter.setRequired(false);
+        options.addOption(maxIter);
+
+        // Activate debug mode
+        options.addOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_DESC);
+
         // Help (optional)
         Option help = new Option(LIBSDataGenConstants.CMD_OPT_HELP_SHORT,
                 LIBSDataGenConstants.CMD_OPT_HELP_LONG,
@@ -314,7 +355,7 @@ public class CmdlineParserUtil {
                 return null;
             }
 
-            return parser.parse(options, args);
+                return parser.parse(options, args);
 
         } catch (ParseException e) {
             logger.log(Level.SEVERE, "Failed to parse command line arguments", e);
@@ -327,21 +368,21 @@ public class CmdlineParserUtil {
 
     public void printHelpCalibration(HelpFormatter helpFormatter, Options options) {
         String header = """
-                
-                Generates an instrument profile from real LIBS measurement data.
-                The profile contains wavelength grid and two-zone plasma parameters
-                (Te, Ne for hot core and cool periphery) optimized to match measured spectra.
-                
-                """;
+
+            Generates an instrument profile from real LIBS measurement data.
+            The profile contains wavelength grid and two-zone plasma parameters
+            (Te, Ne for hot core and cool periphery) optimized to match measured spectra.
+
+            """;
 
         String footer = "\nExamples:\n" +
-                "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
-                "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\"\n\n" +
-                "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
-                "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\" \\\n" +
-                "    -o my_instrument_profile.json -n \"Ocean Optics HR2000\"\n\n" +
-                "Note: The input CSV should have wavelength values as column headers\n" +
-                "and each row should represent one shot/measurement.\n";
+            "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
+            "    -i sample_readings.csv -c \"Fe-98.0,C-0.5,Mn-1.0,Si-0.5\"\n\n" +
+            "  ./calibrate" + osSpecificScriptExtension + " \\\n" +
+            "    -i sample_readings.csv -c \"Fe...\" \\\n" +
+            "    --lambda 100000 --p 0.001 --max-iterations 20\n\n" +
+            "Note: The input CSV should have wavelength values as column headers\n" +
+            "and each row should represent one shot/measurement.\n";
 
         helpFormatter.printHelp("calibrate" + osSpecificScriptExtension, header, options, footer, true);
     }

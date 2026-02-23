@@ -63,6 +63,8 @@ public class PythonUtils {
     public boolean setupPythonEnvironment() {
         if (!isPythonInstalled()) {
             logger.warning("Python 3 is not installed. Skipping calibration report generation.");
+            System.out.println("Please install Python3 and try again to generate the calibration report. Skipping calibration report generation.");
+            System.out.println("Instrument profile will still be saved as conf/instrument_profile.json");
             return false;
         }
 

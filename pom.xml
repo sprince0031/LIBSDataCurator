@@ -6,7 +6,7 @@
 
     <groupId>com.medals</groupId>
     <artifactId>libsdatagenerator</artifactId>
-    <version>0.9.4</version>
+    <version>0.9.5</version>
 
     <properties>
         <!-- Use Java 21 -->
@@ -65,6 +65,12 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-rng-simple</artifactId>
             <version>1.6</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ejml</groupId>
+            <artifactId>ejml-all</artifactId>
+            <version>0.43</version>
         </dependency>
 
         <!-- JSON library -->
