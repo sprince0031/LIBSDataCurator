@@ -2,7 +2,6 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
-import org.apache.commons.cli.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.JSONArray;
 
@@ -137,6 +136,7 @@ public class CommonUtils {
     }
 
     public Path getCompositionCsvFilePath(String csvDirPath, List<Element> composition) throws IOException {
+
         Path compositionDirPath = Paths.get(csvDirPath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR);
         if (!Files.exists(compositionDirPath)) {
             Files.createDirectories(compositionDirPath);

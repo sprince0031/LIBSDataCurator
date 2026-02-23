@@ -43,14 +43,6 @@ public class PlasmaParameters {
             for (int i = 0; i < zonesArray.length(); i++) {
                 zones.add(PlasmaZone.fromJson(zonesArray.getJSONObject(i)));
             }
-        } else {
-            // Backward compatibility for old JSON format
-            PlasmaZone hotCore = PlasmaZone.fromJson(json.optJSONObject("hotCore"));
-            PlasmaZone coolPeriphery = PlasmaZone.fromJson(json.optJSONObject("coolPeriphery"));
-            if (hotCore != null)
-                zones.add(hotCore);
-            if (coolPeriphery != null)
-                zones.add(coolPeriphery);
         }
         return new PlasmaParameters(zones);
     }

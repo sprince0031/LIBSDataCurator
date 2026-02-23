@@ -1,13 +1,13 @@
 package com.medals.libsdatagenerator.model;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
-import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
-import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthCondition;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.IntensityScale;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.MaxIonCharge;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.MinRelativeIntensity;
-import com.medals.libsdatagenerator.model.nist.NistUrlOptions.IntensityScale;
-import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthCondition;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 
@@ -53,6 +53,7 @@ public class UserInputConfig {
     public boolean appendMode;
     public boolean forceFetch;
     public boolean genStats;
+    public boolean noInstrumentProfile;
     private static boolean debugMode;
     
     /**
@@ -90,6 +91,7 @@ public class UserInputConfig {
         this.appendMode = true;
         this.forceFetch = false;
         this.genStats = false;
+        this.noInstrumentProfile = true;
         UserInputConfig.debugMode = false;
     }
 
@@ -150,6 +152,7 @@ public class UserInputConfig {
         this.appendMode = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_SHORT);
         this.forceFetch = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_FORCE_FETCH_SHORT);
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
+        this.noInstrumentProfile = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_SHORT);
         debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
     }
 

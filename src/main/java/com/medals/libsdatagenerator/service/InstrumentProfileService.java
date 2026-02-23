@@ -7,8 +7,10 @@ import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
+import com.medals.libsdatagenerator.util.NISTUtils;
 import com.medals.libsdatagenerator.util.PythonUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.apache.commons.csv.CSVFormat;
@@ -426,17 +428,15 @@ public class InstrumentProfileService {
                         continue;
 
                     logger.info("Fetching spectrum for " + key);
-                    Path tempPath = Files.createTempFile("libs_calib_", ".csv");
                     String csvData = LIBSDataService.getInstance().fetchCalibrationSpectrum(
-                            composition, config, te, ne, tempPath);
+                            composition, config, te, ne);
 
                     if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
-                        Map<Double, Double> waveMap = parseNistCsv(csvData);
+                        Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, WavelengthUnit.NANOMETER.getUnitString());
                         double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
                         // Store NON-NORMALIZED spectrum in cache for final combination
                         spectrumCache.put(key, spectrum);
                     }
-                    Files.deleteIfExists(tempPath);
                     CommonUtils.printProgressBar(i + 1, gridSize, "spectra fetched from NIST LIBS db", out);
                     i++;
                 }
@@ -455,7 +455,7 @@ public class InstrumentProfileService {
 
             // Recursive Grid Search
             OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
-                    normalizedSpectrumCache, normalisedMeasuredSpectrum, spectrumUtils);
+                    normalizedSpectrumCache, normalisedMeasuredSpectrum);
 
             // Update profile with best parameters
             List<PlasmaZone> zones = new ArrayList<>();
@@ -474,9 +474,7 @@ public class InstrumentProfileService {
             // Save Best Zones and Spectra to Single CSV
             Path zonesCsvPath = calibDir.resolve("best_zones.csv");
 
-            // For saving, we need the original (or scaled) intensities, not just normalized
-            // We'll save the normalized * maxMeasured (similar to before) for visual
-            // consistency
+            // Saving normalized * maxMeasured to scale synthetic spectrum close to measured spectrum
             saveZonesToCsv(zonesCsvPath, zones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
 
         } catch (Exception e) {
@@ -515,8 +513,7 @@ public class InstrumentProfileService {
     }
 
     private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neExponents,
-            Map<String, double[]> normalizedCache,
-            double[] targetSpectrum, SpectrumUtils spectrumUtils) {
+            Map<String, double[]> normalizedCache, double[] targetSpectrum) {
 
         PrintStream out = System.out;
         OptimizationResult bestResult = new OptimizationResult();
@@ -556,6 +553,7 @@ public class InstrumentProfileService {
                 if (!possible)
                     continue;
 
+                SpectrumUtils spectrumUtils = new SpectrumUtils();
                 // Normalize combined result for comparison against normalized target
                 double[] finalCombined = spectrumUtils.normalizeSpectrum(combined);
 
@@ -673,26 +671,5 @@ public class InstrumentProfileService {
                 printer.printRecord(record);
             }
         }
-    }
-
-    // TODO: Consolidate NIST CSV parsing logic with LIBSDataService.parseNistCsv()
-    // - Code duplication
-    private Map<Double, Double> parseNistCsv(String csvData) throws IOException {
-        Map<Double, Double> map = new HashMap<>();
-        try (java.io.StringReader sr = new java.io.StringReader(csvData);
-                CSVParser parser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(sr)) {
-            for (CSVRecord record : parser) {
-                try {
-                    String wStr = record.get("Wavelength (nm)");
-                    String iStr = record.isMapped("Sum") ? record.get("Sum") : record.get("Sum(calc)");
-                    if (wStr != null && iStr != null) {
-                        map.put(Double.parseDouble(wStr), Double.parseDouble(iStr));
-                    }
-                } catch (Exception e) {
-                    // Skip bad rows
-                }
-            }
-        }
-        return map;
     }
 }

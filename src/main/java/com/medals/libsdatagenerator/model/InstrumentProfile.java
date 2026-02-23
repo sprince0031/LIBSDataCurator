@@ -1,9 +1,12 @@
 package com.medals.libsdatagenerator.model;
 
+import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,6 +23,8 @@ public class InstrumentProfile {
     private int numShots;
     private String sourceFile;
     private String referenceComposition;
+    public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
+            LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
 
     // Constructor used in tests and spec
     public InstrumentProfile(String instrumentName, double[] wavelengths, PlasmaParameters plasmaParameters,

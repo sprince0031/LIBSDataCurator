@@ -187,6 +187,12 @@ public class CmdlineParserUtil {
                 true,
                 LIBSDataGenConstants.CMD_OPT_N_DECIMAL_PLACES_DESC);
 
+        // Specify NOT to use instrument profile config if available
+        options.addOption(LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 

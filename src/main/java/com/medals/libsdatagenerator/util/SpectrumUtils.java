@@ -79,10 +79,10 @@ public class SpectrumUtils {
         return aligned;
     }
 
-    public double[] combineSpectra(double[] hot, double[] cool, double weight) {
-        double[] combined = new double[hot.length];
-        for (int i = 0; i < hot.length; i++) {
-            combined[i] = weight * hot[i] + (1.0 - weight) * cool[i];
+    public double[] combineSpectra(double[] spectrum1, double[] spectrum2, double weight) {
+        double[] combined = new double[spectrum1.length];
+        for (int i = 0; i < spectrum1.length; i++) {
+            combined[i] = weight * spectrum1[i] + (1.0 - weight) * spectrum2[i];
         }
         return combined;
     }
