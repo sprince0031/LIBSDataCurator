@@ -218,6 +218,15 @@ jobs:
           ./bin/run.sh [arguments]
           
           The application includes its own JRE, so you don't need Java installed on your system.
+          
+          For help with command line arguments:
+          ./bin/run.sh --help
+          
+          Instrument Profile Calibration:
+          ./bin/calibrate.sh -i <sample_csv> -c <composition> [-o <output>] [-n <name>]
+          
+          For calibration help:
+          ./bin/calibrate.sh --help
           EOF
 
       - name: Prepare release package (Windows)
@@ -273,22 +282,22 @@ jobs:
             set "LOG_PATH_FOR_PROPS=%LOGS_DIR%"
             set "LOG_PATH_FOR_PROPS=!LOG_PATH_FOR_PROPS:\=/!"
             
-            REM Create a new properties file by replacing the placeholder
-            (for /f "usebackq delims=" %%L in ("%LOG_PROPERTIES%") do (
-              set "line=%%L"
-              REM Check if the line contains the placeholder
-              if "!line:__LOG_PATH_PLACEHOLDER__=!" NEQ "!line!" (
-                REM If it does, print the corrected line
-                echo java.util.logging.FileHandler.pattern=!LOG_PATH_FOR_PROPS!/LIBSDataGenerator%%g.log
-              ) else (
-                REM Otherwise, print the original line
-                echo !line!
-              )
-            )) > "%LOG_PROPERTIES%.tmp"
-            
-            REM Replace the original file with the new one and clean up
-            move /Y "%LOG_PROPERTIES%.tmp" "%LOG_PROPERTIES%" >nul
-            echo Log path configured successfully.
+            REM Replace placeholder in ALL properties files in the conf directory
+            for %%F in ("%MAIN_DIR%\conf\logging*.properties") do (
+                echo Configuring %%~nxF...
+                REM Create a new properties file by replacing the placeholder
+                (for /f "usebackq delims=" %%L in ("%%F") do (
+                    set "line=%%L"
+                    REM Check if the line contains the placeholder
+                    set "replace=!LOG_PATH_FOR_PROPS!"
+                    for /f "delims=" %%v in ("!replace!") do set "line=!line:__LOG_PATH_PLACEHOLDER__=%%v!"
+                    echo !line!
+                )) > "%%F.tmp"
+        
+                REM Replace the original file with the new one
+                move /Y "%%F.tmp" "%%F" >nul
+            )
+            echo Log paths configured successfully.
           )
           
           set "JAVA_OPT1=-Djava.util.logging.config.file=%LOG_PROPERTIES%"
@@ -299,8 +308,62 @@ jobs:
           
           REM --- Run the Application ---
           echo Starting LIBSDataCurator...
-          "%JAVA_HOME%\bin\java.exe" "%JAVA_OPT1%" "%JAVA_OPT2%" -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*  
+          "%JAVA_HOME%\bin\java.exe" "%JAVA_OPT1%" "%JAVA_OPT2%" -jar "%MAIN_DIR%\lib\LIBSDataCurator.jar" %*
           "@ | Out-File -FilePath "build/release-package/bin/run.bat" -Encoding ASCII
+          
+          # Create calibrate script for instrument profile generation
+          @"
+          @echo off
+          REM LIBS Instrument Profile Calibration Script
+          REM Generates instrument profile from real LIBS measurement data.
+          setlocal enabledelayedexpansion
+          set "SCRIPT_DIR=%~dp0"
+          set "MAIN_DIR=%SCRIPT_DIR%.."
+          set "LOG_PROPERTIES=%MAIN_DIR%\conf\logging_calibration.properties"
+          set "LOGS_DIR=%MAIN_DIR%\logs"
+          
+          REM --- Use Bundled JRE ---
+          set "JAVA_HOME=%MAIN_DIR%\jre-custom"
+          
+          REM --- First-Time Setup for Logging ---
+          findstr /C:"__LOG_PATH_PLACEHOLDER__" "%LOG_PROPERTIES%" >nul
+          if !errorlevel! equ 0 (
+            echo Performing first-time setup for logging path...
+          
+            REM Create logs directory if it doesn't exist
+            if not exist "%LOGS_DIR%" mkdir "%LOGS_DIR%"
+            
+            REM Get the log path and format it for the properties file (using forward slashes)
+            set "LOG_PATH_FOR_PROPS=%LOGS_DIR%"
+            set "LOG_PATH_FOR_PROPS=!LOG_PATH_FOR_PROPS:\=/!"
+            
+            REM Replace placeholder in ALL properties files in the conf directory
+            for %%F in ("%MAIN_DIR%\conf\logging*.properties") do (
+                echo Configuring %%~nxF...
+                REM Create a new properties file by replacing the placeholder
+                (for /f "usebackq delims=" %%L in ("%%F") do (
+                    set "line=%%L"
+                    REM Check if the line contains the placeholder
+                    set "replace=!LOG_PATH_FOR_PROPS!"
+                    for /f "delims=" %%v in ("!replace!") do set "line=!line:__LOG_PATH_PLACEHOLDER__=%%v!"
+                    echo !line!
+                )) > "%%F.tmp"
+        
+                REM Replace the original file with the new one
+                move /Y "%%F.tmp" "%%F" >nul
+            )
+            echo Log paths configured successfully.
+          )
+          
+          set "JAVA_OPT1=-Djava.util.logging.config.file=%LOG_PROPERTIES%"
+          set "JAVA_OPT2=-Duser.dir=%MAIN_DIR%"
+          
+          REM --- Change to Application Directory ---
+          cd /d "%MAIN_DIR%"
+          
+          REM --- Run the instrument profile controller ---
+          "%JAVA_HOME%\bin\java.exe" "%JAVA_OPT1%" "%JAVA_OPT2%" -cp "%MAIN_DIR%\lib\LIBSDataCurator.jar" com.medals.libsdatagenerator.controller.InstrumentProfileController %*
+          "@ | Out-File -FilePath "build/release-package/bin/calibrate.bat" -Encoding ASCII
           
           # Create README
           @"
@@ -318,6 +381,15 @@ jobs:
           bin\run.bat [arguments]
           
           The application includes its own JRE, so you don't need Java installed on your system.
+          
+          For help with command line arguments:
+          bin\run.bat --help
+          
+          Instrument Profile Calibration:
+          bin\calibrate.bat -i <sample_csv> -c <composition> [-o <output>] [-n <name>]
+          
+          For calibration help:
+          bin\calibrate.bat --help
           "@ | Out-File -FilePath "build/release-package/README.txt" -Encoding UTF8
 
       - name: Create archive (Linux/macOS)
