@@ -69,8 +69,8 @@ public class InstrumentProfileService {
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-                                             String instrumentName, BaselineCorrectionParams baselineParams,
-                                             int plasmaZones, boolean debugMode) throws IOException {
+            String instrumentName, BaselineCorrectionParams baselineParams,
+            int plasmaZones, boolean debugMode) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -164,8 +164,8 @@ public class InstrumentProfileService {
         List<Double> wavelengths = new ArrayList<>();
 
         try (BufferedReader reader = Files.newBufferedReader(csvPath);
-             CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
-                     .withFirstRecordAsHeader().parse(reader)) {
+                CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
+                        .withFirstRecordAsHeader().parse(reader)) {
             List<String> headerLine = parser.getHeaderNames();
             if (headerLine == null) {
                 throw new IOException("Empty CSV file");
@@ -277,8 +277,10 @@ public class InstrumentProfileService {
     }
 
     private String getProcessedNotebook(InstrumentProfile profile, Path zonesCsv, String templateContent) {
-        String inputCsvPath = profile.getSourceFile().replace("\\", "\\\\");
-        String zonesCsvPath = zonesCsv.toAbsolutePath().toString().replace("\\", "\\\\");
+        // Use forward slashes for paths to ensure cross-platform compatibility in
+        // Jupyter/Python without needing escaping
+        String inputCsvPath = profile.getSourceFile().replace("\\", "/");
+        String zonesCsvPath = zonesCsv.toAbsolutePath().toString().replace("\\", "/");
 
         // Replace placeholders
         return templateContent
@@ -331,6 +333,11 @@ public class InstrumentProfileService {
      * Converts the Jupyter Notebook to PDF.
      */
     private void convertNotebookToPdf(Path notebookPath, Path jupyterPath, String instrumentName) {
+        if (!dependencyCheckForPdfConversion()) {
+            return; // Skip PDF conversion if dependencies are not met
+        }
+
+        System.out.println("Generating calibration report PDF...");
         logger.info("Converting Notebook to PDF...");
         String pdfReportPath = LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_" + instrumentName + "_"
                 + System.currentTimeMillis();
@@ -353,13 +360,39 @@ public class InstrumentProfileService {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 logger.info("PDF conversion successful.");
+                System.out.println("Calibration report PDF generated: " + pdfReportPath + ".pdf");
             } else {
                 logger.warning("PDF conversion failed with exit code: " + exitCode);
+                System.out.println("PDF conversion failed. Ensure that LaTeX and Pandoc are installed and properly configured. Skipping PDF generation.");
             }
 
         } catch (Exception e) {
             logger.log(Level.WARNING, "Failed to convert notebook to PDF. Ensure latex/pandoc are installed.", e);
         }
+    }
+
+    private boolean dependencyCheckForPdfConversion() {
+        // Check if pandoc is installed as it is a dependency for nbconvert PDF conversion
+        try {
+            ProcessBuilder pb = new ProcessBuilder("pandoc", "--version");
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                logger.info("Pandoc installed. Proceeding with PDF conversion.");
+                return true;
+            } else {
+                logger.warning("Pandoc installation check failed with exit code: " + exitCode);
+            }
+        } catch (Exception e) {
+            System.out.println("""
+                        Pandoc is required for PDF conversion but was not found.
+                        Consider installing at https://pandoc.org/installing.html to enable PDF calibration report generation.
+                        Skipping PDF generation.""");
+            logger.log(Level.WARNING, "Pandoc installation check failed", e);
+        }
+        return false;
     }
 
     /**
@@ -375,7 +408,7 @@ public class InstrumentProfileService {
      * @param debugMode
      */
     private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
-                                          MaterialGrade composition, int plasmaZones, boolean debugMode) {
+            MaterialGrade composition, int plasmaZones, boolean debugMode) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
@@ -487,7 +520,7 @@ public class InstrumentProfileService {
 
     private void saveSpectrumToCsv(Path path, double[] wavelengths, double[] intensity) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(path);
-             CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
+                CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
             for (int i = 0; i < wavelengths.length; i++) {
                 if (i < intensity.length) {
                     printer.printRecord(wavelengths[i], intensity[i]);
