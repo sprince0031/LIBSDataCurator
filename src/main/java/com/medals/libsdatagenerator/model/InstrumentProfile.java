@@ -23,6 +23,7 @@ public class InstrumentProfile {
     private int numShots;
     private String sourceFile;
     private String referenceComposition;
+    private double scaleFactor; // Max intensity of averaged measured spectrum
     public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
             LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
 
@@ -109,6 +110,14 @@ public class InstrumentProfile {
 
     public void setSourceFile(String sourceFile) {
         this.sourceFile = sourceFile;
+    }
+
+    public double getScaleFactor() {
+        return scaleFactor;
+    }
+
+    public void setScaleFactor(double scaleFactor) {
+        this.scaleFactor = scaleFactor;
     }
 
     public double getMinWavelength() {

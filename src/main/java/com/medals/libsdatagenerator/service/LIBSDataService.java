@@ -211,8 +211,8 @@ public class LIBSDataService {
      * @param ne          Electron Density (cm^-3)
      * @return CSV content string
      */
-    public String fetchCalibrationSpectrum(MaterialGrade composition, UserInputConfig config,
-                                           double te, double ne) {
+    public String fetchPlasmaZoneSpectrum(List<Element> composition, UserInputConfig config,
+                                          double te, double ne, int remainderElementIdx) {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
         
         try {
@@ -224,8 +224,8 @@ public class LIBSDataService {
                 config.electronDensity = String.valueOf(ne);
                 // Reset first composition flag to ensure proper setup
                 firstComposition = true;
-                return fetchLIBSData(composition.getComposition(), config, false,
-                        composition.getRemainderElementIdx());
+                boolean quitDriver = config.isCompositionMode && !config.performVariations;
+                return fetchLIBSData(composition, config, quitDriver, remainderElementIdx);
             }
             
             NISTUtils nistUtils = new NISTUtils(seleniumUtils);
@@ -254,8 +254,6 @@ public class LIBSDataService {
         // Get selenium instance for reuse across variations
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
         SpectrumUtils spectrumUtils = new  SpectrumUtils();
-        firstComposition = true;
-        boolean quitDriver = config.isCompositionMode && !config.performVariations;
         try {
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
@@ -264,12 +262,10 @@ public class LIBSDataService {
                 String compositionId = commonUtils.buildCompositionStringForFilename(composition);
 
                 logger.info("Applying instrument profile to synthetic spectra for " + compositionId);
-
                 List<Double> combinedSpectrum = new ArrayList<>();
                 for (PlasmaZone zone: instrumentProfile.getZones()) {
-                    config.plasmaTemp = String.valueOf(zone.getTe());
-                    config.electronDensity = String.valueOf(zone.getNe());
-                    csvData = fetchLIBSData(composition, config, quitDriver, sourceMaterial.getRemainderElementIdx());
+                    csvData = fetchPlasmaZoneSpectrum(composition, config, zone.getTe(), zone.getNe(),
+                            sourceMaterial.getRemainderElementIdx());
                     // If fetch failed, skip
                     if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
                         logger.severe("Failed to fetch data for composition " + compositionId + " and plasma zone " + zone.toJson());
@@ -296,10 +292,10 @@ public class LIBSDataService {
                         for (Double intensity: interpolatedSpectrum) {
                             combinedSpectrum.add(intensity * zone.getWeight());
                         }
-                    }
-
-                    for (int i = 0; i < combinedSpectrum.size(); i++) {
-                        combinedSpectrum.set(i, combinedSpectrum.get(i) + interpolatedSpectrum[i] * zone.getWeight());
+                    } else {
+                        for (int i = 0; i < combinedSpectrum.size(); i++) {
+                            combinedSpectrum.set(i, combinedSpectrum.get(i) + interpolatedSpectrum[i] * zone.getWeight());
+                        }
                     }
                 }
                 compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, combinedSpectrum);

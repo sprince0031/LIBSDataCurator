@@ -395,6 +395,7 @@ public class InstrumentProfileService {
 
         // Normalization for RMSE calculation
         double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
+        profile.setScaleFactor(maxMeasuredIntensity);
         if (maxMeasuredIntensity == 0)
             maxMeasuredIntensity = 1.0;
         double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
@@ -428,8 +429,8 @@ public class InstrumentProfileService {
                         continue;
 
                     logger.info("Fetching spectrum for " + key);
-                    String csvData = LIBSDataService.getInstance().fetchCalibrationSpectrum(
-                            composition, config, te, ne);
+                    String csvData = LIBSDataService.getInstance().fetchPlasmaZoneSpectrum(
+                            composition.getComposition(), config, te, ne, composition.getRemainderElementIdx());
 
                     if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
                         Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, WavelengthUnit.NANOMETER.getUnitString());
