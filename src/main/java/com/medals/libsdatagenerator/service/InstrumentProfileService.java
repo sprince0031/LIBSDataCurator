@@ -12,6 +12,7 @@ import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import com.medals.libsdatagenerator.util.NISTUtils;
 import com.medals.libsdatagenerator.util.PythonUtils;
+import com.medals.libsdatagenerator.util.SeleniumUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -420,7 +421,7 @@ public class InstrumentProfileService {
         config.minWavelength = String.valueOf(profile.getMinWavelength());
         config.maxWavelength = String.valueOf(profile.getMaxWavelength());
         config.resolution = "1000";
-        config.setDebugMode(debugMode);
+        UserInputConfig.setDebugMode(debugMode);
 
         // Define Grid Search Space
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
@@ -514,7 +515,7 @@ public class InstrumentProfileService {
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Grid search optimization failed", e);
         } finally {
-            com.medals.libsdatagenerator.util.SeleniumUtils.getInstance().quitSelenium();
+            SeleniumUtils.getInstance().quitSelenium();
         }
     }
 

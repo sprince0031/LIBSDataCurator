@@ -33,21 +33,22 @@ public class SeleniumUtils {
 
     public SeleniumUtils() {
         options = new ChromeOptions();
-        // Updating chrome options to bypass bot detection
-        // 1. Remove the "Chrome is being controlled by automated test software" infobar
+
+        // Remove the "Chrome is being controlled by automated test software" infobar
         options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
         options.setExperimentalOption("useAutomationExtension", false);
 
-        // 2. Disable the blink features that reveal automation
+        // Disable the blink features that reveal automation
         options.addArguments("--disable-blink-features=AutomationControlled");
 
-        // 3. Set a realistic, up-to-date User-Agent (replace with a modern one if necessary)
+        // Set a realistic, up-to-date User-Agent (replace with a modern one if necessary)
         options.addArguments("user-agent=Chrome/120.0.0.0");
         if (!UserInputConfig.debugModeEnabled()) {
-            options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+            options.addArguments("--headless");  // headless mode is default
         }
 
-        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Configure Selenium to ignore unexpected alert prompts and not dismiss it automatically.
+        // Configure Selenium to ignore unexpected alert prompts and not dismiss it automatically.
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE);
     }
 
     public static SeleniumUtils getInstance() {

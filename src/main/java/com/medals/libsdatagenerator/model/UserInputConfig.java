@@ -160,7 +160,7 @@ public class UserInputConfig {
         return debugMode;
     }
 
-    public void setDebugMode(boolean debugMode) {
+    public static void setDebugMode(boolean debugMode) {
         UserInputConfig.debugMode = debugMode;
     }
 

@@ -256,6 +256,7 @@ public class LIBSDataGenConstants {
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
     public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
+    public static final String MATWEB_DATASHEET_TABLE_CSS_SELECTOR = "table.tabledataformat";
 
     /**
      * #### Archive.org Constants ####

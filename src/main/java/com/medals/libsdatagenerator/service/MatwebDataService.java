@@ -2,10 +2,12 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.PeriodicTable;
 import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.openqa.selenium.By;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
 
 import java.net.HttpURLConnection;
@@ -23,10 +25,11 @@ import java.util.logging.Logger;
 public class MatwebDataService {
     public static Logger logger = Logger.getLogger(MatwebDataService.class.getName());
     private static MatwebDataService instance = null;
-    private final SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+    private SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
     private final SeriesStatisticsExtractor statisticsExtractor = new SeriesStatisticsExtractor();
     private String datasheetName;
     private String[] datasheetAttributes;
+    private boolean botCircumvention = false;
 
     public static MatwebDataService getInstance() {
         if (instance == null) {
@@ -36,13 +39,41 @@ public class MatwebDataService {
     }
 
     private String matwebSanityChecker(String datasheetUrl) throws RuntimeException {
-
         // Check if matweb.com is reachable
-        if (CommonUtils.getInstance().isWebsiteReachable(LIBSDataGenConstants.MATWEB_HOME_URL)) {
+        int statusCode = CommonUtils.getInstance().isWebsiteReachable(LIBSDataGenConstants.MATWEB_HOME_URL);
+        if (statusCode == HttpURLConnection.HTTP_OK || botCircumvention) {
+            return datasheetUrl;
+        } else if (statusCode == HttpURLConnection.HTTP_FORBIDDEN){
+            // Switching to debug mode to allow for manual user control for bot protection
+            botCircumvention = true;
+            if (!UserInputConfig.debugModeEnabled()) {
+                logger.info("Enabling debug mode to try and circumvent bot protection.");
+                System.out.println("Enabling debug mode to try and circumvent bot protection. If you see a browser window pop up, it is the tool trying to fetch data. :)");
+                UserInputConfig.setDebugMode(true);
+//                seleniumUtils.quitSelenium();
+            }
+            // Creating new SeleniumUtils instance to apply new chrome options disabling headless mode.
+            SeleniumUtils.instance =  new SeleniumUtils();
+            seleniumUtils = SeleniumUtils.instance;
             return datasheetUrl;
         }
         logger.warning("Matweb.com is not online. Attempting to find a snapshot on archive.org...");
         return CommonUtils.getInstance().getArchivedWebpageUrl(datasheetUrl);
+    }
+
+    private boolean waitForUserBotCircumvention() {
+        if (botCircumvention) {
+            logger.info("Waiting for user to pass bot detection.");
+            System.out.println(" | Waiting for user to pass bot detection. Please solve CAPTCHA challenge in browser window to continue...");
+            try {
+                seleniumUtils.waitForElementPresent(By.cssSelector(LIBSDataGenConstants.MATWEB_DATASHEET_TABLE_CSS_SELECTOR));
+                logger.info("Datasheet loaded successfully.");
+                return true;
+            } catch (TimeoutException e) {
+                logger.log(Level.SEVERE, "Timed out waiting for manual verification or page load.");
+            }
+        }
+        return false;
     }
 
     public List<String> getMaterialComposition(String guid) {
@@ -53,15 +84,18 @@ public class MatwebDataService {
             String datasheetUrl = CommonUtils.getInstance()
                     .getUrl(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE,  queryParams);
 
-            if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
-                List<List<String>> compositionTableData = fetchCompositionTableData();
-                if (!compositionTableData.isEmpty()) {
-                    datasheetName = extractDatasheetName(false);
-                    return parseCompositionData(
-                            compositionTableData.get(0), // Element names
-                            compositionTableData.get(1), // Metric values (% or range)
-                            compositionTableData.get(3) // Comments for average %
-                    );
+            String finalDatasheetUrl = matwebSanityChecker(datasheetUrl);
+            if (seleniumUtils.connectToWebsite(finalDatasheetUrl)) {
+                if (waitForUserBotCircumvention()) {
+                    List<List<String>> compositionTableData = fetchCompositionTableData();
+                    if (!compositionTableData.isEmpty()) {
+                        datasheetName = extractDatasheetName(false);
+                        return parseCompositionData(
+                                compositionTableData.get(0), // Element names
+                                compositionTableData.get(1), // Metric values (% or range)
+                                compositionTableData.get(3) // Comments for average %
+                        );
+                    }
                 }
             }
         } catch (Exception e) {
@@ -88,31 +122,34 @@ public class MatwebDataService {
             String datasheetUrl = CommonUtils.getInstance()
                     .getUrl(LIBSDataGenConstants.MATWEB_DATASHEET_URL_BASE,  queryParams);
 
-            if (seleniumUtils.connectToWebsite(matwebSanityChecker(datasheetUrl))) {
-                // Check if this is an overview sheet
-                if (!isOverviewSheet()) {
-                    logger.warning("The provided GUID does not appear to be an overview sheet");
-                    return null;
-                }
-
-                String seriesName = extractDatasheetName(true);
-                List<List<String>> compositionTableData = fetchCompositionTableData();
-
-                if (!compositionTableData.isEmpty()) {
-                    SeriesStatistics statistics = statisticsExtractor.extractStatistics(
-                            compositionTableData.get(0), // Element names
-                            compositionTableData.get(1), // Metric values (ranges)
-                            compositionTableData.get(3), // Comments with averages and grade counts
-                            seriesName,
-                            overviewGuid
-                    );
-
-                    if (statisticsExtractor.validateStatistics(statistics)) {
-                        logger.info("Successfully extracted series statistics: " + statistics);
-                        return statistics;
-                    } else {
-                        logger.warning("Extracted statistics failed validation");
+            String finalDatasheetUrl = matwebSanityChecker(datasheetUrl);
+            if (seleniumUtils.connectToWebsite(finalDatasheetUrl)) {
+                if (waitForUserBotCircumvention()) {
+                    // Check if this is an overview sheet
+                    if (!isOverviewSheet()) {
+                        logger.warning("The provided GUID does not appear to be an overview sheet");
                         return null;
+                    }
+
+                    String seriesName = extractDatasheetName(true);
+                    List<List<String>> compositionTableData = fetchCompositionTableData();
+
+                    if (!compositionTableData.isEmpty()) {
+                        SeriesStatistics statistics = statisticsExtractor.extractStatistics(
+                                compositionTableData.get(0), // Element names
+                                compositionTableData.get(1), // Metric values (ranges)
+                                compositionTableData.get(3), // Comments with averages and grade counts
+                                seriesName,
+                                overviewGuid
+                        );
+
+                        if (statisticsExtractor.validateStatistics(statistics)) {
+                            logger.info("Successfully extracted series statistics: " + statistics);
+                            return statistics;
+                        } else {
+                            logger.warning("Extracted statistics failed validation");
+                            return null;
+                        }
                     }
                 }
             }
@@ -121,7 +158,6 @@ public class MatwebDataService {
         } finally {
             seleniumUtils.quitSelenium();
         }
-
         return null;
     }
 
@@ -196,7 +232,8 @@ public class MatwebDataService {
         List<String> commentsValues = new ArrayList<>();
 
         // Find the main table by class name
-        List<WebElement> tables = seleniumUtils.getDriver().findElements(By.cssSelector("table.tabledataformat"));
+        List<WebElement> tables = seleniumUtils.getDriver().findElements(
+                By.cssSelector(LIBSDataGenConstants.MATWEB_DATASHEET_TABLE_CSS_SELECTOR));
         WebElement targetTable = null;
 
         // Iterate through the tables and select the one that contains the desired header text

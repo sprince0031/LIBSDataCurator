@@ -147,12 +147,13 @@ public class CommonUtils {
         return Paths.get(compositionDirPath.toString(), compositionFileName);
     }
 
-    /** TODO: refactor to SeleniumUtils and use wait() with timeout for reachability
+    /**
+     * TODO: refactor to SeleniumUtils and use wait() with timeout for reachability
      * Testing if the target website is reachable
      *
      * @return boolean - True if website live, false otherwise
      */
-    public boolean isWebsiteReachable(String urlString) {
+    public int isWebsiteReachable(String urlString) {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(urlString);
@@ -161,14 +162,13 @@ public class CommonUtils {
 
             if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 logger.info(urlString + " is reachable.");
-                return true;
             } else {
                 logger.log(Level.SEVERE, url + " not reachable. Status code: " + connection.getResponseCode());
-                return false;
             }
+            return connection.getResponseCode();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Exception occurred while trying to connect to " + urlString, e);
-            return false;
+            return HttpURLConnection.HTTP_INTERNAL_ERROR;
         } finally {
             if (connection != null) {
                 connection.disconnect();

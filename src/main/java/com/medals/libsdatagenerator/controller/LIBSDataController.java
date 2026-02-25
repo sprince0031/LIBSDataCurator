@@ -10,6 +10,7 @@ import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
+import java.net.HttpURLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -36,8 +37,9 @@ public class LIBSDataController {
             logger.info("Initialising LIBS Data extraction...");
 
             // Check if the NIST LIBS portal is reachable
-            if (!commonUtils.isWebsiteReachable(LIBSDataGenConstants.NIST_LIBS_FORM_URL)) {
-                logger.log(Level.WARNING, "NIST LIBS reachable is not available");
+            if (commonUtils.isWebsiteReachable(LIBSDataGenConstants.NIST_LIBS_FORM_URL) != HttpURLConnection.HTTP_OK) {
+                System.out.println("NIST LIBS is not reachable.");
+                throw new Exception("NIST LIBS is not reachable.");
             }
 
             CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(args);
