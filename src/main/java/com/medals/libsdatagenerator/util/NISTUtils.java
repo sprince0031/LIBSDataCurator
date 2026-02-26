@@ -2,17 +2,21 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -193,7 +197,7 @@ public class NISTUtils {
         }
     }
 
-    public String downloadCsvData(List<Element> elements, Path csvFilePath) {
+    public String downloadCsvData() {
         String csvData = String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
         try {
             WebElement csvButton = seleniumUtils.getDriver()
@@ -213,10 +217,10 @@ public class NISTUtils {
             csvData = seleniumUtils.getDriver().findElement(By.tagName("pre")).getText();
 
             // Saving to CSV file
-            LOGGER.info("Saving fetched LIBS data to: " + csvFilePath.toAbsolutePath()); // New log
-            Files.write(csvFilePath, csvData.getBytes());
+//            LOGGER.info("Saving fetched LIBS data to: " + csvFilePath.toAbsolutePath()); // New log
+//            Files.write(csvFilePath, csvData.getBytes());
             // System.out.println("Saved: " + filename);
-            LOGGER.info("Saved: " + csvFilePath); // Existing log, kept for consistency with potential existing log parsing
+//            LOGGER.info("Saved: " + csvFilePath); // Existing log, kept for consistency with potential existing log parsing
 
             // Close the CSV tab
             seleniumUtils.getDriver().close();
@@ -226,6 +230,33 @@ public class NISTUtils {
             LOGGER.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
         }
         return csvData;
+    }
+
+    /**
+     * Parse in-memory CSV from NIST (with columns "Wavelength (nm)" and "Sum"),
+     * @param csvData Downloaded csv of NIST spectrum
+     * @param wavelengthUnit Wavelength unit for spectrum
+     * @return a map: (wavelength -> intensity).
+     */
+    public static Map<Double, Double> parseNistCsv(String csvData, String wavelengthUnit) throws IOException {
+        Map<Double, Double> waveMap = new TreeMap<>();
+
+        try(StringReader sr = new StringReader(csvData);
+            CSVParser parser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(sr);) {
+            for (CSVRecord record : parser) {
+                try {
+                    String waveStr = record.get(String.format("Wavelength (%s)", wavelengthUnit));
+                    String sumStr = record.get(record.isMapped("Sum") ? "Sum" : "Sum(calc)");
+
+                    if (waveStr != null && sumStr != null) {
+                        waveMap.put(Double.parseDouble(waveStr), Double.parseDouble(sumStr));
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error parsing downloaded NIST CSV record", e);
+                }
+            }
+        }
+        return waveMap;
     }
 
 }

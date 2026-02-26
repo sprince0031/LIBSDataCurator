@@ -171,6 +171,13 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_DEBUG_MODE_SHORT = "d";
     public static final String CMD_OPT_DEBUG_MODE_LONG = "debug";
     public static final String CMD_OPT_DEBUG_MODE_DESC = "Run tool in debug mode to see selenium browser execution.";
+    public static final String CMD_OPT_NO_INSTRUMENT_PROFILE_SHORT = "nip";
+    public static final String CMD_OPT_NO_INSTRUMENT_PROFILE_LONG = "no-instrument-profile";
+    public static final String CMD_OPT_NO_INSTRUMENT_PROFILE_DESC = """
+    Do NOT use an instrument profile config (if available) in /conf. Default behaviour is to use it to preprocess fetched \
+    NIST LIBS spectra according to the wavelength grid, intensity range and best n-zone fit. \
+    Run the `calibrate` script to generate an instrument profile from measured spectra from your LIBS instrument. 
+    """;
 
     // Cmdline options for instrument profile calibration
     public static final String CMD_OPT_INPUT_SHORT = "i";
@@ -249,6 +256,7 @@ public class LIBSDataGenConstants {
     // Regex to extract average value from comments like "Average value: 0.300 % Grade Count:681"
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
     public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
+    public static final String MATWEB_DATASHEET_TABLE_CSS_SELECTOR = "table.tabledataformat";
 
     /**
      * #### Archive.org Constants ####
@@ -262,6 +270,7 @@ public class LIBSDataGenConstants {
     public static final String CALIBRATION_DIR = "calibration";
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
     public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
+    public static final String INSTRUMENT_PROFILE_JSON_FILE = "instrument_profile.json";
     // Calibration report template placeholders
     public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
     public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
@@ -283,7 +292,7 @@ public class LIBSDataGenConstants {
     public static final String CSV_HEADER_MATERIAL_TYPE = "material_type"; // Super class target column name
     public static final String REMAINDER_ELEMENT_IDX = "remainderElementIndex"; // Used in element list generation.
     public static final String ELEMENTS_LIST = "elementsList"; // Used in element list generation.
-    public static final String SPECTRAL_DATA_MAP_KEY_SPECTRA = "spectra";
+    public static final String SPECTRAL_DATA_MAP_KEY_SPECTRA = "spectrum";
     public static final String SPECTRAL_DATA_MAP_KEY_COMPOSITIONS = "compositions";
     public static final String SPECTRAL_DATA_MAP_KEY_WAVELENGTHS = "wavelengths";
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";

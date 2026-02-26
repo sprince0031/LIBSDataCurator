@@ -2,7 +2,6 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
-import org.apache.commons.cli.*;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.JSONArray;
 
@@ -137,6 +136,7 @@ public class CommonUtils {
     }
 
     public Path getCompositionCsvFilePath(String csvDirPath, List<Element> composition) throws IOException {
+
         Path compositionDirPath = Paths.get(csvDirPath, LIBSDataGenConstants.NIST_LIBS_DATA_DIR);
         if (!Files.exists(compositionDirPath)) {
             Files.createDirectories(compositionDirPath);
@@ -147,12 +147,13 @@ public class CommonUtils {
         return Paths.get(compositionDirPath.toString(), compositionFileName);
     }
 
-    /** TODO: refactor to SeleniumUtils and use wait() with timeout for reachability
+    /**
+     * TODO: refactor to SeleniumUtils and use wait() with timeout for reachability
      * Testing if the target website is reachable
      *
      * @return boolean - True if website live, false otherwise
      */
-    public boolean isWebsiteReachable(String urlString) {
+    public int isWebsiteReachable(String urlString) {
         HttpURLConnection connection = null;
         try {
             URL url = new URL(urlString);
@@ -161,14 +162,13 @@ public class CommonUtils {
 
             if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
                 logger.info(urlString + " is reachable.");
-                return true;
             } else {
                 logger.log(Level.SEVERE, url + " not reachable. Status code: " + connection.getResponseCode());
-                return false;
             }
+            return connection.getResponseCode();
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Exception occurred while trying to connect to " + urlString, e);
-            return false;
+            return HttpURLConnection.HTTP_INTERNAL_ERROR;
         } finally {
             if (connection != null) {
                 connection.disconnect();

@@ -6,7 +6,6 @@ import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
 import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
-import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 
 import java.io.File;
@@ -32,8 +31,6 @@ public class InstrumentProfileController {
 
         private static final Logger logger = Logger.getLogger(InstrumentProfileController.class.getName());
 
-        private static String outputDir = CommonUtils.CONF_PATH;
-
         public static void main(String[] args) {
                 logger.info("Starting LIBS Instrument Profile Calibration...");
 
@@ -53,7 +50,7 @@ public class InstrumentProfileController {
                         String composition = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
                         String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
                         String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,
-                                        outputDir + File.separator + "instrument_profile.json");
+                                InstrumentProfile.INSTRUMENT_PROFILE_PATH);
                         int plasmaZones = Integer
                                         .parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT,
                                                         "2"));

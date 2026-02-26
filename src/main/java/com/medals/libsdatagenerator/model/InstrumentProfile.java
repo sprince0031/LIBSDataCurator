@@ -1,9 +1,12 @@
 package com.medals.libsdatagenerator.model;
 
+import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -20,6 +23,9 @@ public class InstrumentProfile {
     private int numShots;
     private String sourceFile;
     private String referenceComposition;
+    private double scaleFactor; // Max intensity of averaged measured spectrum
+    public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
+            LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
 
     // Constructor used in tests and spec
     public InstrumentProfile(String instrumentName, double[] wavelengths, PlasmaParameters plasmaParameters,
@@ -104,6 +110,14 @@ public class InstrumentProfile {
 
     public void setSourceFile(String sourceFile) {
         this.sourceFile = sourceFile;
+    }
+
+    public double getScaleFactor() {
+        return scaleFactor;
+    }
+
+    public void setScaleFactor(double scaleFactor) {
+        this.scaleFactor = scaleFactor;
     }
 
     public double getMinWavelength() {
@@ -197,6 +211,7 @@ public class InstrumentProfile {
         json.put("numShots", numShots);
         json.put("sourceFile", sourceFile);
         json.put("referenceComposition", referenceComposition);
+        json.put("scaleFactor", scaleFactor);
         if (plasmaParameters != null) {
             json.put("plasmaParameters", plasmaParameters.toJson());
         }
@@ -232,6 +247,7 @@ public class InstrumentProfile {
         profile.setNumShots(json.optInt("numShots"));
         profile.sourceFile = json.optString("sourceFile");
         profile.referenceComposition = json.optString("referenceComposition");
+        profile.scaleFactor = json.optDouble("scaleFactor");
 
         return profile;
     }

@@ -7,9 +7,12 @@ import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.nist.NistUrlOptions.WavelengthUnit;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
+import com.medals.libsdatagenerator.util.NISTUtils;
 import com.medals.libsdatagenerator.util.PythonUtils;
+import com.medals.libsdatagenerator.util.SeleniumUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -67,8 +70,8 @@ public class InstrumentProfileService {
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-                                             String instrumentName, BaselineCorrectionParams baselineParams,
-                                             int plasmaZones, boolean debugMode) throws IOException {
+            String instrumentName, BaselineCorrectionParams baselineParams,
+            int plasmaZones, boolean debugMode) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -162,8 +165,8 @@ public class InstrumentProfileService {
         List<Double> wavelengths = new ArrayList<>();
 
         try (BufferedReader reader = Files.newBufferedReader(csvPath);
-             CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
-                     .withFirstRecordAsHeader().parse(reader)) {
+                CSVParser parser = CSVFormat.DEFAULT.withDelimiter(delimiter.toCharArray()[0])
+                        .withFirstRecordAsHeader().parse(reader)) {
             List<String> headerLine = parser.getHeaderNames();
             if (headerLine == null) {
                 throw new IOException("Empty CSV file");
@@ -275,8 +278,10 @@ public class InstrumentProfileService {
     }
 
     private String getProcessedNotebook(InstrumentProfile profile, Path zonesCsv, String templateContent) {
-        String inputCsvPath = profile.getSourceFile().replace("\\", "\\\\");
-        String zonesCsvPath = zonesCsv.toAbsolutePath().toString().replace("\\", "\\\\");
+        // Use forward slashes for paths to ensure cross-platform compatibility in
+        // Jupyter/Python without needing escaping
+        String inputCsvPath = profile.getSourceFile().replace("\\", "/");
+        String zonesCsvPath = zonesCsv.toAbsolutePath().toString().replace("\\", "/");
 
         // Replace placeholders
         return templateContent
@@ -329,6 +334,11 @@ public class InstrumentProfileService {
      * Converts the Jupyter Notebook to PDF.
      */
     private void convertNotebookToPdf(Path notebookPath, Path jupyterPath, String instrumentName) {
+        if (!dependencyCheckForPdfConversion()) {
+            return; // Skip PDF conversion if dependencies are not met
+        }
+
+        System.out.println("Generating calibration report PDF...");
         logger.info("Converting Notebook to PDF...");
         String pdfReportPath = LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_" + instrumentName + "_"
                 + System.currentTimeMillis();
@@ -351,13 +361,39 @@ public class InstrumentProfileService {
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 logger.info("PDF conversion successful.");
+                System.out.println("Calibration report PDF generated: " + pdfReportPath + ".pdf");
             } else {
                 logger.warning("PDF conversion failed with exit code: " + exitCode);
+                System.out.println("PDF conversion failed. Ensure that LaTeX and Pandoc are installed and properly configured. Skipping PDF generation.");
             }
 
         } catch (Exception e) {
             logger.log(Level.WARNING, "Failed to convert notebook to PDF. Ensure latex/pandoc are installed.", e);
         }
+    }
+
+    private boolean dependencyCheckForPdfConversion() {
+        // Check if pandoc is installed as it is a dependency for nbconvert PDF conversion
+        try {
+            ProcessBuilder pb = new ProcessBuilder("pandoc", "--version");
+            pb.redirectErrorStream(true);
+
+            Process process = pb.start();
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                logger.info("Pandoc installed. Proceeding with PDF conversion.");
+                return true;
+            } else {
+                logger.warning("Pandoc installation check failed with exit code: " + exitCode);
+            }
+        } catch (Exception e) {
+            System.out.println("""
+                        Pandoc is required for PDF conversion but was not found.
+                        Consider installing at https://pandoc.org/installing.html to enable PDF calibration report generation.
+                        Skipping PDF generation.""");
+            logger.log(Level.WARNING, "Pandoc installation check failed", e);
+        }
+        return false;
     }
 
     /**
@@ -373,7 +409,7 @@ public class InstrumentProfileService {
      * @param debugMode
      */
     private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
-                                          MaterialGrade composition, int plasmaZones, boolean debugMode) {
+            MaterialGrade composition, int plasmaZones, boolean debugMode) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
@@ -385,7 +421,7 @@ public class InstrumentProfileService {
         config.minWavelength = String.valueOf(profile.getMinWavelength());
         config.maxWavelength = String.valueOf(profile.getMaxWavelength());
         config.resolution = "1000";
-        config.setDebugMode(debugMode);
+        UserInputConfig.setDebugMode(debugMode);
 
         // Define Grid Search Space
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
@@ -393,6 +429,7 @@ public class InstrumentProfileService {
 
         // Normalization for RMSE calculation
         double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
+        profile.setScaleFactor(maxMeasuredIntensity);
         if (maxMeasuredIntensity == 0)
             maxMeasuredIntensity = 1.0;
         double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
@@ -426,17 +463,15 @@ public class InstrumentProfileService {
                         continue;
 
                     logger.info("Fetching spectrum for " + key);
-                    Path tempPath = Files.createTempFile("libs_calib_", ".csv");
-                    String csvData = LIBSDataService.getInstance().fetchCalibrationSpectrum(
-                            composition, config, te, ne, tempPath);
+                    String csvData = LIBSDataService.getInstance().fetchPlasmaZoneSpectrum(
+                            composition.getComposition(), config, te, ne, composition.getRemainderElementIdx());
 
                     if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
-                        Map<Double, Double> waveMap = parseNistCsv(csvData);
+                        Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, WavelengthUnit.NANOMETER.getUnitString());
                         double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
                         // Store NON-NORMALIZED spectrum in cache for final combination
                         spectrumCache.put(key, spectrum);
                     }
-                    Files.deleteIfExists(tempPath);
                     CommonUtils.printProgressBar(i + 1, gridSize, "spectra fetched from NIST LIBS db", out);
                     i++;
                 }
@@ -447,7 +482,7 @@ public class InstrumentProfileService {
             Map<String, double[]> normalizedSpectrumCache = new HashMap<>();
             i = 0;
             for (Map.Entry<String, double[]> entry : spectrumCache.entrySet()) {
-                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normalizeSpectrum(entry.getValue()));
+                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normaliseSpectrum(entry.getValue()));
                 CommonUtils.printProgressBar(i + 1, gridSize, "Spectra normalised", out);
                 i++;
             }
@@ -455,7 +490,7 @@ public class InstrumentProfileService {
 
             // Recursive Grid Search
             OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
-                    normalizedSpectrumCache, normalisedMeasuredSpectrum, spectrumUtils);
+                    normalizedSpectrumCache, normalisedMeasuredSpectrum);
 
             // Update profile with best parameters
             List<PlasmaZone> zones = new ArrayList<>();
@@ -468,27 +503,26 @@ public class InstrumentProfileService {
             profile.setZones(zones);
             profile.setRmse(bestResult.rmse);
             profile.setRSquaredValue(bestResult.rSquared);
+            profile.setScaleFactor(maxMeasuredIntensity);
 
             logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
 
             // Save Best Zones and Spectra to Single CSV
             Path zonesCsvPath = calibDir.resolve("best_zones.csv");
 
-            // For saving, we need the original (or scaled) intensities, not just normalized
-            // We'll save the normalized * maxMeasured (similar to before) for visual
-            // consistency
+            // Saving normalized * maxMeasured to scale synthetic spectrum close to measured spectrum
             saveZonesToCsv(zonesCsvPath, zones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
 
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Grid search optimization failed", e);
         } finally {
-            com.medals.libsdatagenerator.util.SeleniumUtils.getInstance().quitSelenium();
+            SeleniumUtils.getInstance().quitSelenium();
         }
     }
 
     private void saveSpectrumToCsv(Path path, double[] wavelengths, double[] intensity) throws IOException {
         try (BufferedWriter writer = Files.newBufferedWriter(path);
-             CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
+                CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT.withHeader("Wavelength", "Intensity"))) {
             for (int i = 0; i < wavelengths.length; i++) {
                 if (i < intensity.length) {
                     printer.printRecord(wavelengths[i], intensity[i]);
@@ -515,8 +549,7 @@ public class InstrumentProfileService {
     }
 
     private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neExponents,
-            Map<String, double[]> normalizedCache,
-            double[] targetSpectrum, SpectrumUtils spectrumUtils) {
+            Map<String, double[]> normalizedCache, double[] targetSpectrum) {
 
         PrintStream out = System.out;
         OptimizationResult bestResult = new OptimizationResult();
@@ -556,8 +589,9 @@ public class InstrumentProfileService {
                 if (!possible)
                     continue;
 
+                SpectrumUtils spectrumUtils = new SpectrumUtils();
                 // Normalize combined result for comparison against normalized target
-                double[] finalCombined = spectrumUtils.normalizeSpectrum(combined);
+                double[] finalCombined = spectrumUtils.normaliseSpectrum(combined);
 
                 double rmse = spectrumUtils.calculateRMSE(targetSpectrum, finalCombined);
                 double rSquared = spectrumUtils.calculateSpectralSimilarity(targetSpectrum, finalCombined);
@@ -661,10 +695,7 @@ public class InstrumentProfileService {
 
                 if (rawSpectrum != null) {
                     // Normalize and then scale
-                    double[] normalized = spectrumUtils.normalizeSpectrum(rawSpectrum);
-                    for (double val : normalized) {
-                        record.add(val * scaleFactor);
-                    }
+                    record.addAll(spectrumUtils.normaliseAndScaleSpectrum(rawSpectrum, scaleFactor));
                 } else {
                     // Should not happen if cache is hit, but fill zeros
                     for (int i = 0; i < wavelengthGrid.length; i++)
@@ -673,26 +704,5 @@ public class InstrumentProfileService {
                 printer.printRecord(record);
             }
         }
-    }
-
-    // TODO: Consolidate NIST CSV parsing logic with LIBSDataService.parseNistCsv()
-    // - Code duplication
-    private Map<Double, Double> parseNistCsv(String csvData) throws IOException {
-        Map<Double, Double> map = new HashMap<>();
-        try (java.io.StringReader sr = new java.io.StringReader(csvData);
-                CSVParser parser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(sr)) {
-            for (CSVRecord record : parser) {
-                try {
-                    String wStr = record.get("Wavelength (nm)");
-                    String iStr = record.isMapped("Sum") ? record.get("Sum") : record.get("Sum(calc)");
-                    if (wStr != null && iStr != null) {
-                        map.put(Double.parseDouble(wStr), Double.parseDouble(iStr));
-                    }
-                } catch (Exception e) {
-                    // Skip bad rows
-                }
-            }
-        }
-        return map;
     }
 }

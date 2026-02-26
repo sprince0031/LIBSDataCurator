@@ -1,11 +1,8 @@
 package com.medals.libsdatagenerator.controller;
 
-import com.medals.libsdatagenerator.model.Element;
-import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
-import com.medals.libsdatagenerator.model.matweb.SeriesInput;
-import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
+import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.UserInputConfig;
-import com.medals.libsdatagenerator.service.CompositionalVariations;
+import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.DatasetStatisticsService;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
@@ -13,6 +10,10 @@ import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
+import java.net.HttpURLConnection;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -36,8 +37,9 @@ public class LIBSDataController {
             logger.info("Initialising LIBS Data extraction...");
 
             // Check if the NIST LIBS portal is reachable
-            if (!commonUtils.isWebsiteReachable(LIBSDataGenConstants.NIST_LIBS_FORM_URL)) {
-                logger.log(Level.WARNING, "NIST LIBS reachable is not available");
+            if (commonUtils.isWebsiteReachable(LIBSDataGenConstants.NIST_LIBS_FORM_URL) != HttpURLConnection.HTTP_OK) {
+                System.out.println("NIST LIBS is not reachable.");
+                throw new Exception("NIST LIBS is not reachable.");
             }
 
             CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(args);
@@ -54,6 +56,16 @@ public class LIBSDataController {
                 logger.info("Seed: " + userInputs.seed);
             } else {
                 logger.info("No seed specified.");
+            }
+
+            InstrumentProfile instrumentProfile = null;
+            if (!userInputs.noInstrumentProfile) {
+                Path instrumentProfilePath = Paths.get(InstrumentProfile.INSTRUMENT_PROFILE_PATH);
+                if (Files.exists(instrumentProfilePath)) {
+                    instrumentProfile = InstrumentProfile.loadFromFile(instrumentProfilePath);
+                } else {
+                    logger.warning("No instrument profile found. Proceeding without instrument profile.");
+                }
             }
 
             List<MaterialGrade> materialGrades = new ArrayList<>();
@@ -73,7 +85,7 @@ public class LIBSDataController {
 
             // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler
 
-            libsDataService.generateDataset(materialGrades, userInputs);
+            libsDataService.generateDataset(materialGrades, userInputs, instrumentProfile);
 
             // After dataset generation, calculate statistics if requested
             if (userInputs.genStats) {

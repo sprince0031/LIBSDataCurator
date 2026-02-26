@@ -5,6 +5,7 @@ import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -79,22 +80,30 @@ public class SpectrumUtils {
         return aligned;
     }
 
-    public double[] combineSpectra(double[] hot, double[] cool, double weight) {
-        double[] combined = new double[hot.length];
-        for (int i = 0; i < hot.length; i++) {
-            combined[i] = weight * hot[i] + (1.0 - weight) * cool[i];
+    public List<Double> normaliseAndScaleSpectrum(double[] spectrum, double scaleFactor) {
+        List<Double> scaledSpectrum = new ArrayList<>();
+        for (double val : normaliseSpectrum(spectrum)) {
+            scaledSpectrum.add(val * scaleFactor);
+        }
+        return scaledSpectrum;
+    }
+
+    public double[] combineSpectra(double[] spectrum1, double[] spectrum2, double weight) {
+        double[] combined = new double[spectrum1.length];
+        for (int i = 0; i < spectrum1.length; i++) {
+            combined[i] = weight * spectrum1[i] + (1.0 - weight) * spectrum2[i];
         }
         return combined;
     }
 
     /**
-     * Normalizes a spectrum to [0, 1] range.
+     * Normalises a spectrum to [0, 1] range.
      * If spectrum is empty or has no positive values, returns array of zeros.
      *
      * @param spectrum Input intensity array
-     * @return Normalized array with values in [0, 1] range
+     * @return Normalised array with values in [0, 1] range
      */
-    public double[] normalizeSpectrum(double[] spectrum) {
+    public double[] normaliseSpectrum(double[] spectrum) {
         if (spectrum == null || spectrum.length == 0) {
             logger.warning("Empty spectrum provided for normalization, returning empty array");
             return new double[0];
