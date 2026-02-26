@@ -5,6 +5,7 @@ import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
 import com.medals.libsdatagenerator.model.UserInputConfig;
+import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 import org.junit.jupiter.api.Test;
@@ -63,7 +64,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("B", "B", 50.0, 50.0, 50.0, 50.0));
 
         MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
-        CommandLine cmd = CommonUtils.getInstance().getTerminalArgHandler(new String[]{
+        CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "A-50,B-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1",
                 "-"+LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "5.0",
@@ -97,7 +98,7 @@ class LIBSDataServiceTest {
         originalComposition.add(new Element("Cr", "Cr", 30.0, 25.0, 35.0, 30.0)); // Variable
 
         MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
-        CommandLine cmd = CommonUtils.getInstance().getTerminalArgHandler(new String[]{
+        CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "Cr-25:35,Fe-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.5", // varyBy=0.5
                 "-"+LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "2.0", // limit=2 for Cr

@@ -2,18 +2,21 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebElement;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.net.HttpURLConnection;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -86,6 +89,39 @@ public class NISTUtils {
         LOGGER.info("Element percentages updated");
     }
 
+    /**
+     * Updates plasma parameters (Te, Ne) in the recalculation form and recalculates.
+     * @param electronTemp Plasma temperature (eV)
+     * @param electronDensity Electron density (cm^-3)
+     */
+    public void updatePlasmaParameters(double electronTemp, double electronDensity) {
+        LOGGER.info("Updating plasma parameters: Te=" + electronTemp + " eV, Ne=" + electronDensity + " cm^-3");
+        
+        // Update Plasma Temperature
+        WebElement tempInput = seleniumUtils.waitForElementPresent(
+                By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_TEMP_INPUT_NAME)
+        );
+        tempInput.clear();
+        tempInput.sendKeys(String.valueOf(electronTemp));
+        
+        // Update Electron Density
+        WebElement edenInput = seleniumUtils.waitForElementPresent(
+                By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_EDEN_INPUT_NAME)
+        );
+        edenInput.clear();
+        edenInput.sendKeys(String.valueOf(electronDensity));
+        
+        // Click Recalculate
+        WebElement recalcButton = seleniumUtils.waitForElementClickable(
+                By.name(LIBSDataGenConstants.NIST_LIBS_RECALC_BUTTON_NAME)
+        );
+        recalcButton.click();
+        LOGGER.info("Clicked Recalculate button after updating plasma parameters");
+        
+        // Wait for results (check for CSV button)
+        seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
+    }
+
     public void handleRecalculateAlert(List<Element> composition, int remainderElementIdx) {
         try {
             Alert alert = seleniumUtils.getDriver().switchTo().alert();
@@ -126,28 +162,28 @@ public class NISTUtils {
 
             // TODO: Remove when interpolation is incorporated and zero-value elements are eliminated
             // Check if it's non-zero (or equal to the delta) and reset
-            try {
-                double value = Double.parseDouble(liveValue);
-
-                // If the value is not 0 (meaning NIST JS autofilled it), reset it
-                if (Math.abs(value) > 0) {
-                    LOGGER.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
-
-                    // Clear and set to 0
-                    lastInput.clear();
-                    lastInput.sendKeys("0");
-
-                    // Double check update with JS to ensure the event triggered
-                    js.executeScript("arguments[0].value = '0';", lastInput);
-                }
-            } catch (NumberFormatException e) {
-                LOGGER.warning("Could not parse input value: " + liveValue);
-            }
+//            try {
+//                double value = Double.parseDouble(liveValue);
+//
+//                // If the value is not 0 (meaning NIST JS autofilled it), reset it
+//                if (Math.abs(value) > 0) {
+//                    LOGGER.info("NIST autofill detected in last element (" + value + "). Resetting to 0.");
+//
+//                    // Clear and set to 0
+//                    lastInput.clear();
+//                    lastInput.sendKeys("0");
+//
+//                    // Double check update with JS to ensure the event triggered
+//                    js.executeScript("arguments[0].value = '0';", lastInput);
+//                }
+//            } catch (NumberFormatException e) {
+//                LOGGER.warning("Could not parse input value: " + liveValue);
+//            }
 
             // Pass only element with updated value and recalculate
-            List<Element> updatedElements = new ArrayList<>();
-            updatedElements.add(newRemainderElement);
-            updateElementPercentages(updatedElements);
+//            List<Element> updatedElements = new ArrayList<>();
+//            updatedElements.add(newRemainderElement);
+//            updateElementPercentages(updatedElements);
 
             // Click recalculate button again
             WebElement recalcButton = seleniumUtils.waitForElementClickable(
@@ -161,7 +197,7 @@ public class NISTUtils {
         }
     }
 
-    public String downloadCsvData(List<Element> elements, Path csvFilePath) {
+    public String downloadCsvData() {
         String csvData = String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
         try {
             WebElement csvButton = seleniumUtils.getDriver()
@@ -181,10 +217,10 @@ public class NISTUtils {
             csvData = seleniumUtils.getDriver().findElement(By.tagName("pre")).getText();
 
             // Saving to CSV file
-            LOGGER.info("Saving fetched LIBS data to: " + csvFilePath.toAbsolutePath()); // New log
-            Files.write(csvFilePath, csvData.getBytes());
+//            LOGGER.info("Saving fetched LIBS data to: " + csvFilePath.toAbsolutePath()); // New log
+//            Files.write(csvFilePath, csvData.getBytes());
             // System.out.println("Saved: " + filename);
-            LOGGER.info("Saved: " + csvFilePath); // Existing log, kept for consistency with potential existing log parsing
+//            LOGGER.info("Saved: " + csvFilePath); // Existing log, kept for consistency with potential existing log parsing
 
             // Close the CSV tab
             seleniumUtils.getDriver().close();
@@ -194,6 +230,33 @@ public class NISTUtils {
             LOGGER.log(Level.SEVERE, "Unable to fetch data from loaded NIST LIBS page", e);
         }
         return csvData;
+    }
+
+    /**
+     * Parse in-memory CSV from NIST (with columns "Wavelength (nm)" and "Sum"),
+     * @param csvData Downloaded csv of NIST spectrum
+     * @param wavelengthUnit Wavelength unit for spectrum
+     * @return a map: (wavelength -> intensity).
+     */
+    public static Map<Double, Double> parseNistCsv(String csvData, String wavelengthUnit) throws IOException {
+        Map<Double, Double> waveMap = new TreeMap<>();
+
+        try(StringReader sr = new StringReader(csvData);
+            CSVParser parser = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(sr);) {
+            for (CSVRecord record : parser) {
+                try {
+                    String waveStr = record.get(String.format("Wavelength (%s)", wavelengthUnit));
+                    String sumStr = record.get(record.isMapped("Sum") ? "Sum" : "Sum(calc)");
+
+                    if (waveStr != null && sumStr != null) {
+                        waveMap.put(Double.parseDouble(waveStr), Double.parseDouble(sumStr));
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(Level.WARNING, "Error parsing downloaded NIST CSV record", e);
+                }
+            }
+        }
+        return waveMap;
     }
 
 }

@@ -84,7 +84,7 @@ fi
 
 # Copy docs if they exist
 if [ -d "docs" ]; then
-    cp -r docs/{CHANGELOG.md,TOOL_DESCRIPTION.md} build/release-package/docs/ 2>/dev/null || true
+    cp -r docs/{CHANGELOG.md,README.md} build/release-package/docs/ 2>/dev/null || true
 fi
 
 # Create run script
@@ -112,10 +112,13 @@ if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
     # Escape the logs directory path for sed (to handle special characters)
     LOGS_DIR_ESCAPED=$(printf '%s\n' "$LOGS_DIR" | sed -e 's/[\/&]/\\&/g')
 
-    # Create a backup and then replace the placeholder in the file
-    sed -i.bak "s|__LOG_PATH_PLACEHOLDER__/LIBSDataGenerator%g.log|${LOGS_DIR_ESCAPED}/LIBSDataGenerator%g.log|" "$LOG_PROPERTIES"
-
-    echo "Log path configured. A backup of the original logging config was saved as logging.properties.bak"
+    # Replace placeholder in ALL properties files in the conf directory
+    for f in "$MAIN_DIR/conf/logging"*.properties; do
+        if [ -f "$f" ]; then
+            sed -i.bak "s|__LOG_PATH_PLACEHOLDER__|${LOGS_DIR_ESCAPED}|g" "$f"
+        fi
+    done
+    echo "Log paths configured."
 fi
 
 # Java options for logging configuration
@@ -129,6 +132,54 @@ cd "$MAIN_DIR"
 EOF
 
 chmod +x build/release-package/bin/run.sh
+
+# Create calibrate script for instrument profile generation
+cat > build/release-package/bin/calibrate.sh << 'EOF'
+#!/bin/bash
+# LIBS Instrument Profile Calibration Script
+# Generates instrument profile from real LIBS measurement data.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAIN_DIR="$(dirname "$SCRIPT_DIR")"
+LOG_PROPERTIES="$MAIN_DIR/conf/logging_calibration.properties"
+LOGS_DIR="$MAIN_DIR/logs"
+
+# Use bundled JRE
+JAVA_HOME="$MAIN_DIR/jre-custom"
+export JAVA_HOME
+
+# --- First-Time Setup for Logging ---
+# Check if the placeholder is still in the logging properties file
+if grep -q "__LOG_PATH_PLACEHOLDER__" "$LOG_PROPERTIES"; then
+    echo "Performing first-time setup for logging path..."
+
+    # Create logs directory if it doesn't exist
+    mkdir -p "$LOGS_DIR"
+
+    # Escape the logs directory path for sed (to handle special characters)
+    LOGS_DIR_ESCAPED=$(printf '%s\n' "$LOGS_DIR" | sed -e 's/[\/&]/\\&/g')
+
+    # Replace placeholder in ALL properties files in the conf directory
+    for f in "$MAIN_DIR/conf/logging"*.properties; do
+        if [ -f "$f" ]; then
+            sed -i.bak "s|__LOG_PATH_PLACEHOLDER__|${LOGS_DIR_ESCAPED}|g" "$f"
+        fi
+    done
+    echo "Log paths configured."
+fi
+
+# Java options for logging configuration
+JAVA_OPTS=("-Djava.util.logging.config.file=$LOG_PROPERTIES" "-Duser.dir=$MAIN_DIR")
+
+# Change to package directory so application can find conf files
+cd "$MAIN_DIR"
+
+# Run the instrument profile controller
+"$JAVA_HOME/bin/java" "${JAVA_OPTS[@]}" -cp "$MAIN_DIR/lib/LIBSDataCurator.jar" \
+    com.medals.libsdatagenerator.controller.InstrumentProfileController "$@"
+EOF
+
+chmod +x build/release-package/bin/calibrate.sh
 
 # Create README
 cat > build/release-package/README.txt << EOF
@@ -149,6 +200,12 @@ The application includes its own JRE, so you don't need Java installed on your s
 
 For help with command line arguments:
 ./bin/run.sh --help
+
+Instrument Profile Calibration:
+./bin/calibrate.sh -i <sample_csv> -c <composition> [-o <output>] [-n <name>]
+
+For calibration help:
+./bin/calibrate.sh --help
 EOF
 
 echo

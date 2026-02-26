@@ -5,7 +5,6 @@ import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.ConcentrationParameterEstimator;
-import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.rng.UniformRandomProvider;
 import org.apache.commons.rng.simple.RandomSource;
@@ -13,7 +12,6 @@ import org.apache.commons.rng.simple.RandomSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -48,16 +46,13 @@ public class DirichletSampler implements Sampler {
             GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
             return;
         }
-        
-        String overviewGuid = baseMaterialGrade.getParentSeries().getOverviewGuid();
 
-        logger.info("Starting Dirichlet sampling with overview GUID: " + overviewGuid);
+        logger.info("Starting Dirichlet sampling with overview GUID: " +
+                baseMaterialGrade.getParentSeries().getOverviewGuid());
 
         ConcentrationParameterEstimator parameterEstimator = new ConcentrationParameterEstimator();
 
-        // TODO: Shift method invocation to once per series and not once per material grade within a series
-        // Get series statistics from overview sheet
-        SeriesStatistics seriesStats = MatwebDataService.getInstance().getSeriesStatistics(overviewGuid);
+        SeriesStatistics seriesStats = baseMaterialGrade.getOverviewStatistics();
         if (seriesStats == null) {
             logger.severe("Failed to extract series statistics from overview sheet. Falling back to Gaussian sampling.");
             // Fallback to Gaussian sampling

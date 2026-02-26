@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.model.matweb;
 
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.util.CommonUtils;
 
 import java.util.List;
@@ -20,6 +21,7 @@ public class MaterialGrade {
     private String materialName;
     private String[] materialAttributes;
     private SeriesInput ParentSeries;
+    private SeriesStatistics overviewStatistics;
 
     public MaterialGrade(List<Element> composition, String matGUID, SeriesInput ParentSeries) {
         this.composition = composition;
@@ -28,6 +30,7 @@ public class MaterialGrade {
         this.materialAttributes = null;
         this.materialName = null;
         this.remainderElementIdx = null;
+        this.overviewStatistics = null;
     }
 
     public List<Element> getComposition() {
@@ -76,6 +79,14 @@ public class MaterialGrade {
 
     public void setRemainderElementIdx(Integer remainingElementIdx) {
         this.remainderElementIdx = remainingElementIdx;
+    }
+
+    public SeriesStatistics getOverviewStatistics() {
+        return overviewStatistics;
+    }
+
+    public void setOverviewStatistics(SeriesStatistics overviewStatistics) {
+        this.overviewStatistics = overviewStatistics;
     }
 
     @Override

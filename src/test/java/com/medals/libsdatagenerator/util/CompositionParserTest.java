@@ -88,7 +88,7 @@ class CompositionParserTest {
         elements.add(new Element("Carbon", "C", 0.2, null, null, null));
         elements.add(new Element("Iron", "Fe", 99.8, null, null, null));
 
-        CommandLine cmd = CommonUtils.getInstance().getTerminalArgHandler(new String[]{
+        CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "C-0.2,Fe-#",
                 "-"+LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "200",
                 "-"+LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "800",
