@@ -131,7 +131,7 @@ if exist "conf" (
 
 REM Copy docs if they exist
 if exist "docs" (
-    for %%f in (docs\CHANGELOG.md docs\TOOL_DESCRIPTION.md) do copy "%%f" "build\release-package\docs\"
+    for %%f in (docs\CHANGELOG.md docs\README.md) do copy "%%f" "build\release-package\docs\"
 )
 
 REM Create run script
@@ -150,32 +150,32 @@ echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
 echo.
 echo REM --- First-Time Setup for Logging ---
 echo findstr /C:"__LOG_PATH_PLACEHOLDER__" "%%LOG_PROPERTIES%%" ^>nul
-echo if ^^!errorlevel^^! equ 0 (
+echo if ^^!errorlevel^^! equ 0 ^(
 echo     echo Performing first-time setup for logging path...
 echo.
 echo     REM Create logs directory if it doesn't exist
 echo     if not exist "%%LOGS_DIR%%" mkdir "%%LOGS_DIR%%"
 echo.
-echo     REM Get the log path and format it for the properties file (using forward slashes^)
+echo     REM Get the log path and format it for the properties file ^(using forward slashes^)
 echo     set "LOG_PATH_FOR_PROPS=%%LOGS_DIR%%"
 echo     set "LOG_PATH_FOR_PROPS=^!LOG_PATH_FOR_PROPS:\=/^!"
 echo.
-echo     REM Create a new properties file by replacing the placeholder
-echo     (for /f "usebackq delims=" %%%%L in ("%%LOG_PROPERTIES%%"^) do (
-echo         set "line=%%%%L"
-echo         REM Check if the line contains the placeholder
-echo         if "^!line:__LOG_PATH_PLACEHOLDER__=^!" NEQ "^!line^!" (
-echo             REM If it does, print the corrected line
-echo             echo java.util.logging.FileHandler.pattern=^^!LOG_PATH_FOR_PROPS^^!/LIBSDataGenerator%%%%g.log
-echo         ^) else (
-echo             REM Otherwise, print the original line
+echo     REM Replace placeholder in ALL properties files in the conf directory
+echo     for %%%%F in ^("%%MAIN_DIR%%\conf\logging*.properties"^) do ^(
+echo         echo Configuring %%%%~nxF...
+echo         REM Create a new properties file by replacing the placeholder
+echo         ^(for /f "usebackq delims=" %%%%L in ^("%%%%F"^) do ^(
+echo             set "line=%%%%L"
+echo             REM Check if the line contains the placeholder
+echo             set "replace=^!LOG_PATH_FOR_PROPS^!"
+echo             for /f "delims=" %%%%v in ^("^!replace^!"^) do set "line=^!line:__LOG_PATH_PLACEHOLDER__=%%%%v^!"
 echo             echo ^^!line^^!
-echo         ^)
-echo     ^)^) ^> "%%LOG_PROPERTIES%%.tmp"
+echo         ^)^) ^> "%%%%F.tmp"
 echo.
-echo     REM Replace the original file with the new one and clean up
-echo     move /Y "%%LOG_PROPERTIES%%.tmp" "%%LOG_PROPERTIES%%" ^>nul
-echo     echo Log path configured successfully.
+echo         REM Replace the original file with the new one
+echo         move /Y "%%%%F.tmp" "%%%%F" ^>nul
+echo     ^)
+echo     echo Log paths configured.
 echo ^)
 echo.
 echo set "JAVA_OPT1=-Djava.util.logging.config.file=%%LOG_PROPERTIES%%"
@@ -188,6 +188,60 @@ echo REM --- Run the Application ---
 echo echo Starting LIBSDataCurator...
 echo "%%JAVA_HOME%%\bin\java.exe" "%%JAVA_OPT1%%" "%%JAVA_OPT2%%" -jar "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" %%*
 ) > build\release-package\bin\run.bat
+
+REM Create calibrate script for instrument profile generation
+(
+echo @echo off
+echo REM LIBS Instrument Profile Calibration Script
+echo REM Generates instrument profile from real LIBS measurement data.
+echo setlocal enabledelayedexpansion
+echo set "SCRIPT_DIR=%%~dp0"
+echo set "MAIN_DIR=%%SCRIPT_DIR%%.."
+echo set "LOG_PROPERTIES=%%MAIN_DIR%%\conf\logging_calibration.properties"
+echo set "LOGS_DIR=%%MAIN_DIR%%\logs"
+echo.
+echo REM --- Use Bundled JRE ---
+echo set "JAVA_HOME=%%MAIN_DIR%%\jre-custom"
+echo.
+echo REM --- First-Time Setup for Logging ---
+echo findstr /C:"__LOG_PATH_PLACEHOLDER__" "%%LOG_PROPERTIES%%" ^>nul
+echo if ^^!errorlevel^^! equ 0 ^(
+echo     echo Performing first-time setup for logging path...
+echo.
+echo     REM Create logs directory if it doesn't exist
+echo     if not exist "%%LOGS_DIR%%" mkdir "%%LOGS_DIR%%"
+echo.
+echo     REM Get the log path and format it for the properties file ^(using forward slashes^)
+echo     set "LOG_PATH_FOR_PROPS=%%LOGS_DIR%%"
+echo     set "LOG_PATH_FOR_PROPS=^!LOG_PATH_FOR_PROPS:\=/^!"
+echo.
+echo     REM Replace placeholder in ALL properties files in the conf directory
+echo     for %%%%F in ^("%%MAIN_DIR%%\conf\logging*.properties"^) do ^(
+echo         echo Configuring %%%%~nxF...
+echo         REM Create a new properties file by replacing the placeholder
+echo         ^(for /f "usebackq delims=" %%%%L in ^("%%%%F"^) do ^(
+echo             set "line=%%%%L"
+echo             REM Check if the line contains the placeholder
+echo             set "replace=^!LOG_PATH_FOR_PROPS^!"
+echo             for /f "delims=" %%%%v in ^("^!replace^!"^) do set "line=^!line:__LOG_PATH_PLACEHOLDER__=%%%%v^!"
+echo             echo ^^!line^^!
+echo         ^)^) ^> "%%%%F.tmp"
+echo.
+echo         REM Replace the original file with the new one
+echo         move /Y "%%%%F.tmp" "%%%%F" ^>nul
+echo     ^)
+echo     echo Log paths configured.
+echo ^)
+echo.
+echo set "JAVA_OPT1=-Djava.util.logging.config.file=%%LOG_PROPERTIES%%"
+echo set "JAVA_OPT2=-Duser.dir=%%MAIN_DIR%%"
+echo.
+echo REM --- Change to Application Directory ---
+echo cd /d "%%MAIN_DIR%%"
+echo.
+echo REM --- Run the instrument profile controller ---
+echo "%%JAVA_HOME%%\bin\java.exe" "%%JAVA_OPT1%%" "%%JAVA_OPT2%%" -cp "%%MAIN_DIR%%\lib\LIBSDataCurator.jar" com.medals.libsdatagenerator.controller.InstrumentProfileController %%*
+) > build\release-package\bin\calibrate.bat
 
 REM Create README
 (
@@ -208,6 +262,12 @@ echo The application includes its own JRE, so you don't need Java installed on y
 echo.
 echo For help with command line arguments:
 echo bin\run.bat --help
+echo.
+echo Instrument Profile Calibration:
+echo bin\calibrate.bat -i ^<sample_csv^> -c ^<composition^> [-o ^<output^>] [-n ^<name^>]
+echo.
+echo For calibration help:
+echo bin\calibrate.bat --help
 ) > build\release-package\README.txt
 
 echo.

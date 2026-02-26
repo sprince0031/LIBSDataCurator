@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
@@ -205,6 +206,9 @@ public class InputCompositionProcessor {
                     + " individual material(s). Overview GUID for variations: "
                     + (series.getOverviewGuid() != null ? series.getOverviewGuid() : "N/A"));
 
+            // Fetch series statistics from overview datasheet
+            SeriesStatistics seriesStatistics = matwebService.getSeriesStatistics(series.getOverviewGuid());
+
             for (String individualGuid : series.getIndividualMaterialGuids()) {
                 logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
 
@@ -243,6 +247,7 @@ public class InputCompositionProcessor {
                 materialGrade.setRemainderElementIdx(remainderElement);
                 materialGrade.setMaterialName(materialName);
                 materialGrade.setMaterialAttributes(materialAttributes);
+                materialGrade.setOverviewStatistics(seriesStatistics);
                 materialGrades.add(materialGrade);
 
                 materialsProcessed++;
@@ -266,7 +271,6 @@ public class InputCompositionProcessor {
      * @throws IOException Exception for invalid command line arguments
      */
     public MaterialGrade getMaterial(String userInput, String overviewGUID, int noDecimalPlaces) throws IOException, RuntimeException {
-        MatwebDataService matwebService = MatwebDataService.getInstance();
         MaterialGrade materialGrade;
         List<String> compositionArray;
         String matGuid = null;
@@ -276,6 +280,7 @@ public class InputCompositionProcessor {
         if (COMPOSITION_STRING_PATTERN.matcher(userInput).matches()) {
             compositionArray = Arrays.asList(userInput.split(","));
         } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
+            MatwebDataService matwebService = MatwebDataService.getInstance();
             seriesInput.setIndividualMaterialGuids(Arrays.asList(userInput.split(","))); // Will only have a single GUID in array
             matGuid = userInput;
             compositionArray = matwebService.getMaterialComposition(userInput);

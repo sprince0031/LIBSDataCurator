@@ -1,20 +1,18 @@
 package com.medals.libsdatagenerator.util;
 
-import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.UserInputConfig;
-import org.apache.http.client.utils.URIBuilder;
+import org.openqa.selenium.By;
 import org.openqa.selenium.UnexpectedAlertBehaviour;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.remote.CapabilityType;
-import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
-import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Level;
@@ -28,18 +26,29 @@ public class SeleniumUtils {
 
     private static Logger logger = Logger.getLogger(SeleniumUtils.class.getName());
     public static SeleniumUtils instance = null;
-    private WebDriver driver;
+    private ChromeDriver driver;
     private ChromeOptions options;
     private boolean isDriverOnline = false;
     private static final int DEFAULT_WAIT_TIMEOUT_SECONDS = 30;
 
     public SeleniumUtils() {
         options = new ChromeOptions();
+
+        // Remove the "Chrome is being controlled by automated test software" infobar
+        options.setExperimentalOption("excludeSwitches", Collections.singletonList("enable-automation"));
+        options.setExperimentalOption("useAutomationExtension", false);
+
+        // Disable the blink features that reveal automation
+        options.addArguments("--disable-blink-features=AutomationControlled");
+
+        // Set a realistic, up-to-date User-Agent (replace with a modern one if necessary)
+        options.addArguments("user-agent=Chrome/120.0.0.0");
         if (!UserInputConfig.debugModeEnabled()) {
-            options.addArguments("--headless");  // headless mode; comment out for visual browser based debugging
+            options.addArguments("--headless");  // headless mode is default
         }
 
-        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE); // Configure Selenium to ignore unexpected alert prompts and not dismiss it automatically.
+        // Configure Selenium to ignore unexpected alert prompts and not dismiss it automatically.
+        options.setCapability(CapabilityType.UNHANDLED_PROMPT_BEHAVIOUR, UnexpectedAlertBehaviour.IGNORE);
     }
 
     public static SeleniumUtils getInstance() {
@@ -54,6 +63,9 @@ public class SeleniumUtils {
      */
     public void initDriver() {
         driver = new ChromeDriver(options);
+        Map<String, Object> params = new HashMap<>();
+        params.put("source", "Object.defineProperty(navigator, 'webdriver', { get: () => undefined })");
+        driver.executeCdpCommand("Page.addScriptToEvaluateOnNewDocument", params);
 //        driver.get(LIBSDataGenConstants.SELENIUM_WEB_DRIVER);
         isDriverOnline = true;
     }
