@@ -49,6 +49,7 @@ public class MatwebDataService {
             if (!UserInputConfig.debugModeEnabled()) {
                 logger.info("Enabling debug mode to try and circumvent bot protection.");
                 System.out.println("Enabling debug mode to try and circumvent bot protection. If you see a browser window pop up, it is the tool trying to fetch data. :)");
+                System.out.println("Please solve CAPTCHA challenge in browser window to continue...");
                 UserInputConfig.setDebugMode(true);
 //                seleniumUtils.quitSelenium();
             }
@@ -64,7 +65,6 @@ public class MatwebDataService {
     private boolean waitForUserBotCircumvention() {
         if (botCircumvention) {
             logger.info("Waiting for user to pass bot detection.");
-            System.out.println(" | Waiting for user to pass bot detection. Please solve CAPTCHA challenge in browser window to continue...");
             try {
                 seleniumUtils.waitForElementPresent(By.cssSelector(LIBSDataGenConstants.MATWEB_DATASHEET_TABLE_CSS_SELECTOR));
                 logger.info("Datasheet loaded successfully.");

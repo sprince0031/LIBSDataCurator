@@ -8,13 +8,14 @@
     "lambda": 10000,
     "maxIterations": 10
   },
-  "instrumentName": "LSA_Test_SS469_2_zones",
+  "instrumentName": "LSA_SS469_2_zones",
   "referenceComposition": "C-0.279,Si-0.421,Mn-0.598,P-0.015,S-0.020,Cr-11.93,Ni-0.246,Fe-#",
+  "scaleFactor": 44577.59204384488,
   "plasmaParameters": {"zones": [
     {
       "Te": 1.2,
       "Ne": 1.0E17,
-      "weight": 0.7
+      "weight": 0.7000000000000001
     },
     {
       "Te": 0.5,

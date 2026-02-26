@@ -27,7 +27,7 @@ class SpectrumNormalisationTest {
         double[] input = { 10.0, 50.0, 20.0, 100.0, 0.0 };
         double[] expected = { 0.1, 0.5, 0.2, 1.0, 0.0 };
 
-        double[] result = spectrumUtils.normalizeSpectrum(input);
+        double[] result = spectrumUtils.normaliseSpectrum(input);
 
         assertNotNull(result);
         assertEquals(input.length, result.length);
@@ -39,7 +39,7 @@ class SpectrumNormalisationTest {
         double[] input = { 0.0, 0.0, 0.0 };
         double[] expected = { 0.0, 0.0, 0.0 };
 
-        double[] result = spectrumUtils.normalizeSpectrum(input);
+        double[] result = spectrumUtils.normaliseSpectrum(input);
 
         assertArrayEquals(expected, result, 0.001);
     }
@@ -47,14 +47,14 @@ class SpectrumNormalisationTest {
     @Test
     void testNormalizeSpectrumEmpty() {
         double[] input = {};
-        double[] result = spectrumUtils.normalizeSpectrum(input);
+        double[] result = spectrumUtils.normaliseSpectrum(input);
 
         assertEquals(0, result.length);
     }
 
     @Test
     void testNormalizeSpectrumNull() {
-        double[] result = spectrumUtils.normalizeSpectrum(null);
+        double[] result = spectrumUtils.normaliseSpectrum(null);
         assertEquals(0, result.length);
     }
 

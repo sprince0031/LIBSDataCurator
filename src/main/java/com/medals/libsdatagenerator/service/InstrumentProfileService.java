@@ -482,7 +482,7 @@ public class InstrumentProfileService {
             Map<String, double[]> normalizedSpectrumCache = new HashMap<>();
             i = 0;
             for (Map.Entry<String, double[]> entry : spectrumCache.entrySet()) {
-                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normalizeSpectrum(entry.getValue()));
+                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normaliseSpectrum(entry.getValue()));
                 CommonUtils.printProgressBar(i + 1, gridSize, "Spectra normalised", out);
                 i++;
             }
@@ -503,6 +503,7 @@ public class InstrumentProfileService {
             profile.setZones(zones);
             profile.setRmse(bestResult.rmse);
             profile.setRSquaredValue(bestResult.rSquared);
+            profile.setScaleFactor(maxMeasuredIntensity);
 
             logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
 
@@ -590,7 +591,7 @@ public class InstrumentProfileService {
 
                 SpectrumUtils spectrumUtils = new SpectrumUtils();
                 // Normalize combined result for comparison against normalized target
-                double[] finalCombined = spectrumUtils.normalizeSpectrum(combined);
+                double[] finalCombined = spectrumUtils.normaliseSpectrum(combined);
 
                 double rmse = spectrumUtils.calculateRMSE(targetSpectrum, finalCombined);
                 double rSquared = spectrumUtils.calculateSpectralSimilarity(targetSpectrum, finalCombined);
@@ -694,10 +695,7 @@ public class InstrumentProfileService {
 
                 if (rawSpectrum != null) {
                     // Normalize and then scale
-                    double[] normalized = spectrumUtils.normalizeSpectrum(rawSpectrum);
-                    for (double val : normalized) {
-                        record.add(val * scaleFactor);
-                    }
+                    record.addAll(spectrumUtils.normaliseAndScaleSpectrum(rawSpectrum, scaleFactor));
                 } else {
                     // Should not happen if cache is hit, but fill zeros
                     for (int i = 0; i < wavelengthGrid.length; i++)

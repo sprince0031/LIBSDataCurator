@@ -51,6 +51,7 @@ public class LIBSDataService {
     public static LIBSDataService instance = null;
     private final CommonUtils commonUtils = new CommonUtils();
     private boolean firstComposition = true;
+    private boolean newVariation = true;
 
     public static LIBSDataService getInstance() {
         if (instance == null) {
@@ -217,13 +218,14 @@ public class LIBSDataService {
         
         try {
             // Ensure session is active (initial fetch should have been done)
-            if (!seleniumUtils.isDriverOnline()) {
+            if (!seleniumUtils.isDriverOnline() || newVariation) {
                 logger.info("Starting new session for calibration fetch");
                 // Do a full initial fetch to set up the page state
                 config.plasmaTemp = String.valueOf(te);
                 config.electronDensity = String.valueOf(ne);
                 // Reset first composition flag to ensure proper setup
-                firstComposition = true;
+//                firstComposition = true;
+                newVariation = false;
                 boolean quitDriver = config.isCompositionMode && !config.performVariations;
                 return fetchLIBSData(composition, config, quitDriver, remainderElementIdx);
             }
@@ -244,10 +246,6 @@ public class LIBSDataService {
 
     private void fetchAndProcessSpectra(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions,
                                         UserInputConfig config, MaterialGrade sourceMaterial, InstrumentProfile instrumentProfile) {
-
-        // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
-        Map<String, Object> compWaveIntensityMap = new HashMap<>();
-
         int compositionsProcessed = 0;
         PrintStream out = System.out;
 
@@ -255,20 +253,26 @@ public class LIBSDataService {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
         SpectrumUtils spectrumUtils = new  SpectrumUtils();
         try {
+            List<PlasmaZone> plasmaZones = instrumentProfile.getZones();
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
+                // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
+                Map<String, Object> compWaveIntensityMap = new HashMap<>();
+
                 // Fetch CSV data from NIST
                 String csvData;
                 String compositionId = commonUtils.buildCompositionStringForFilename(composition);
 
                 logger.info("Applying instrument profile to synthetic spectra for " + compositionId);
                 List<Double> combinedSpectrum = new ArrayList<>();
-                for (PlasmaZone zone: instrumentProfile.getZones()) {
-                    csvData = fetchPlasmaZoneSpectrum(composition, config, zone.getTe(), zone.getNe(),
-                            sourceMaterial.getRemainderElementIdx());
+
+                for (int i = 0; i < plasmaZones.size(); i++) {
+                    csvData = fetchPlasmaZoneSpectrum(composition, config, plasmaZones.get(i).getTe(),
+                            plasmaZones.get(i).getNe(), sourceMaterial.getRemainderElementIdx());
                     // If fetch failed, skip
                     if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
-                        logger.severe("Failed to fetch data for composition " + compositionId + " and plasma zone " + zone.toJson());
+                        logger.severe("Failed to fetch data for composition " + compositionId + " and plasma zone "
+                                + plasmaZones.get(i).toJson());
                         break; // Stop if fails for even 1 plasma zone as combination won't work
                     }
                     // Parse wave->intensity
@@ -286,16 +290,22 @@ public class LIBSDataService {
                         continue;
                     }
                     double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-
+                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(interpolatedSpectrum, instrumentProfile.getScaleFactor());
                     // First time population of combined spectrum
+                    double weight = plasmaZones.get(i).getWeight();
                     if (combinedSpectrum.isEmpty()) {
-                        for (Double intensity: interpolatedSpectrum) {
-                            combinedSpectrum.add(intensity * zone.getWeight());
+                        for (Double intensity: scaledSpectrum) {
+                            combinedSpectrum.add(intensity * weight);
                         }
                     } else {
-                        for (int i = 0; i < combinedSpectrum.size(); i++) {
-                            combinedSpectrum.set(i, combinedSpectrum.get(i) + interpolatedSpectrum[i] * zone.getWeight());
+                        for (int j = 0; j < combinedSpectrum.size(); j++) {
+                            combinedSpectrum.set(j, combinedSpectrum.get(j) + scaledSpectrum.get(j) * weight);
                         }
+                    }
+
+                    // To go to the next variation
+                    if (i + 1 == plasmaZones.size()) {
+                        newVariation = true;
                     }
                 }
                 compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, combinedSpectrum);
@@ -352,7 +362,7 @@ public class LIBSDataService {
         if (instrumentProfile ==  null) {
             instrumentProfile = new InstrumentProfile(null, null, null);
                 PlasmaZone defaultPlasmaZone = new PlasmaZone(Double.parseDouble(config.plasmaTemp),
-                        Double.parseDouble(config.electronDensity));
+                        Double.parseDouble(config.electronDensity), 1.0);
             instrumentProfile.setZones(new  ArrayList<>(List.of(defaultPlasmaZone)));
         }
 

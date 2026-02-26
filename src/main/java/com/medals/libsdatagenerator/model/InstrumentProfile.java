@@ -211,6 +211,7 @@ public class InstrumentProfile {
         json.put("numShots", numShots);
         json.put("sourceFile", sourceFile);
         json.put("referenceComposition", referenceComposition);
+        json.put("scaleFactor", scaleFactor);
         if (plasmaParameters != null) {
             json.put("plasmaParameters", plasmaParameters.toJson());
         }
@@ -246,6 +247,7 @@ public class InstrumentProfile {
         profile.setNumShots(json.optInt("numShots"));
         profile.sourceFile = json.optString("sourceFile");
         profile.referenceComposition = json.optString("referenceComposition");
+        profile.scaleFactor = json.optDouble("scaleFactor");
 
         return profile;
     }
