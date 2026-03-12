@@ -5,14 +5,6 @@ All notable changes to the LIBS Data Generator project will be documented in thi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
-- **Debug Mode for Calibration**: `-d, --debug` option now available in calibration flow to visualise browser execution during NIST data fetching
-
-### Fixed
-- **Calibration Composition Handling**: Use `MaterialGrade` model for enhanced composition parsing in the calibration flow, improving consistency with the data generation workflow
-
 ## [0.9.5] - 2026-02-18
 
 ### Added
@@ -29,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Spectrum and Baseline Models**: Introduced `Spectrum` and `BaselineCorrectionParams` model classes for cleaner data handling
 - **CSV Delimiter Option**: New `-dl, --delimiter` CLI option for calibration to specify the delimiter used in input CSV files (default: `;`)
 - **EJML Dependency**: Added Efficient Java Matrix Library (EJML) for matrix operations required by baseline correction
-- **JaCoCo Code Coverage**: Added JaCoCo Maven plugin for test coverage reporting
+- **Debug Mode for Calibration**: `-d, --debug` option now available in calibration flow to visualise browser execution during NIST data fetching
 
 ### Changed
 - **InstrumentProfile Refactored**: Wavelength data now stored as `double[]` arrays instead of `List<Double>` for improved performance and memory efficiency
@@ -38,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **R² Calculation**: Corrected R-squared calculation logic; R² is now used alongside RMSE as an optimisation objective
 - **Spectrum Interpolation**: Fixed NIST hot and cold spectrum interpolation logic with the new `SpectrumUtils.interpolateSpectrum` method
+- **Calibration Composition Handling**: Use `MaterialGrade` model for enhanced composition parsing in the calibration flow, improving consistency with the data generation workflow
 
 ## [0.9.1–0.9.4] - 2026-02-07
 
