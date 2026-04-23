@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 public class SeleniumUtils {
 
     private static Logger logger = Logger.getLogger(SeleniumUtils.class.getName());
-    public static SeleniumUtils instance = null;
+    private static SeleniumUtils instance = null;
     private ChromeDriver driver;
     private ChromeOptions options;
     private boolean isDriverOnline = false;
@@ -146,6 +146,12 @@ public class SeleniumUtils {
      */
     public WebElement waitForElementPresent(By by) {
         return getWait().until(ExpectedConditions.presenceOfElementLocated(by));
+    }
+
+    public void resetSelenium(boolean debugMode) {
+        quitSelenium();
+        UserInputConfig.setDebugMode(debugMode);
+        instance = new SeleniumUtils();
     }
 
 }

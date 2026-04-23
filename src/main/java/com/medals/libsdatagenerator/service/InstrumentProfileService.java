@@ -103,8 +103,10 @@ public class InstrumentProfileService {
                 baselineCorrectedIntensities);
 
         // 4. Parse composition
+        UserInputConfig userInputs =new UserInputConfig();
+        userInputs.compositionInput = compositionString;
         MaterialGrade materialGrade = InputCompositionProcessor.getInstance()
-                .getMaterial(compositionString, null, Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
+                .getMaterial(userInputs, null, Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
         if (materialGrade.getComposition() == null) {
             throw new IllegalArgumentException("Invalid composition string: " + compositionString);
         }

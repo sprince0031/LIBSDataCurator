@@ -193,6 +193,18 @@ public class CmdlineParserUtil {
                 false,
                 LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_DESC);
 
+        // Individual material grade name (for single composition mode)
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_DESC);
+
+        // Individual material type (for single composition mode)
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 

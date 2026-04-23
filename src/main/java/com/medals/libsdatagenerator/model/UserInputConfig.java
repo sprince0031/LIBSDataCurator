@@ -18,7 +18,7 @@ import org.apache.commons.cli.CommandLine;
 public class UserInputConfig {
 
     // --- Input Modes ---
-    public final String compositionInput;
+    public String compositionInput;
     public final String overviewGuid;
     public final boolean isCompositionMode;
     public final boolean isSeriesMode;
@@ -55,7 +55,11 @@ public class UserInputConfig {
     public boolean genStats;
     public boolean noInstrumentProfile;
     private static boolean debugMode;
-    
+
+    // --- Miscellaneous Parameters ---
+    public String materialGrade;
+    public String materialType;
+
     /**
      * Default constructor for manual configuration.
      */
@@ -93,6 +97,9 @@ public class UserInputConfig {
         this.genStats = false;
         this.noInstrumentProfile = true;
         UserInputConfig.debugMode = false;
+
+        this.materialGrade = null;
+        this.materialType = null;
     }
 
     /**
@@ -154,6 +161,10 @@ public class UserInputConfig {
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
         this.noInstrumentProfile = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_SHORT);
         debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+
+        // Misc params
+        this.materialGrade = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT, null);
+        this.materialType = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT, null);
     }
 
     public static boolean debugModeEnabled() {

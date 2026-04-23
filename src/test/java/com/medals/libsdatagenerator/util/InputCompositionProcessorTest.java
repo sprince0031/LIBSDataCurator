@@ -2,11 +2,12 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -23,10 +24,16 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Comprehensive tests for InputCompositionProcessor
@@ -129,7 +136,9 @@ class InputCompositionProcessorTest {
     @Test
     void testGetMaterial_withCompositionString_overviewGuid() throws IOException {
         String overviewGuid = "12345678901234567890123456789012";
-        MaterialGrade result = processor.getMaterial("Fe-80,C-20", overviewGuid, 3);
+        UserInputConfig userInputs = new UserInputConfig();
+        userInputs.compositionInput = "Fe-80,C-20";
+        MaterialGrade result = processor.getMaterial(userInputs, overviewGuid, 3);
         
         assertNotNull(result);
 

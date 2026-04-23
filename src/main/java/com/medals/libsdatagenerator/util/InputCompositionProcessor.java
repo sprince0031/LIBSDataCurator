@@ -3,6 +3,7 @@ package com.medals.libsdatagenerator.util;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
@@ -264,26 +265,28 @@ public class InputCompositionProcessor {
     /**
      * Parses only single composition
      *
-     * @param userInput       either a direct composition string or a single matGUID
+     * @param userInput       full user input config
      * @param overviewGUID    user provided overviewGUID value, null if not provided
      * @param noDecimalPlaces number of decimal places to round element percentages to
      * @return materialGrade
      * @throws IOException Exception for invalid command line arguments
      */
-    public MaterialGrade getMaterial(String userInput, String overviewGUID, int noDecimalPlaces) throws IOException, RuntimeException {
+    public MaterialGrade getMaterial(UserInputConfig userInput, String overviewGUID, int noDecimalPlaces) throws IOException, RuntimeException {
         MaterialGrade materialGrade;
         List<String> compositionArray;
         String matGuid = null;
-        String materialName = null;
+        String compositionInput = userInput.compositionInput;
+        String materialName = userInput.materialGrade;
+        String materialType = userInput.materialType == null ? LIBSDataGenConstants.DIRECT_ENTRY : userInput.materialType;
         String[] materialAttributes = null;
-        SeriesInput seriesInput = new SeriesInput(LIBSDataGenConstants.DIRECT_ENTRY, null, overviewGUID);
-        if (COMPOSITION_STRING_PATTERN.matcher(userInput).matches()) {
-            compositionArray = Arrays.asList(userInput.split(","));
-        } else if (MATWEB_GUID_PATTERN.matcher(userInput).matches()) {
+        SeriesInput seriesInput = new SeriesInput(materialType, null, overviewGUID);
+        if (COMPOSITION_STRING_PATTERN.matcher(compositionInput).matches()) {
+            compositionArray = Arrays.asList(compositionInput.split(","));
+        } else if (MATWEB_GUID_PATTERN.matcher(compositionInput).matches()) {
             MatwebDataService matwebService = MatwebDataService.getInstance();
-            seriesInput.setIndividualMaterialGuids(Arrays.asList(userInput.split(","))); // Will only have a single GUID in array
-            matGuid = userInput;
-            compositionArray = matwebService.getMaterialComposition(userInput);
+            seriesInput.setIndividualMaterialGuids(Arrays.asList(compositionInput.split(","))); // Will only have a single GUID in array
+            matGuid = compositionInput;
+            compositionArray = matwebService.getMaterialComposition(compositionInput);
             if (!matwebService.validateMatwebServiceOutput(compositionArray, matGuid)) {
                 throw new RuntimeException("Unable to process Matweb GUID.");
             }

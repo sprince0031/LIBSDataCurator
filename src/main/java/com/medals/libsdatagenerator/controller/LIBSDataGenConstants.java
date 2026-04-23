@@ -178,6 +178,12 @@ public class LIBSDataGenConstants {
     NIST LIBS spectra according to the wavelength grid, intensity range and best n-zone fit. \
     Run the `calibrate` script to generate an instrument profile from measured spectra from your LIBS instrument. 
     """;
+    public static final String CMD_OPT_MATERIAL_GRADE_NAME_SHORT = "mg";
+    public static final String CMD_OPT_MATERIAL_GRADE_NAME_LONG = "material-grade";
+    public static final String CMD_OPT_MATERIAL_GRADE_NAME_DESC = "Material grade name for label column if running in single composition mode (-c).";
+    public static final String CMD_OPT_MATERIAL_TYPE_SHORT = "mt";
+    public static final String CMD_OPT_MATERIAL_TYPE_LONG = "material-type";
+    public static final String CMD_OPT_MATERIAL_TYPE_DESC = "Material type for label column if running in single composition mode (-c).";
 
     // Cmdline options for instrument profile calibration
     public static final String CMD_OPT_INPUT_SHORT = "i";
