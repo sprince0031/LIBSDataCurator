@@ -9,19 +9,24 @@ import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.service.MatwebDataService;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class InputCompositionProcessor {
 
@@ -29,6 +34,7 @@ public class InputCompositionProcessor {
     private static final Pattern MATWEB_GUID_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_GUID_REGEX);
     private static final Pattern COMPOSITION_STRING_PATTERN = Pattern.compile(LIBSDataGenConstants.INPUT_COMPOSITION_STRING_REGEX);
     private static final Pattern COATED_SERIES_PATTERN = Pattern.compile(LIBSDataGenConstants.COATED_SERIES_KEY_PATTERN);
+    private static final Log log = LogFactory.getLog(InputCompositionProcessor.class);
     private static boolean hasIndividualGuidsToProcess = false;
 
     private static InputCompositionProcessor instance = null;
@@ -181,12 +187,14 @@ public class InputCompositionProcessor {
     }
 
     public List<MaterialGrade> getMaterialsList(String userInput, int noDecimalPlaces) throws IOException {
-
+        CommonUtils commonUtils = new CommonUtils();
         MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
-
         List<MaterialGrade> materialGrades = new ArrayList<>();
-
         List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
+        Path matwebCachePath = Paths.get(CommonUtils.DATA_PATH, "matweb");
+        if(!Files.exists(matwebCachePath)) {
+            Files.createDirectories(matwebCachePath);
+        }
 
         // Calculate total number of materials to process for progress tracking
         int totalMaterials = 0;
@@ -207,8 +215,24 @@ public class InputCompositionProcessor {
                     + " individual material(s). Overview GUID for variations: "
                     + (series.getOverviewGuid() != null ? series.getOverviewGuid() : "N/A"));
 
-            // Fetch series statistics from overview datasheet
-            SeriesStatistics seriesStatistics = matwebService.getSeriesStatistics(series.getOverviewGuid());
+            // TODO: Test caching of series data
+            String seriesCache = String.format("%s.json", series.getOverviewGuid());
+            Path outputPath = matwebCachePath.resolve(seriesCache);
+            // Fetch series statistics from overview datasheet if not cached already
+            SeriesStatistics seriesStatistics = null;
+            if (Files.exists(outputPath)) {
+                try {
+                    seriesStatistics = commonUtils.loadModelFromFile(outputPath, SeriesStatistics.class);
+                } catch (Exception e) {
+                    logger.log(Level.WARNING, "Unable to read cached matweb overview statistics. Attempting to fetch from datasheet.", e);
+                }
+            }
+
+            if (seriesStatistics == null) { // reading cached stats failed
+                seriesStatistics = matwebService.getSeriesStatistics(series.getOverviewGuid());
+                // Cache stats to Json file
+                commonUtils.saveModelToFile(outputPath, seriesStatistics);
+            }
 
             for (String individualGuid : series.getIndividualMaterialGuids()) {
                 logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
@@ -250,7 +274,7 @@ public class InputCompositionProcessor {
                 materialGrade.setMaterialAttributes(materialAttributes);
                 materialGrade.setOverviewStatistics(seriesStatistics);
                 materialGrades.add(materialGrade);
-
+                // TODO: Cache material grade data
                 materialsProcessed++;
 
                 // Calculate and display progress

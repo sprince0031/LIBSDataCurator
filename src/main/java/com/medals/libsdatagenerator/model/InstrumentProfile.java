@@ -4,17 +4,12 @@ import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-public class InstrumentProfile {
+public class InstrumentProfile implements JsonModel {
     private String instrumentName;
     private double[] wavelengths;
     private PlasmaParameters plasmaParameters;
@@ -26,6 +21,9 @@ public class InstrumentProfile {
     private double scaleFactor; // Max intensity of averaged measured spectrum
     public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
             LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
+
+    // Constructor to load profile from JSON
+    public InstrumentProfile() {}
 
     // Constructor used in tests and spec
     public InstrumentProfile(String instrumentName, double[] wavelengths, PlasmaParameters plasmaParameters,
@@ -184,20 +182,7 @@ public class InstrumentProfile {
         calibrationStats.setRmse(rmse);
     }
 
-    public void saveToFile(Path path) throws IOException {
-        try (FileWriter writer = new FileWriter(path.toFile())) {
-            writer.write(this.toJson().toString(2));
-        }
-    }
-
-    public static InstrumentProfile loadFromFile(Path path) throws IOException {
-        try (FileReader reader = new FileReader(path.toFile())) {
-            JSONTokener tokener = new JSONTokener(reader);
-            JSONObject json = new JSONObject(tokener);
-            return fromJson(json);
-        }
-    }
-
+    @Override
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
         json.put("instrumentName", instrumentName);
@@ -224,31 +209,24 @@ public class InstrumentProfile {
         return json;
     }
 
-    public static InstrumentProfile fromJson(JSONObject json) {
-        if (json == null) {
-            return null;
-        }
-        String name = json.optString("instrumentName", "");
+    @Override
+    public void fromJson(JSONObject json) {
+        this.instrumentName = json.optString("instrumentName", "");
 
         JSONArray wavelengthsArray = json.optJSONArray("wavelengths");
-        double[] wavelengths = new double[wavelengthsArray != null ? wavelengthsArray.length() : 0];
+        this.wavelengths = new double[wavelengthsArray != null ? wavelengthsArray.length() : 0];
         if (wavelengthsArray != null) {
             for (int i = 0; i < wavelengthsArray.length(); i++) {
                 wavelengths[i] = wavelengthsArray.getDouble(i);
             }
         }
 
-        PlasmaParameters params = PlasmaParameters.fromJson(json.optJSONObject("plasmaParameters"));
-        CalibrationStats stats = CalibrationStats.fromJson(json.optJSONObject("calibrationStats"));
-        BaselineCorrectionParams baselineParams = BaselineCorrectionParams
-                .fromJson(json.optJSONObject("baselineCorrectionParams"));
-
-        InstrumentProfile profile = new InstrumentProfile(name, wavelengths, params, stats, baselineParams);
-        profile.setNumShots(json.optInt("numShots"));
-        profile.sourceFile = json.optString("sourceFile");
-        profile.referenceComposition = json.optString("referenceComposition");
-        profile.scaleFactor = json.optDouble("scaleFactor");
-
-        return profile;
+        this.plasmaParameters = PlasmaParameters.fromJson(json.optJSONObject("plasmaParameters"));
+        this.calibrationStats = CalibrationStats.fromJson(json.optJSONObject("calibrationStats"));
+        this.baselineParams = BaselineCorrectionParams.fromJson(json.optJSONObject("baselineCorrectionParams"));
+        this.numShots = json.optInt("numShots");
+        this.sourceFile = json.optString("sourceFile");
+        this.referenceComposition = json.optString("referenceComposition");
+        this.scaleFactor = json.optDouble("scaleFactor");
     }
 }

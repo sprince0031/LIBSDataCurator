@@ -65,7 +65,7 @@ public class LIBSDataController {
             if (!userInputs.noInstrumentProfile) {
                 Path instrumentProfilePath = Paths.get(InstrumentProfile.INSTRUMENT_PROFILE_PATH);
                 if (Files.exists(instrumentProfilePath)) {
-                    instrumentProfile = InstrumentProfile.loadFromFile(instrumentProfilePath);
+                    instrumentProfile = commonUtils.loadModelFromFile(instrumentProfilePath, InstrumentProfile.class);
                 } else {
                     logger.warning("No instrument profile found. Proceeding without instrument profile.");
                 }

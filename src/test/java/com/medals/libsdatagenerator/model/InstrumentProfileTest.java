@@ -1,10 +1,10 @@
 package com.medals.libsdatagenerator.model;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;

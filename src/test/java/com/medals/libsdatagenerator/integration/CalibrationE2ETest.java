@@ -56,7 +56,7 @@ public class CalibrationE2ETest {
 //        assertTrue(profile.getFitScore() <= 1.0, "Fit score should be <= 1.0");
 //
 //        // 5. Save and Verify JSON Output
-//        profile.saveToFile(outputProfilePath);
+//        profile.saveModelToFile(outputProfilePath);
 //        assertTrue(Files.exists(outputProfilePath), "Profile JSON should be created");
 //
 //        // 6. Verify Side-Effect Files in data/calibration

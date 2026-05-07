@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -168,12 +169,18 @@ public class InstrumentProfileServiceTest {
 
         // Save to file
         Path outputPath = tempDir.resolve("test_profile.json");
-        profile.saveToFile(outputPath);
+        CommonUtils commonUtils = new CommonUtils();
+        commonUtils.saveModelToFile(outputPath, profile);
 
         assertTrue(Files.exists(outputPath));
 
         // Load from file
-        InstrumentProfile loaded = InstrumentProfile.loadFromFile(outputPath);
+        InstrumentProfile loaded = null;
+        try {
+            loaded = commonUtils.loadModelFromFile(outputPath, InstrumentProfile.class);
+        } catch (Exception e) {
+            // Failed to load instrument profile. Will be caught by assertNotNull().
+        }
 
         assertNotNull(loaded);
         assertEquals("Test Spectrometer", loaded.getInstrumentName());

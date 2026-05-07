@@ -1,15 +1,19 @@
 package com.medals.libsdatagenerator.model;
 
+import org.json.JSONObject;
+
 /**
  * Represents statistical information for a single element from series overview data
  * @author Siddharth Prince | 02/06/25 15:00
  */
-public class ElementStatistics {
-    private final String elementSymbol;
-    private final double averagePercentage;
-    private final int gradeCount;
-    private final double minPercentage;
-    private final double maxPercentage;
+public class ElementStatistics implements JsonModel {
+    private String elementSymbol;
+    private double averagePercentage;
+    private int gradeCount;
+    private double minPercentage;
+    private double maxPercentage;
+
+    public ElementStatistics() {}; // Default constructor to load from Json
 
     public ElementStatistics(String elementSymbol, double averagePercentage, int gradeCount) {
         this.elementSymbol = elementSymbol;
@@ -58,6 +62,26 @@ public class ElementStatistics {
         // Base variance for proportion data: p(1-p), adjusted by sample count
         double baseVariance = proportion * (1 - proportion);
         return baseVariance / (gradeCount + 1);
+    }
+
+    @Override
+    public JSONObject toJson() {
+        JSONObject json = new JSONObject();
+        json.put("elementSymbol", this.elementSymbol);
+        json.put("averagePercentage", this.averagePercentage);
+        json.put("gradeCount", this.gradeCount);
+        json.put("minPercentage", this.minPercentage);
+        json.put("maxPercentage", this.maxPercentage);
+        return json;
+    }
+
+    @Override
+    public void fromJson(JSONObject json) {
+        this.elementSymbol = json.getString("elementSymbol");
+        this.averagePercentage = json.getDouble("averagePercentage");
+        this.gradeCount = json.getInt("gradeCount");
+        this.minPercentage = json.getDouble("minPercentage");
+        this.maxPercentage = json.getDouble("maxPercentage");
     }
 
     @Override

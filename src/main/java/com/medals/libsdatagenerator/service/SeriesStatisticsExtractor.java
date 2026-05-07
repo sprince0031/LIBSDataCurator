@@ -65,7 +65,7 @@ public class SeriesStatisticsExtractor {
                     elementSymbol, compositionRange, comment);
 
             if (elementStats != null) {
-                seriesStats.addElementStatistics(elementStats);
+                seriesStats.addElementStatisticsToComposition(elementStats);
                 logger.info("Extracted statistics for " + elementSymbol + ": " + elementStats);
             } else {
                 logger.warning("Could not extract statistics for element: " + elementSymbol +
