@@ -263,6 +263,7 @@ public class LIBSDataGenConstants {
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
     public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
     public static final String MATWEB_DATASHEET_TABLE_CSS_SELECTOR = "table.tabledataformat";
+    public static final String MATWEB_LOCAL_CACHE_FOLDER = "datasheets";
 
     /**
      * #### Archive.org Constants ####

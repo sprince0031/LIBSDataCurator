@@ -37,7 +37,8 @@ class InstrumentProfileTest {
                 json.getJSONObject("plasmaParameters").getJSONArray("zones").getJSONObject(0).getDouble("Te"));
 
         // Deserialize from JSON
-        InstrumentProfile deserializedProfile = InstrumentProfile.fromJson(json);
+        InstrumentProfile deserializedProfile = new InstrumentProfile();
+        deserializedProfile.fromJson(json);
         assertNotNull(deserializedProfile);
         assertEquals(instrumentName, deserializedProfile.getInstrumentName());
         assertArrayEquals(wavelengths, deserializedProfile.getWavelengthGrid());

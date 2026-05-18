@@ -74,7 +74,7 @@ public class SeriesStatisticsExtractor {
         }
 
         logger.info("Extracted statistics for " + seriesStats.getElementCount() + " elements");
-        logger.info("Total average percentage: " + seriesStats.getTotalAveragePercentage() + "%");
+        logger.info("Total average percentage: " + seriesStats.getEffectiveAveragePercentage() + "%");
 
         return seriesStats;
     }

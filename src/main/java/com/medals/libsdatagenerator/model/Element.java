@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.model;
 
 
 import com.medals.libsdatagenerator.util.CommonUtils;
+import org.json.JSONObject;
 
 import java.util.Objects;
 import java.util.logging.Logger;
@@ -11,17 +12,19 @@ import java.util.logging.Logger;
  * @author Siddharth Prince | 17/12/24 16:11
  */
 
-public class Element {
+public class Element implements JsonModel {
 
     private static Logger logger = Logger.getLogger(Element.class.getName());
 
-    private final String name;
-    private final String symbol;
+    private String name;
+    private String symbol;
     private Double percentageComposition;
     private Double min;
     private Double max;
     private Double averageComposition; // Average value from series overview (if available)
     public int numberDecimalPlaces = 3;
+
+    public Element() {}; // For loading from json file
 
     /**
      * Constructor for Element.
@@ -61,11 +64,6 @@ public class Element {
 
     private Double roundIfNotNull(Double value) {
         return (value != null) ? CommonUtils.roundToNDecimals(value, this.numberDecimalPlaces) : null;
-    }
-
-    @Override
-    public String toString() {
-        return this.symbol + ":" + this.percentageComposition;
     }
 
     public String getName() {
@@ -110,6 +108,39 @@ public class Element {
 
     public void setAverageComposition(Double averageComposition) {
         this.averageComposition = averageComposition;
+    }
+
+    @Override
+    public JSONObject toJson() {
+        JSONObject json =  new JSONObject();
+        json.put("name", name);
+        json.put("symbol", symbol);
+        json.put("percentageComposition", percentageComposition);
+        json.put("min", min);
+        json.put("max", max);
+        json.put("averageComposition", averageComposition);
+        return json;
+    }
+
+    @Override
+    public void fromJson(JSONObject json) {
+        this.name = json.getString("name");
+        this.symbol = json.getString("symbol");
+        this.percentageComposition = json.getDouble("percentageComposition");
+        if (json.has("averageComposition")) {
+            this.averageComposition = json.getDouble("averageComposition");
+        }
+        if (json.has("min")) {
+            this.min = json.getDouble("min");
+        }
+        if (json.has("max")) {
+            this.max = json.getDouble("max");
+        }
+    }
+
+    @Override
+    public String toString() {
+        return this.symbol + ":" + this.percentageComposition;
     }
 
     @Deprecated

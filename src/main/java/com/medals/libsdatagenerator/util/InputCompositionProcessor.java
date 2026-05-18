@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.JsonModel;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
@@ -191,7 +192,7 @@ public class InputCompositionProcessor {
         MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
         List<MaterialGrade> materialGrades = new ArrayList<>();
         List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
-        Path matwebCachePath = Paths.get(CommonUtils.DATA_PATH, "matweb");
+        Path matwebCachePath = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.MATWEB_LOCAL_CACHE_FOLDER);
         if(!Files.exists(matwebCachePath)) {
             Files.createDirectories(matwebCachePath);
         }
@@ -215,22 +216,15 @@ public class InputCompositionProcessor {
                     + " individual material(s). Overview GUID for variations: "
                     + (series.getOverviewGuid() != null ? series.getOverviewGuid() : "N/A"));
 
-            // TODO: Test caching of series data
-            String seriesCache = String.format("%s.json", series.getOverviewGuid());
-            Path outputPath = matwebCachePath.resolve(seriesCache);
             // Fetch series statistics from overview datasheet if not cached already
-            SeriesStatistics seriesStatistics = null;
-            if (Files.exists(outputPath)) {
-                try {
-                    seriesStatistics = commonUtils.loadModelFromFile(outputPath, SeriesStatistics.class);
-                } catch (Exception e) {
-                    logger.log(Level.WARNING, "Unable to read cached matweb overview statistics. Attempting to fetch from datasheet.", e);
-                }
-            }
+            SeriesStatistics seriesStatistics = loadCachedMaterialByGuid(matwebCachePath, series.getOverviewGuid(),
+                    SeriesStatistics.class);
 
             if (seriesStatistics == null) { // reading cached stats failed
                 seriesStatistics = matwebService.getSeriesStatistics(series.getOverviewGuid());
                 // Cache stats to Json file
+                String cacheFile = String.format("%s.json", series.getOverviewGuid());
+                Path outputPath = matwebCachePath.resolve(cacheFile);
                 commonUtils.saveModelToFile(outputPath, seriesStatistics);
             }
 
@@ -238,22 +232,9 @@ public class InputCompositionProcessor {
                 logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
 
                 // Check if this GUID has already been processed
-                MaterialGrade cachedMaterial = findMaterialByGuid(materialGrades, individualGuid);
-                List<Element> baseComposition;
-                int remainderElement;
-                String materialName;
-                String[] materialAttributes;
-
-                if (cachedMaterial != null) {
-                    logger.info("Material GUID: " + individualGuid + " already processed. Using cached data.");
-                    // Create a new MaterialGrade with the cached composition but current series context
-                    baseComposition = cachedMaterial.getComposition();
-                    remainderElement = cachedMaterial.getRemainderElementIdx();
-                    materialName = cachedMaterial.getMaterialName();
-                    materialAttributes = cachedMaterial.getMaterialAttributes();
-                } else {
+                MaterialGrade materialGrade = loadCachedMaterialByGuid(matwebCachePath, individualGuid, MaterialGrade.class);
+                if (materialGrade == null) {
                     List<String> compositionArray = matwebService.getMaterialComposition(individualGuid);
-
                     if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
                         materialsProcessed++;
                         // Update progress bar even for failed materials
@@ -261,20 +242,28 @@ public class InputCompositionProcessor {
                                 "materials processed. Current: " + LIBSDataService.getInstance().processSeriesKeyToMaterialType(series.getSeriesKey()), out);
                         continue;
                     }
-                    Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
-                    baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
-                    remainderElement = (int) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
-                    materialName = matwebService.getDatasheetName();
-                    materialAttributes = matwebService.getDatasheetAttributes();
-                }
 
-                MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
-                materialGrade.setRemainderElementIdx(remainderElement);
-                materialGrade.setMaterialName(materialName);
-                materialGrade.setMaterialAttributes(materialAttributes);
-                materialGrade.setOverviewStatistics(seriesStatistics);
+                    Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
+                    List<Element> baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
+                    materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
+
+                    int remainderElement = (int) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
+                    materialGrade.setRemainderElementIdx(remainderElement);
+
+                    String materialName = matwebService.getDatasheetName();
+                    materialGrade.setMaterialName(materialName);
+
+                    String[] materialAttributes = matwebService.getDatasheetAttributes();
+                    materialGrade.setMaterialAttributes(materialAttributes);
+
+                    materialGrade.setOverviewStatistics(seriesStatistics);
+
+                    // Caching new material's datasheet
+                    String cacheFile = String.format("%s.json", individualGuid);
+                    Path outputPath = matwebCachePath.resolve(cacheFile);
+                    commonUtils.saveModelToFile(outputPath, materialGrade);
+                }
                 materialGrades.add(materialGrade);
-                // TODO: Cache material grade data
                 materialsProcessed++;
 
                 // Calculate and display progress
@@ -330,31 +319,28 @@ public class InputCompositionProcessor {
     }
 
     /**
-     * Searches the provided list of cached {@link MaterialGrade} objects for a material with the specified GUID.
-     * <p>
-     * This method is a key part of the caching feature: it allows efficient lookup of a material by its unique identifier
-     * within the already-processed (cached) materials list, avoiding redundant data retrieval or processing.
-     * </p>
+     * Searches the {@code data/datasheets} directory for previously cached JSON files with datasheet information
+     * from matweb and loads it from file if found.
      *
-     * <b>Caching strategy:</b> The method assumes that {@code materialGrades} is a cache of previously processed materials.
-     * It performs a linear search for the given {@code guid}. If {@code guid} is {@code null}, the method returns {@code null}
-     * immediately, as no valid match can be found.
-     *
-     * @param materialGrades the list of cached {@link MaterialGrade} objects to search
-     * @param guid the material GUID to search for; if {@code null}, no match is possible
-     * @return the {@link MaterialGrade} with the matching GUID if found; {@code null} otherwise
+     * @param path Path to cache directory.
+     * @param guid the material GUID to search for; cache file name is saved as <GUID>.json
+     * @param jsonModel The specific class that implements {@link JsonModel} which can be loaded from file.
+     * @return the {@link JsonModel} type object with data loaded from JSON file if found; {@code null} otherwise.
      */
-    private MaterialGrade findMaterialByGuid(List<MaterialGrade> materialGrades, String guid) {
-        // If GUID is null, we can't find a meaningful match
+    private <T extends JsonModel> T loadCachedMaterialByGuid(Path path, String guid, Class<T> jsonModel) {
         if (guid == null) {
             return null;
         }
 
-        for (MaterialGrade material : materialGrades) {
-            if (guid.equals(material.getMatGUID())) {
-                return material;
-            }
+        try {
+            logger.info("Loading cached datasheet for GUID: " + guid);
+            String cacheFile = String.format("%s.json", guid);
+            Path outputPath = path.resolve(cacheFile);
+            return new CommonUtils().loadModelFromFile(outputPath, jsonModel);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Unable to read cached datasheet. Attempting to fetch from datasheet.", e);
         }
+
         return null;
     }
 

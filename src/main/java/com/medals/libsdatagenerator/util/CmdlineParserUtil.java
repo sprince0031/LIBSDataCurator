@@ -103,7 +103,7 @@ public class CmdlineParserUtil {
                 true,
                 LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_DESC);
 
-        // Data output path
+        // Master CSV data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,
                 true,

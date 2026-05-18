@@ -64,8 +64,10 @@ public class SeriesStatistics implements JsonModel {
     /**
      * Calculates the total average percentage (should be close to 100% for complete compositions)
      */
-    public double getTotalAveragePercentage() {
+    public double getEffectiveAveragePercentage() {
+        double threshold = getMaximumGradeCount() * 0.5;
         return compositionStatistics.values().stream()
+                .filter(stats -> stats.getGradeCount() > threshold)
                 .mapToDouble(ElementStatistics::getAveragePercentage)
                 .sum();
     }
@@ -99,8 +101,7 @@ public class SeriesStatistics implements JsonModel {
         }
 
         // Check that total percentage is reasonable (between 95% and 105% to allow for rounding)
-        // TODO: Overview sheet for Cu Alloy has too many elements resulting in a combined total of 208.30%
-        double totalPercentage = getTotalAveragePercentage();
+        double totalPercentage = getEffectiveAveragePercentage();
         if (totalPercentage < 95.0 || totalPercentage > 105.0) {
             return false;
         }
@@ -133,6 +134,7 @@ public class SeriesStatistics implements JsonModel {
     @Override
     public void fromJson(JSONObject json) {
         JSONObject compositionStatistics = json.getJSONObject("compositionStatistics");
+        this.compositionStatistics = new HashMap<>();
         for (String element: compositionStatistics.keySet()) {
             JSONObject stats = compositionStatistics.getJSONObject(element);
             ElementStatistics elementStatistics = new ElementStatistics();
@@ -147,7 +149,7 @@ public class SeriesStatistics implements JsonModel {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format("SeriesStatistics{series='%s', guid='%s', elements=%d, total=%.2f%%}\n",
-                seriesName, matwebGuid, getElementCount(), getTotalAveragePercentage()));
+                seriesName, matwebGuid, getElementCount(), getEffectiveAveragePercentage()));
 
         compositionStatistics.values().forEach(stats ->
                 sb.append("  ").append(stats.toString()).append("\n"));

@@ -267,16 +267,6 @@ public class ConcentrationParameterEstimator {
     }
 
     /**
-     * Estimates parameters using alternative maximum likelihood approach (for future enhancement)
-     */
-    public double[] estimateParametersML(SeriesStatistics statistics) {
-        // Placeholder for maximum likelihood estimation
-        // This could be implemented in future versions for improved accuracy
-        logger.info("Maximum likelihood estimation not yet implemented, using method of moments");
-        return estimateParameters(statistics);
-    }
-
-    /**
      * Validates that estimated parameters will produce reasonable samples
      */
     public boolean validateParameters(double[] alphas) {
@@ -293,8 +283,7 @@ public class ConcentrationParameterEstimator {
 
         // Check total concentration is reasonable
         double totalConcentration = Arrays.stream(alphas).sum();
-        if (totalConcentration < MIN_TOTAL_CONCENTRATION ||
-                totalConcentration > MAX_TOTAL_CONCENTRATION) {
+        if (totalConcentration < MIN_TOTAL_CONCENTRATION || totalConcentration > MAX_TOTAL_CONCENTRATION) {
             logger.warning("Total concentration outside reasonable range: " + totalConcentration);
             return false;
         }
