@@ -289,11 +289,13 @@ public class CmdlineParserUtil {
         delimiter.setRequired(false);
         options.addOption(delimiter);
 
-        // Composition (required)
+        // Composition (optional for directory mode; required for single-file mode - validated in controller)
         Option composition = new Option(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT,
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,
-                true, LIBSDataGenConstants.CMD_OPT_COMPOSITION_DESC);
-        composition.setRequired(true);
+                true,
+                "For single-file mode: composition string (e.g. \"Fe-80,C-20\"). "
+                + "For directory mode: path to reference_compositions.json (defaults to <input_dir>/reference_compositions.json).");
+        composition.setRequired(false);
         options.addOption(composition);
 
         // Output path (optional)

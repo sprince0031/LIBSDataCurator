@@ -4,6 +4,7 @@ import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,9 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for InstrumentProfileService.
@@ -234,5 +233,137 @@ public class InstrumentProfileServiceTest {
         // Check for plotting code presence
         assertTrue(content.contains("import matplotlib.pyplot as plt"));
         assertTrue(content.contains("plt.plot"));
+    }
+
+    @Test
+    void testBuildCompositionStringFromJson() {
+        // "#" value should produce "Fe-#"
+        JSONObject composition = new JSONObject();
+        composition.put("C", 0.279);
+        composition.put("Fe", "#");
+
+        String result = service.buildCompositionStringFromJson(composition);
+
+        assertNotNull(result);
+        // Both key-value pairs must be present
+        assertTrue(result.contains("C-0.279"), "Expected C-0.279 in: " + result);
+        assertTrue(result.contains("Fe-#"), "Expected Fe-# in: " + result);
+    }
+
+    @Test
+    void testBuildCompositionStringFromJsonMultipleElements() {
+        JSONObject composition = new JSONObject();
+        composition.put("C", 0.279);
+        composition.put("Si", 0.421);
+        composition.put("Cr", 11.93);
+        composition.put("Fe", "#");
+
+        String result = service.buildCompositionStringFromJson(composition);
+
+        assertNotNull(result);
+        assertTrue(result.contains("C-0.279"));
+        assertTrue(result.contains("Si-0.421"));
+        assertTrue(result.contains("Cr-11.93"));
+        assertTrue(result.contains("Fe-#"));
+        // Should be comma-separated without leading/trailing commas
+        assertFalse(result.startsWith(","));
+        assertFalse(result.endsWith(","));
+    }
+
+    // -----------------------------------------------------------------------
+    // findMaterialCsvFiles – flat layout
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testFindMaterialCsvFilesFlat() throws IOException {
+        // Flat layout: CSV files named <materialName>_LSA_*.csv
+        Files.writeString(tempDir.resolve("469_LSA_point1.csv"), "dummy");
+        Files.writeString(tempDir.resolve("469_LSA_point2.csv"), "dummy");
+        Files.writeString(tempDir.resolve("470_LSA_point1.csv"), "dummy");
+        Files.writeString(tempDir.resolve("readme.txt"), "ignore me");
+
+        List<Path> files469 = service.findMaterialCsvFiles(tempDir, "469", false);
+        List<Path> files470 = service.findMaterialCsvFiles(tempDir, "470", false);
+        List<Path> filesUnknown = service.findMaterialCsvFiles(tempDir, "999", false);
+
+        assertEquals(2, files469.size(), "Should find 2 CSVs for material 469");
+        assertEquals(1, files470.size(), "Should find 1 CSV for material 470");
+        assertEquals(0, filesUnknown.size(), "Should find 0 CSVs for unknown material");
+        // Non-csv file should be ignored
+        files469.forEach(p -> assertTrue(p.getFileName().toString().endsWith(".csv")));
+    }
+
+    @Test
+    void testFindMaterialCsvFilesFlatIgnoresNonCsv() throws IOException {
+        Files.writeString(tempDir.resolve("469_LSA_point1.csv"), "dummy");
+        Files.writeString(tempDir.resolve("469_LSA_readme.txt"), "ignore");
+        Files.writeString(tempDir.resolve("469_LSA_data.json"), "ignore");
+
+        List<Path> files = service.findMaterialCsvFiles(tempDir, "469", false);
+
+        assertEquals(1, files.size(), "Only the .csv file should be returned");
+    }
+
+    // -----------------------------------------------------------------------
+    // findMaterialCsvFiles – subdirectory layout
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testFindMaterialCsvFilesSubdir() throws IOException {
+        // Subdirectory layout: <sourceDir>/<materialName>/<anything>.csv
+        Path matDir = tempDir.resolve("469");
+        Files.createDirectories(matDir);
+        Files.writeString(matDir.resolve("shot1.csv"), "dummy");
+        Files.writeString(matDir.resolve("shot2.csv"), "dummy");
+        Files.writeString(matDir.resolve("notes.txt"), "ignore");
+
+        Path otherDir = tempDir.resolve("470");
+        Files.createDirectories(otherDir);
+        Files.writeString(otherDir.resolve("shot1.csv"), "dummy");
+
+        List<Path> files469 = service.findMaterialCsvFiles(tempDir, "469", true);
+        List<Path> files470 = service.findMaterialCsvFiles(tempDir, "470", true);
+        List<Path> filesUnknown = service.findMaterialCsvFiles(tempDir, "999", true);
+
+        assertEquals(2, files469.size(), "Should find 2 CSVs inside 469/ subdir");
+        assertEquals(1, files470.size(), "Should find 1 CSV inside 470/ subdir");
+        assertEquals(0, filesUnknown.size(), "Should find 0 CSVs for absent material");
+        files469.forEach(p -> assertTrue(p.getFileName().toString().endsWith(".csv")));
+    }
+
+    @Test
+    void testFindMaterialCsvFilesSubdirIgnoresNonCsv() throws IOException {
+        Path matDir = tempDir.resolve("551");
+        Files.createDirectories(matDir);
+        Files.writeString(matDir.resolve("reading.csv"), "dummy");
+        Files.writeString(matDir.resolve("metadata.json"), "ignore");
+
+        List<Path> files = service.findMaterialCsvFiles(tempDir, "551", true);
+
+        assertEquals(1, files.size(), "Only the .csv file should be returned");
+    }
+
+    // -----------------------------------------------------------------------
+    // generateProfileFromDirectory – reference_compositions.json missing
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testGenerateProfileFromDirectoryMissingRefFile() {
+        // No reference_compositions.json → should throw IOException
+        assertThrows(IOException.class, () ->
+            service.generateProfileFromDirectory(
+                tempDir, null, ";", "Test",
+                new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
+                2, false));
+    }
+
+    @Test
+    void testGenerateProfileFromDirectoryExplicitRefPathMissing() {
+        Path nonExistent = tempDir.resolve("custom_ref.json");
+        assertThrows(IOException.class, () ->
+            service.generateProfileFromDirectory(
+                tempDir, nonExistent, ";", "Test",
+                new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
+                2, false));
     }
 }
