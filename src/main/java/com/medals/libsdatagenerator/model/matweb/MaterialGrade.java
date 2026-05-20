@@ -27,7 +27,7 @@ public class MaterialGrade implements JsonModel {
     private SeriesInput parentSeries;
     private SeriesStatistics overviewStatistics;
 
-    public MaterialGrade() {}; // For loading from Json file
+    public MaterialGrade() {} // For loading from Json file
 
     public MaterialGrade(List<Element> composition, String matGUID, SeriesInput parentSeries) {
         this.composition = composition;

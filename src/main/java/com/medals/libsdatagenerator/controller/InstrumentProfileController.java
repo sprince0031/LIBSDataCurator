@@ -95,7 +95,7 @@ public class InstrumentProfileController {
 
                         // Save profile
                         Path outputFilePath = Paths.get(outputPath);
-                        new CommonUtils().saveModelToFile(outputFilePath, profile);
+                        CommonUtils.getInstance().saveModelToFile(outputFilePath, profile);
 
                         System.out.println();
                         System.out.println("=== Profile Generation Complete ===");

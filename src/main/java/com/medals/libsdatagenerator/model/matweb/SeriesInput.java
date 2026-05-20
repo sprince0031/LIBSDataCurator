@@ -18,7 +18,7 @@ public class SeriesInput implements JsonModel {
     private String overviewGuid;
     private Element coatingElement;
 
-    public SeriesInput() {}; // Default constructor to load from Json file
+    public SeriesInput() {} // Default constructor to load from Json file
 
     public SeriesInput(String seriesKey, List<String> individualMaterialGuids, String overviewGuid) {
         this.seriesKey = seriesKey;

@@ -49,7 +49,6 @@ public class LIBSDataService {
     private static Logger logger = Logger.getLogger(LIBSDataService.class.getName());
 
     public static LIBSDataService instance = null;
-    private final CommonUtils commonUtils = new CommonUtils();
     private boolean firstComposition = true;
     private boolean newVariation = true;
 
@@ -150,7 +149,7 @@ public class LIBSDataService {
                 logger.warning("Driver not online - falling back to server request");
                 Map<String, String> queryParams = processLIBSQueryParams(composition, config);
                 seleniumUtils.connectToWebsite(
-                        commonUtils.getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
+                        CommonUtils.getInstance().getUrl(LIBSDataGenConstants.NIST_LIBS_QUERY_URL_BASE, queryParams)
                 );
             }
             NISTUtils nistUtils = new NISTUtils(seleniumUtils);
@@ -261,7 +260,7 @@ public class LIBSDataService {
 
                 // Fetch CSV data from NIST
                 String csvData;
-                String compositionId = commonUtils.buildCompositionStringForFilename(composition);
+                String compositionId = CommonUtils.getInstance().buildCompositionStringForFilename(composition);
 
                 logger.info("Applying instrument profile to synthetic spectra for " + compositionId);
                 List<Double> combinedSpectrum = new ArrayList<>();
@@ -356,7 +355,8 @@ public class LIBSDataService {
         }
     }
 
-    public void generateDataset(List<MaterialGrade> materialGrades, UserInputConfig config, InstrumentProfile instrumentProfile) {
+    public void generateDataset(List<MaterialGrade> materialGrades, UserInputConfig config,
+                                InstrumentProfile instrumentProfile) throws Exception {
 
         // Initialise instrument profile with single default plasma zone if no config file present
         if (instrumentProfile ==  null) {
@@ -376,7 +376,7 @@ public class LIBSDataService {
                     if (materialGrade.getParentSeries().getOverviewGuid() == null) {
                         System.out.println("Please provide an overview GUID to generate variations.");
                         logger.severe("Overview GUID not present for Dirichlet sampling for "
-                                + commonUtils.buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
+                                + CommonUtils.getInstance().buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
                         continue;
                     }
                 }

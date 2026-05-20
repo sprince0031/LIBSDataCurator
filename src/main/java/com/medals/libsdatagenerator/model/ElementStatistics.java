@@ -13,7 +13,7 @@ public class ElementStatistics implements JsonModel {
     private double minPercentage;
     private double maxPercentage;
 
-    public ElementStatistics() {}; // Default constructor to load from Json
+    public ElementStatistics() {} // Default constructor to load from Json
 
     public ElementStatistics(String elementSymbol, double averagePercentage, int gradeCount) {
         this.elementSymbol = elementSymbol;
@@ -50,18 +50,6 @@ public class ElementStatistics implements JsonModel {
 
     public double getMaxPercentage() {
         return maxPercentage;
-    }
-
-    /**
-     * Estimates variance based on grade count using empirical relationship
-     * Higher grade counts typically indicate lower variance
-     */
-    public double getEstimatedVariance() {
-        double proportion = averagePercentage / 100.0;
-        // Use empirical relationship: variance decreases with sample size
-        // Base variance for proportion data: p(1-p), adjusted by sample count
-        double baseVariance = proportion * (1 - proportion);
-        return baseVariance / (gradeCount + 1);
     }
 
     @Override

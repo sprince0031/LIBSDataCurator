@@ -15,7 +15,7 @@ public class SeriesStatistics implements JsonModel {
     private String seriesName;
     private String matwebGuid;
 
-    public SeriesStatistics() {}; // Default constructor to load from Json
+    public SeriesStatistics() {} // Default constructor to load from Json
 
     public SeriesStatistics(String seriesName, String matwebGuid) {
         this.seriesName = seriesName;

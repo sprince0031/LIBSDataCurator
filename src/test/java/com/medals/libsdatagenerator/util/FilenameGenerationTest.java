@@ -14,7 +14,7 @@ class FilenameGenerationTest {
     
     @BeforeEach
     void setUp() {
-        commonUtils = new CommonUtils();
+        commonUtils = CommonUtils.getInstance();
     }
     
     @Test

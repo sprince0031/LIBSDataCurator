@@ -153,7 +153,7 @@ public class InstrumentProfileServiceTest {
     }
 
     @Test
-    void testProfileSaveAndLoad() throws IOException {
+    void testProfileSaveAndLoad() throws Exception {
         // Create a profile
         double[] wavelengths = new double[] { 250.0, 260.0, 270.0, 280.0, 290.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "test.csv", "Fe-98.0,C-2.0");
@@ -169,18 +169,13 @@ public class InstrumentProfileServiceTest {
 
         // Save to file
         Path outputPath = tempDir.resolve("test_profile.json");
-        CommonUtils commonUtils = new CommonUtils();
-        commonUtils.saveModelToFile(outputPath, profile);
+        CommonUtils.getInstance().saveModelToFile(outputPath, profile);
 
         assertTrue(Files.exists(outputPath));
 
         // Load from file
         InstrumentProfile loaded = null;
-        try {
-            loaded = commonUtils.loadModelFromFile(outputPath, InstrumentProfile.class);
-        } catch (Exception e) {
-            // Failed to load instrument profile. Will be caught by assertNotNull().
-        }
+        loaded = CommonUtils.getInstance().loadModelFromFile(outputPath, InstrumentProfile.class);
 
         assertNotNull(loaded);
         assertEquals("Test Spectrometer", loaded.getInstrumentName());

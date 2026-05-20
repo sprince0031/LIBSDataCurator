@@ -92,7 +92,8 @@ class InputCompositionProcessorTest {
         String overviewGuid = "12345678901234567890123456789012";
         UserInputConfig userInputs = new UserInputConfig();
         userInputs.compositionInput = "Fe-80,C-20";
-        MaterialGrade result = processor.getMaterial(userInputs, overviewGuid, 3);
+        userInputs.overviewGuid = overviewGuid;
+        MaterialGrade result = processor.getMaterial(userInputs);
         
         assertNotNull(result);
 

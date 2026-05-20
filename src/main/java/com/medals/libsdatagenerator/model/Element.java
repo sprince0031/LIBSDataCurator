@@ -22,9 +22,9 @@ public class Element implements JsonModel {
     private Double min;
     private Double max;
     private Double averageComposition; // Average value from series overview (if available)
-    public int numberDecimalPlaces = 3;
+    private static int numberDecimalPlaces = 3;
 
-    public Element() {}; // For loading from json file
+    public Element() {} // For loading from json file
 
     /**
      * Constructor for Element.
@@ -63,7 +63,7 @@ public class Element implements JsonModel {
     }
 
     private Double roundIfNotNull(Double value) {
-        return (value != null) ? CommonUtils.roundToNDecimals(value, this.numberDecimalPlaces) : null;
+        return (value != null) ? CommonUtils.roundToNDecimals(value, numberDecimalPlaces) : null;
     }
 
     public String getName() {
@@ -110,6 +110,14 @@ public class Element implements JsonModel {
         this.averageComposition = averageComposition;
     }
 
+    public int getNumberDecimalPlaces() {
+        return numberDecimalPlaces;
+    }
+
+    public static void setNumberDecimalPlaces(int numberDecimalPlaces) {
+        Element.numberDecimalPlaces = numberDecimalPlaces;
+    }
+
     @Override
     public JSONObject toJson() {
         JSONObject json =  new JSONObject();
@@ -127,13 +135,13 @@ public class Element implements JsonModel {
         this.name = json.getString("name");
         this.symbol = json.getString("symbol");
         this.percentageComposition = json.getDouble("percentageComposition");
-        if (json.has("averageComposition")) {
+        if (json.has("averageComposition") && !json.isNull("averageComposition")) {
             this.averageComposition = json.getDouble("averageComposition");
         }
-        if (json.has("min")) {
+        if (json.has("min") && !json.isNull("min")) {
             this.min = json.getDouble("min");
         }
-        if (json.has("max")) {
+        if (json.has("max") && !json.isNull("max")) {
             this.max = json.getDouble("max");
         }
     }
@@ -141,23 +149,5 @@ public class Element implements JsonModel {
     @Override
     public String toString() {
         return this.symbol + ":" + this.percentageComposition;
-    }
-
-    @Deprecated
-    public int getNumberDecimalPlaces() {
-        return numberDecimalPlaces;
-    }
-
-    @Deprecated
-    public void setNumberDecimalPlaces(int numberDecimalPlaces) {
-        // Ensure rounding happens if decimal places change
-        int oldDecimalPlaces = this.numberDecimalPlaces;
-        this.numberDecimalPlaces = numberDecimalPlaces;
-        if (oldDecimalPlaces != numberDecimalPlaces) {
-            this.percentageComposition = roundIfNotNull(this.percentageComposition);
-            this.min = roundIfNotNull(this.min);
-            this.max = roundIfNotNull(this.max);
-            this.averageComposition = roundIfNotNull(this.averageComposition);
-        }
     }
 }
