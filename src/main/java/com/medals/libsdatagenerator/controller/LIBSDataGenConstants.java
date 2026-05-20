@@ -175,7 +175,7 @@ public class LIBSDataGenConstants {
     // Cmdline options for instrument profile calibration
     public static final String CMD_OPT_INPUT_SHORT = "i";
     public static final String CMD_OPT_INPUT_LONG = "input";
-    public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
+    public static final String CMD_OPT_INPUT_DESC = "Path to a sample LIBS measurement CSV file, or a directory containing measurement CSVs organised by material";
     public static final String CMD_OPT_DELIMITER_SHORT = "dl";
     public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
     public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";
@@ -265,6 +265,8 @@ public class LIBSDataGenConstants {
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
     public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
     public static final String INSTRUMENT_PROFILE_JSON_FILE = "instrument_profile.json";
+    public static final String REFERENCE_COMPOSITIONS_DEFAULT_FILE = "reference_compositions.json";
+    public static final String MATERIAL_NAME_CSV_SEPARATOR = "_LSA_";
     // Calibration report template placeholders
     public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
     public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";

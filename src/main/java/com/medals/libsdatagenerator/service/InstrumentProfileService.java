@@ -18,6 +18,8 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -31,10 +33,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Stream;
 
 /**
  * Service for generating instrument profiles from real LIBS measurement data.
@@ -412,6 +416,52 @@ public class InstrumentProfileService {
     private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
             MaterialGrade composition, int plasmaZones, boolean debugMode) {
 
+        Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
+        Path zonesCsvPath = calibDir.resolve("best_zones.csv");
+
+        try {
+            ZoneEstimationResult result = estimateZones(processedMeasuredSpectrum, composition,
+                    plasmaZones, debugMode, calibDir, zonesCsvPath);
+            profile.setZones(result.zones);
+            profile.setRmse(result.rmse);
+            profile.setRSquaredValue(result.rSquared);
+            profile.setScaleFactor(result.scaleFactor);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Grid search optimization failed", e);
+        } finally {
+            SeleniumUtils.getInstance().quitSelenium();
+        }
+    }
+
+    /**
+     * Holder class for the result returned by {@link #estimateZones}.
+     */
+    private static class ZoneEstimationResult {
+        List<PlasmaZone> zones = new ArrayList<>();
+        double rmse = Double.MAX_VALUE;
+        double rSquared = Double.MIN_VALUE;
+        double scaleFactor = 1.0;
+    }
+
+    /**
+     * Core grid-search routine.  Fetches synthetic spectra from NIST LIBS,
+     * finds the best-fit plasma-zone combination for the supplied measured
+     * spectrum, saves the target and per-material zone CSVs, and returns the
+     * result without touching any {@link InstrumentProfile} object.
+     *
+     * @param processedMeasuredSpectrum Baseline-corrected average spectrum
+     * @param composition               Material composition
+     * @param plasmaZones               Number of plasma zones
+     * @param debugMode                 Show Selenium browser if true
+     * @param calibDir                  Directory in which target_processed.csv is saved
+     * @param zonesCsvPath              Path where the best-zones CSV is written
+     * @return A {@link ZoneEstimationResult} with zones, RMSE, R², and scale factor
+     * @throws Exception if the grid search fails unrecoverably
+     */
+    private ZoneEstimationResult estimateZones(Spectrum processedMeasuredSpectrum,
+            MaterialGrade composition, int plasmaZones, boolean debugMode,
+            Path calibDir, Path zonesCsvPath) throws Exception {
+
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
 
@@ -419,8 +469,8 @@ public class InstrumentProfileService {
 
         // Configuration for fetching
         UserInputConfig config = new UserInputConfig();
-        config.minWavelength = String.valueOf(profile.getMinWavelength());
-        config.maxWavelength = String.valueOf(profile.getMaxWavelength());
+        config.minWavelength = String.valueOf(wavelengthGrid[0]);
+        config.maxWavelength = String.valueOf(wavelengthGrid[wavelengthGrid.length - 1]);
         config.resolution = "1000";
         UserInputConfig.setDebugMode(debugMode);
 
@@ -430,7 +480,6 @@ public class InstrumentProfileService {
 
         // Normalization for RMSE calculation
         double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
-        profile.setScaleFactor(maxMeasuredIntensity);
         if (maxMeasuredIntensity == 0)
             maxMeasuredIntensity = 1.0;
         double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
@@ -442,83 +491,417 @@ public class InstrumentProfileService {
         Map<String, double[]> spectrumCache = new HashMap<>();
         PrintStream out = System.out;
 
-        try {
-            // Setup output directories
-            Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
-            Files.createDirectories(calibDir);
+        // Setup output directories
+        Files.createDirectories(calibDir);
 
-            // Save Target Spectrum
-            Path targetPath = calibDir.resolve("target_processed.csv");
-            saveSpectrumToCsv(targetPath, wavelengthGrid, measuredIntensities);
+        // Save Target Spectrum
+        Path targetPath = calibDir.resolve("target_processed.csv");
+        saveSpectrumToCsv(targetPath, wavelengthGrid, measuredIntensities);
 
-            // Pre-fetch all necessary spectra
-            logger.info("Starting grid search...");
-            int i = 0;
-            int gridSize = teValues.length * neExponents.length;
-            for (double te : teValues) {
-                for (double neExp : neExponents) {
-                    double ne = Math.pow(10, neExp);
-                    String key = String.format("%.2f_%.2e", te, ne);
+        // Pre-fetch all necessary spectra
+        logger.info("Starting grid search...");
+        int i = 0;
+        int gridSize = teValues.length * neExponents.length;
+        for (double te : teValues) {
+            for (double neExp : neExponents) {
+                double ne = Math.pow(10, neExp);
+                String key = String.format("%.2f_%.2e", te, ne);
 
-                    if (spectrumCache.containsKey(key))
-                        continue;
+                if (spectrumCache.containsKey(key))
+                    continue;
 
-                    logger.info("Fetching spectrum for " + key);
-                    String csvData = LIBSDataService.getInstance().fetchPlasmaZoneSpectrum(
-                            composition.getComposition(), config, te, ne, composition.getRemainderElementIdx());
+                logger.info("Fetching spectrum for " + key);
+                String csvData = LIBSDataService.getInstance().fetchPlasmaZoneSpectrum(
+                        composition.getComposition(), config, te, ne, composition.getRemainderElementIdx());
 
-                    if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
-                        Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, WavelengthUnit.NANOMETER.getUnitString());
-                        double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
-                        // Store NON-NORMALIZED spectrum in cache for final combination
-                        spectrumCache.put(key, spectrum);
-                    }
-                    CommonUtils.printProgressBar(i + 1, gridSize, "spectra fetched from NIST LIBS db", out);
-                    i++;
+                if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
+                    Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, WavelengthUnit.NANOMETER.getUnitString());
+                    double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
+                    spectrumCache.put(key, spectrum);
                 }
-            }
-            CommonUtils.finishProgressBar(gridSize, out);
-
-            // normalize cached spectra for optimization comparison
-            Map<String, double[]> normalizedSpectrumCache = new HashMap<>();
-            i = 0;
-            for (Map.Entry<String, double[]> entry : spectrumCache.entrySet()) {
-                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normaliseSpectrum(entry.getValue()));
-                CommonUtils.printProgressBar(i + 1, gridSize, "Spectra normalised", out);
+                CommonUtils.printProgressBar(i + 1, gridSize, "spectra fetched from NIST LIBS db", out);
                 i++;
             }
-            CommonUtils.finishProgressBar(gridSize, out);
+        }
+        CommonUtils.finishProgressBar(gridSize, out);
 
-            // Recursive Grid Search
-            OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
-                    normalizedSpectrumCache, normalisedMeasuredSpectrum);
+        // normalize cached spectra for optimization comparison
+        Map<String, double[]> normalizedSpectrumCache = new HashMap<>();
+        i = 0;
+        for (Map.Entry<String, double[]> entry : spectrumCache.entrySet()) {
+            normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normaliseSpectrum(entry.getValue()));
+            CommonUtils.printProgressBar(i + 1, gridSize, "Spectra normalised", out);
+            i++;
+        }
+        CommonUtils.finishProgressBar(gridSize, out);
 
-            // Update profile with best parameters
-            List<PlasmaZone> zones = new ArrayList<>();
-            for (i = 0; i < bestResult.parameters.size(); i++) {
-                ZoneParams params = bestResult.parameters.get(i);
-                double weight = bestResult.weights.get(i);
-                zones.add(new PlasmaZone(params.te, params.ne, weight));
+        // Recursive Grid Search
+        OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
+                normalizedSpectrumCache, normalisedMeasuredSpectrum);
+
+        // Build result
+        ZoneEstimationResult result = new ZoneEstimationResult();
+        result.scaleFactor = maxMeasuredIntensity;
+        result.rmse = bestResult.rmse;
+        result.rSquared = bestResult.rSquared;
+
+        List<PlasmaZone> zones = new ArrayList<>();
+        for (i = 0; i < bestResult.parameters.size(); i++) {
+            ZoneParams params = bestResult.parameters.get(i);
+            double weight = bestResult.weights.get(i);
+            zones.add(new PlasmaZone(params.te, params.ne, weight));
+        }
+        result.zones = zones;
+
+        logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
+
+        // Save Best Zones and Spectra to CSV
+        if (zonesCsvPath != null) {
+            saveZonesToCsv(zonesCsvPath, zones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
+        }
+
+        return result;
+    }
+
+    // -------------------------------------------------------------------------
+    // Directory-based profile generation
+    // -------------------------------------------------------------------------
+
+    /**
+     * Generates an instrument profile by recursively processing all CSV files
+     * found under {@code dirPath}.  The reference compositions for each material
+     * are read from a JSON file whose location is determined by
+     * {@code refCompositionsPath} (defaults to
+     * {@code <dirPath>/reference_compositions.json} when {@code null}).
+     *
+     * <p>The data directory structure can be either:
+     * <ul>
+     *   <li><b>Flat</b> – CSV files live directly in {@code dirPath} and are
+     *       named {@code <materialName>_LSA_*.csv}.</li>
+     *   <li><b>Subdirectory</b> – {@code dirPath} contains one sub-directory
+     *       per material (named after the material).  All CSVs inside a
+     *       sub-directory represent different measurement points on the same
+     *       material.</li>
+     * </ul>
+     *
+     * <p>For each material the full current single-material flow is executed
+     * (averaging → baseline correction → grid search).  Per-material best-zones
+     * CSVs are saved as {@code <materialName>_best_zones.csv} inside the
+     * calibration output directory.  At the end, plasma parameters are averaged
+     * <em>per zone</em> to produce the final profile.
+     *
+     * @param dirPath              Root data directory
+     * @param refCompositionsPath  Path to {@code reference_compositions.json},
+     *                             or {@code null} to use the default location
+     * @param delimiter            CSV delimiter used in the measurement files
+     * @param instrumentName       Name/identifier for the instrument
+     * @param baselineParams       Baseline-correction parameters
+     * @param plasmaZones          Number of plasma zones
+     * @param debugMode            Show Selenium browser window if true
+     * @return The generated {@link InstrumentProfile} with zone-averaged plasma parameters
+     * @throws IOException if the reference-compositions file is missing, or no
+     *                     material could be processed
+     */
+    public InstrumentProfile generateProfileFromDirectory(
+            Path dirPath,
+            Path refCompositionsPath,
+            String delimiter,
+            String instrumentName,
+            BaselineCorrectionParams baselineParams,
+            int plasmaZones,
+            boolean debugMode) throws IOException {
+
+        logger.info("Generating instrument profile from directory: " + dirPath);
+
+        // Resolve reference compositions file
+        if (refCompositionsPath == null) {
+            refCompositionsPath = dirPath.resolve(LIBSDataGenConstants.REFERENCE_COMPOSITIONS_DEFAULT_FILE);
+        }
+        if (!Files.exists(refCompositionsPath)) {
+            String msg = "Reference compositions file not found: " + refCompositionsPath
+                    + ". Cannot proceed without material composition data.";
+            logger.severe(msg);
+            System.out.println("Error: " + msg);
+            throw new IOException(msg);
+        }
+
+        // Parse reference_compositions.json
+        String jsonContent = Files.readString(refCompositionsPath);
+        JSONObject rootJson = new JSONObject(jsonContent);
+        JSONArray materialCompositions = rootJson.optJSONArray("materialCompositions");
+        if (materialCompositions == null || materialCompositions.isEmpty()) {
+            throw new IOException("No 'materialCompositions' array found in " + refCompositionsPath);
+        }
+
+        // Decide which discovery strategy to use for this data directory
+        boolean hasSubdirs = hasSubdirectories(dirPath);
+        logger.info("Data directory " + (hasSubdirs ? "has" : "does not have") + " material subdirectories");
+
+        // Master state across all materials
+        Map<Integer, List<PlasmaZone>> zonesPerIndex = new HashMap<>();
+        List<Double> rmseValues = new ArrayList<>();
+        List<Double> rSquaredValues = new ArrayList<>();
+        double[] masterWavelengthGrid = null;
+        int totalShots = 0;
+        int materialsProcessed = 0;
+
+        SpectrumUtils spectrumUtils = new SpectrumUtils();
+        Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
+        Files.createDirectories(calibDir);
+
+        // Iterate over material types
+        for (int typeIdx = 0; typeIdx < materialCompositions.length(); typeIdx++) {
+            JSONObject materialTypeEntry = materialCompositions.getJSONObject(typeIdx);
+            String materialType = materialTypeEntry.optString("materialType", "Unknown");
+            JSONArray materials = materialTypeEntry.optJSONArray("materials");
+
+            if (materials == null || materials.isEmpty()) {
+                logger.warning("No 'materials' array found in material type '" + materialType + "'. Skipping.");
+                continue;
             }
 
-            profile.setZones(zones);
-            profile.setRmse(bestResult.rmse);
-            profile.setRSquaredValue(bestResult.rSquared);
-            profile.setScaleFactor(maxMeasuredIntensity);
+            // Iterate over individual materials within this type
+            for (int matIdx = 0; matIdx < materials.length(); matIdx++) {
+                JSONObject materialEntry = materials.getJSONObject(matIdx);
+                String materialName = materialEntry.optString("materialName", null);
 
-            logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
+                if (materialName == null || materialName.isBlank()) {
+                    logger.warning("Material entry at index " + matIdx + " in type '"
+                            + materialType + "' has no materialName. Skipping.");
+                    continue;
+                }
 
-            // Save Best Zones and Spectra to Single CSV
-            Path zonesCsvPath = calibDir.resolve("best_zones.csv");
+                logger.info("Processing material: " + materialName + " (" + materialType + ")");
+                System.out.println("Processing material: " + materialName + " ...");
 
-            // Saving normalized * maxMeasured to scale synthetic spectrum close to measured spectrum
-            saveZonesToCsv(zonesCsvPath, zones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
+                try {
+                    // Discover CSV files for this material
+                    List<Path> csvFiles = findMaterialCsvFiles(dirPath, materialName, hasSubdirs);
 
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Grid search optimization failed", e);
-        } finally {
-            SeleniumUtils.getInstance().quitSelenium();
+                    if (csvFiles.isEmpty()) {
+                        logger.warning("No CSV files found for material '" + materialName + "'. Skipping.");
+                        System.out.println("  Warning: no CSV files found for '" + materialName + "'.");
+                        continue;
+                    }
+                    logger.info("Found " + csvFiles.size() + " CSV file(s) for material: " + materialName);
+
+                    // Extract wavelength grid from first CSV
+                    double[] wavelengthGrid = extractWavelengthGrid(csvFiles.get(0), delimiter);
+                    if (wavelengthGrid.length == 0) {
+                        logger.warning("Failed to extract wavelength grid for material '"
+                                + materialName + "'. Skipping.");
+                        continue;
+                    }
+                    if (masterWavelengthGrid == null) {
+                        masterWavelengthGrid = wavelengthGrid;
+                    }
+
+                    // Collect all spectra from every CSV belonging to this material
+                    List<double[]> allSpectra = new ArrayList<>();
+                    for (Path csvFile : csvFiles) {
+                        try {
+                            allSpectra.addAll(extractMeasuredSpectra(csvFile, wavelengthGrid, delimiter));
+                        } catch (IOException e) {
+                            logger.warning("Could not read '" + csvFile + "' for material '"
+                                    + materialName + "': " + e.getMessage());
+                        }
+                    }
+                    if (allSpectra.isEmpty()) {
+                        logger.warning("No spectra could be extracted for material '"
+                                + materialName + "'. Skipping.");
+                        continue;
+                    }
+                    totalShots += allSpectra.size();
+
+                    // Average all spectra for this material
+                    double[] avgSpectrum = spectrumUtils.calculateAverageSpectrum(allSpectra);
+
+                    // Clip spectrum to valid LIBS range
+                    Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgSpectrum);
+
+                    // Baseline correction
+                    double[] baselineCorrected = BaselineCorrectionService.getInstance().correctBaseline(
+                            clippedSpectrum.getIntensities(),
+                            baselineParams.getLambda(),
+                            baselineParams.getP(),
+                            baselineParams.getMaxIterations());
+                    Spectrum processedSpectrum = new Spectrum(
+                            clippedSpectrum.getWavelengths(), baselineCorrected);
+
+                    // Build composition string from JSON and parse it
+                    JSONObject compositionJson = materialEntry.optJSONObject("composition");
+                    if (compositionJson == null) {
+                        logger.warning("No 'composition' object for material '"
+                                + materialName + "'. Skipping.");
+                        continue;
+                    }
+                    String compositionString = buildCompositionStringFromJson(compositionJson);
+
+                    UserInputConfig userInputConfig = new UserInputConfig();
+                    userInputConfig.compositionInput = compositionString;
+                    MaterialGrade materialGrade = InputCompositionProcessor.getInstance()
+                            .getMaterial(userInputConfig);
+                    materialGrade.setMaterialName(materialName);
+
+                    if (materialGrade.getComposition() == null) {
+                        logger.warning("Could not parse composition for material '"
+                                + materialName + "'. Skipping.");
+                        continue;
+                    }
+
+                    // Run grid-search optimisation; save per-material zones CSV
+                    Path matZonesCsvPath = calibDir.resolve(materialName + "_best_zones.csv");
+                    ZoneEstimationResult result = estimateZones(
+                            processedSpectrum, materialGrade, plasmaZones,
+                            debugMode, calibDir, matZonesCsvPath);
+
+                    // Accumulate zones per zone index (never mix zones from different indices)
+                    for (int zoneIdx = 0; zoneIdx < result.zones.size(); zoneIdx++) {
+                        zonesPerIndex
+                                .computeIfAbsent(zoneIdx, k -> new ArrayList<>())
+                                .add(result.zones.get(zoneIdx));
+                    }
+                    rmseValues.add(result.rmse);
+                    rSquaredValues.add(result.rSquared);
+                    materialsProcessed++;
+
+                    logger.info("Successfully processed material: " + materialName);
+                    System.out.println("  Done: " + materialName);
+
+                } catch (Exception e) {
+                    String msg = "Error processing material '" + materialName + "': " + e.getMessage();
+                    logger.log(Level.WARNING, msg, e);
+                    System.out.println("  Warning: " + msg + ". Continuing with next material.");
+                } finally {
+                    SeleniumUtils.getInstance().quitSelenium();
+                }
+            }
         }
+
+        if (materialsProcessed == 0) {
+            throw new IOException(
+                    "No materials could be processed from directory: " + dirPath
+                    + ". Check that reference_compositions.json matches the data files.");
+        }
+
+        // Average plasma parameters per zone
+        List<PlasmaZone> averagedZones = new ArrayList<>();
+        for (int zoneIdx = 0; zoneIdx < plasmaZones; zoneIdx++) {
+            List<PlasmaZone> zoneList = zonesPerIndex.get(zoneIdx);
+            if (zoneList != null && !zoneList.isEmpty()) {
+                double avgTe = zoneList.stream().mapToDouble(PlasmaZone::getTe).average().orElse(0.0);
+                double avgNe = zoneList.stream().mapToDouble(PlasmaZone::getNe).average().orElse(0.0);
+                double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getWeight).average().orElse(0.0);
+                averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight));
+            }
+        }
+
+        double avgRmse = rmseValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        double avgRSquared = rSquaredValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
+        // Save averaged zones CSV
+        Path avgZonesCsvPath = calibDir.resolve("averaged_best_zones.csv");
+        if (masterWavelengthGrid != null && !averagedZones.isEmpty()) {
+            // Use an empty spectrum cache since we have no per-zone raw spectra to write
+            saveZonesToCsv(avgZonesCsvPath, averagedZones, masterWavelengthGrid,
+                    Collections.emptyMap(), 1.0);
+        }
+
+        // Build the final profile
+        InstrumentProfile profile = new InstrumentProfile(
+                masterWavelengthGrid,
+                dirPath.toString(),
+                "directory:" + refCompositionsPath.getFileName());
+        profile.setInstrumentName(instrumentName != null ? instrumentName : "Unknown");
+        profile.setNumShots(totalShots);
+        profile.setBaselineParams(baselineParams);
+        profile.setZones(averagedZones);
+        profile.setRmse(avgRmse);
+        profile.setRSquaredValue(avgRSquared);
+        profile.setScaleFactor(1.0);
+
+        logger.info("Directory profile generation complete. Processed " + materialsProcessed
+                + " materials, averaged " + averagedZones.size() + " plasma zone(s).");
+        return profile;
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers for directory-based flow
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns {@code true} if {@code dir} contains at least one subdirectory.
+     */
+    private boolean hasSubdirectories(Path dir) throws IOException {
+        try (Stream<Path> stream = Files.list(dir)) {
+            return stream.anyMatch(Files::isDirectory);
+        }
+    }
+
+    /**
+     * Discovers the CSV files associated with a given material.
+     *
+     * <p>If {@code hasSubdirs} is {@code true} the method looks for a
+     * subdirectory of {@code sourceDir} whose name equals {@code materialName}
+     * and returns all {@code .csv} files inside it.
+     *
+     * <p>If {@code hasSubdirs} is {@code false} the method scans {@code sourceDir}
+     * directly for files whose names begin with
+     * {@code <materialName>}{@value LIBSDataGenConstants#MATERIAL_NAME_CSV_SEPARATOR}.
+     *
+     * @param sourceDir    Root data directory
+     * @param materialName Material name to search for
+     * @param hasSubdirs   Whether the root directory uses the subdirectory layout
+     * @return Sorted list of matching CSV paths (may be empty)
+     */
+    List<Path> findMaterialCsvFiles(Path sourceDir, String materialName,
+            boolean hasSubdirs) throws IOException {
+        List<Path> csvFiles = new ArrayList<>();
+        if (hasSubdirs) {
+            Path materialDir = sourceDir.resolve(materialName);
+            if (Files.isDirectory(materialDir)) {
+                try (Stream<Path> stream = Files.list(materialDir)) {
+                    stream.filter(p -> !Files.isDirectory(p))
+                          .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
+                          .sorted()
+                          .forEach(csvFiles::add);
+                }
+            }
+        } else {
+            String prefix = materialName + LIBSDataGenConstants.MATERIAL_NAME_CSV_SEPARATOR;
+            try (Stream<Path> stream = Files.list(sourceDir)) {
+                stream.filter(p -> !Files.isDirectory(p))
+                      .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
+                      .filter(p -> p.getFileName().toString().startsWith(prefix))
+                      .sorted()
+                      .forEach(csvFiles::add);
+            }
+        }
+        return csvFiles;
+    }
+
+    /**
+     * Converts a JSON composition object from {@code reference_compositions.json}
+     * to the composition-string format expected by
+     * {@link InputCompositionProcessor} (e.g. {@code "Fe-80.0,C-2.5,Si-#"}).
+     *
+     * @param compositionJson  JSONObject whose keys are element symbols and
+     *                         values are either numeric percentages or the
+     *                         remainder marker {@code "#"}
+     * @return Composition string
+     */
+    String buildCompositionStringFromJson(JSONObject compositionJson) {
+        StringBuilder sb = new StringBuilder();
+        Iterator<String> keys = compositionJson.keys();
+        while (keys.hasNext()) {
+            String element = keys.next();
+            if (sb.length() > 0) {
+                sb.append(",");
+            }
+            Object value = compositionJson.get(element);
+            sb.append(element).append("-").append(value.toString());
+        }
+        return sb.toString();
     }
 
     private void saveSpectrumToCsv(Path path, double[] wavelengths, double[] intensity) throws IOException {
