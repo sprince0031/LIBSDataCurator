@@ -263,11 +263,12 @@ public class LIBSDataGenConstants {
      */
     public static final String CALIBRATION_DIR = "calibration";
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
+    public static final String CALIBRATION_REPORT_MULTI_MATERIAL_TEMPLATE_FILE = "calibration_report_multi_material_template.ipynb";
     public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
     public static final String INSTRUMENT_PROFILE_JSON_FILE = "instrument_profile.json";
     public static final String REFERENCE_COMPOSITIONS_DEFAULT_FILE = "reference_compositions.json";
     public static final String MATERIAL_NAME_CSV_SEPARATOR = "_LSA_";
-    // Calibration report template placeholders
+    // Calibration report template placeholders (single-material)
     public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
     public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
     public static final String RMSE = "<RMSE>";
@@ -276,6 +277,11 @@ public class LIBSDataGenConstants {
     public static final String LAMBDA = "<LAMBDA>";
     public static final String P = "<P>";
     public static final String MAX_ITERATIONS = "<MAX_ITERATIONS>";
+    // Calibration report template placeholders (multi-material / directory mode)
+    public static final String AVERAGED_ZONES_CSV_PATH = "<AVERAGED_ZONES_CSV_PATH>";
+    public static final String NUM_MATERIALS_PROCESSED = "<NUM_MATERIALS_PROCESSED>";
+    public static final String MATERIAL_NAMES_LIST = "<MATERIAL_NAMES_LIST>";
+    public static final String PER_MATERIAL_ZONES_CSV_DIR = "<PER_MATERIAL_ZONES_CSV_DIR>";
 
     /**
      * #### Miscellaneous Constants ####
