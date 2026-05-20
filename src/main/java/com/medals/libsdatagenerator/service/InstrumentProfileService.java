@@ -301,6 +301,71 @@ public class InstrumentProfileService {
     }
 
     /**
+     * Generates a Jupyter Notebook calibration report for the multi-material
+     * (directory) flow.
+     *
+     * @param profile              Final profile with averaged zone parameters
+     * @param outputPath           Where to write the {@code .ipynb} file
+     * @param avgZonesCsvPath      Path to {@code averaged_best_zones.csv}
+     * @param calibDir             Calibration directory that holds per-material
+     *                             zones CSVs (used for {@code <PER_MATERIAL_ZONES_CSV_DIR>})
+     * @param materialNames        Ordered list of successfully processed material names
+     * @throws IOException if the template cannot be found or the notebook cannot be saved
+     */
+    public void generateJupyterReportForDirectory(InstrumentProfile profile,
+            Path outputPath, Path avgZonesCsvPath, Path calibDir,
+            List<String> materialNames) throws IOException {
+
+        // Load multi-material template
+        Path templatePath = Paths.get(CommonUtils.CONF_PATH,
+                LIBSDataGenConstants.CALIBRATION_REPORT_MULTI_MATERIAL_TEMPLATE_FILE);
+        String templateContent;
+        if (!Files.exists(templatePath)) {
+            logger.warning("Multi-material template not found in conf: " + templatePath + ". Checking resources.");
+            try (java.io.InputStream is = getClass().getResourceAsStream(
+                    "/" + LIBSDataGenConstants.CALIBRATION_REPORT_MULTI_MATERIAL_TEMPLATE_FILE)) {
+                if (is == null) {
+                    throw new IOException("Multi-material template file not found in conf or resources");
+                }
+                templateContent = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                throw new IOException("Failed to load multi-material template", e);
+            }
+        } else {
+            templateContent = Files.readString(templatePath);
+        }
+
+        // Build Python list literal for material names, e.g. ["469", "470", "551"]
+        StringBuilder matListBuilder = new StringBuilder("[");
+        for (int i = 0; i < materialNames.size(); i++) {
+            if (i > 0) matListBuilder.append(", ");
+            matListBuilder.append("\"").append(materialNames.get(i)).append("\"");
+        }
+        matListBuilder.append("]");
+
+        String avgZonesPath = avgZonesCsvPath.toAbsolutePath().toString().replace("\\", "/");
+        String perMatDir = calibDir.toAbsolutePath().toString().replace("\\", "/");
+
+        String content = templateContent
+                .replace(LIBSDataGenConstants.INSTRUMENT_NAME, profile.getInstrumentName())
+                .replace(LIBSDataGenConstants.RSQUARE_SCORE,
+                        String.format("%.4f", profile.getRSquaredValue()))
+                .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", profile.getRmse()))
+                .replace(LIBSDataGenConstants.LAMBDA, String.valueOf(profile.getLambda()))
+                .replace(LIBSDataGenConstants.P, String.valueOf(profile.getP()))
+                .replace(LIBSDataGenConstants.MAX_ITERATIONS,
+                        String.valueOf(profile.getMaxIterations()))
+                .replace(LIBSDataGenConstants.AVERAGED_ZONES_CSV_PATH, avgZonesPath)
+                .replace(LIBSDataGenConstants.PER_MATERIAL_ZONES_CSV_DIR, perMatDir)
+                .replace(LIBSDataGenConstants.NUM_MATERIALS_PROCESSED,
+                        String.valueOf(materialNames.size()))
+                .replace(LIBSDataGenConstants.MATERIAL_NAMES_LIST, matListBuilder.toString());
+
+        Files.write(outputPath, content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        logger.info("Multi-material Jupyter notebook report generated: " + outputPath);
+    }
+
+    /**
      * Executes the Jupyter Notebook in place.
      */
     private void executeNotebook(Path notebookPath, Path jupyterPath) {
@@ -641,6 +706,7 @@ public class InstrumentProfileService {
         Map<Integer, List<PlasmaZone>> zonesPerIndex = new HashMap<>();
         List<Double> rmseValues = new ArrayList<>();
         List<Double> rSquaredValues = new ArrayList<>();
+        List<String> processedMaterialNames = new ArrayList<>();
         double[] masterWavelengthGrid = null;
         int totalShots = 0;
         int materialsProcessed = 0;
@@ -763,6 +829,7 @@ public class InstrumentProfileService {
                     }
                     rmseValues.add(result.rmse);
                     rSquaredValues.add(result.rSquared);
+                    processedMaterialNames.add(materialName);
                     materialsProcessed++;
 
                     logger.info("Successfully processed material: " + materialName);
@@ -822,6 +889,35 @@ public class InstrumentProfileService {
 
         logger.info("Directory profile generation complete. Processed " + materialsProcessed
                 + " materials, averaged " + averagedZones.size() + " plasma zone(s).");
+
+        // Generate Jupyter calibration report for directory mode
+        if (PythonUtils.getInstance().setupPythonEnvironment()) {
+            try {
+                Path jupyterPath = PythonUtils.getInstance().getVenvJupyterPath();
+                if (jupyterPath == null) {
+                    throw new IOException("Jupyter executable not found in virtual environment.");
+                }
+
+                Path reportPath = calibDir.resolve(
+                        LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_multi_material.ipynb");
+
+                generateJupyterReportForDirectory(
+                        profile, reportPath, avgZonesCsvPath, calibDir,
+                        processedMaterialNames);
+                executeNotebook(reportPath, jupyterPath);
+                convertNotebookToPdf(reportPath, jupyterPath,
+                        (instrumentName != null ? instrumentName : "Unknown") + "_multi_material");
+
+            } catch (Exception e) {
+                logger.log(Level.WARNING, "Failed to generate or execute multi-material calibration report", e);
+            }
+        } else {
+            System.out.println(
+                    "Warning: Calibration report could not be generated because Python 3 is not installed or "
+                    + "environment setup failed.");
+            logger.warning("Python environment setup failed. Skipping report generation.");
+        }
+
         return profile;
     }
 

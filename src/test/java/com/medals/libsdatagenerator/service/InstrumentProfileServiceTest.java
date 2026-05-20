@@ -366,4 +366,53 @@ public class InstrumentProfileServiceTest {
                 new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
                 2, false));
     }
+
+    // -----------------------------------------------------------------------
+    // generateJupyterReportForDirectory
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testGenerateJupyterReportForDirectory() throws Exception {
+        // Build a minimal profile
+        double[] wavelengths = { 200.0, 300.0, 400.0 };
+        InstrumentProfile profile = new InstrumentProfile(wavelengths, "/data/measurements", "directory:ref.json");
+        List<PlasmaZone> zones = new ArrayList<>();
+        zones.add(new PlasmaZone(1.2, 1e16, 0.6));
+        zones.add(new PlasmaZone(0.8, 5e15, 0.4));
+        profile.setZones(zones);
+        profile.setInstrumentName("Test Spectrometer");
+        profile.setRSquaredValue(0.92);
+        profile.setRmse(0.08);
+
+        // Write a dummy averaged_best_zones.csv and per-material zones CSVs
+        Path avgZonesCsv = tempDir.resolve("averaged_best_zones.csv");
+        Files.writeString(avgZonesCsv, "Te,Ne,Weight\n1.0,1e16,0.5\n0.7,5e15,0.5\n");
+
+        Path matZonesCsv = tempDir.resolve("469_best_zones.csv");
+        Files.writeString(matZonesCsv, "Te,Ne,Weight\n1.2,1e16,0.6\n0.8,5e15,0.4\n");
+
+        List<String> matNames = List.of("469");
+        Path reportPath = tempDir.resolve("calibration_report_multi_material.ipynb");
+
+        service.generateJupyterReportForDirectory(profile, reportPath, avgZonesCsv, tempDir, matNames);
+
+        assertTrue(Files.exists(reportPath), "Report notebook should have been written");
+        String content = Files.readString(reportPath);
+
+        // Verify placeholders were substituted
+        assertFalse(content.contains("<INSTRUMENT_NAME>"),        "INSTRUMENT_NAME placeholder must be replaced");
+        assertFalse(content.contains("<RSQUARE_SCORE>"),          "RSQUARE_SCORE placeholder must be replaced");
+        assertFalse(content.contains("<RMSE>"),                   "RMSE placeholder must be replaced");
+        assertFalse(content.contains("<AVERAGED_ZONES_CSV_PATH>"),"AVERAGED_ZONES_CSV_PATH placeholder must be replaced");
+        assertFalse(content.contains("<PER_MATERIAL_ZONES_CSV_DIR>"), "PER_MATERIAL_ZONES_CSV_DIR placeholder must be replaced");
+        assertFalse(content.contains("<NUM_MATERIALS_PROCESSED>"),"NUM_MATERIALS_PROCESSED placeholder must be replaced");
+        assertFalse(content.contains("<MATERIAL_NAMES_LIST>"),    "MATERIAL_NAMES_LIST placeholder must be replaced");
+
+        // Verify expected values are in the notebook
+        assertTrue(content.contains("Test Spectrometer"),  "Instrument name should be present");
+        assertTrue(content.contains("[\"469\"]"),          "Material names list should be present");
+        assertTrue(content.contains("1"),                  "Num materials should be present");
+        assertTrue(content.contains("\"cells\""),          "Valid notebook JSON structure required");
+        assertTrue(content.contains("import matplotlib.pyplot as plt"), "Plotting import required");
+    }
 }
