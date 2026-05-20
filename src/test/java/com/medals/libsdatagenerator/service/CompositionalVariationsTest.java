@@ -6,12 +6,13 @@ import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompositionalVariationsTest {
 
@@ -127,74 +128,6 @@ class CompositionalVariationsTest {
 //            assertEquals(100.0, sumComposition(variant), DELTA, "Sum of percentages should be 100 for variant: " + variant);
 //        }
 //    }
-
-    @Test
-    void testGetUniformDistribution_respectsMinMaxConstraints() {
-        List<Element> originalComp = new ArrayList<>();
-        originalComp.add(new Element("X", "X", 50.0, 48.0, 52.0, 50.0));
-        originalComp.add(new Element("Y", "Y", 30.0, 28.0, 32.0, 30.0));
-        originalComp.add(new Element("Z", "Z", 20.0, 18.0, 22.0, 20.0));
-
-        List<List<Element>> results = new ArrayList<>();
-        cv.getUniformDistribution(0, originalComp, 0.5, 5.0, 0.0, new ArrayList<>(), results);
-
-        assertTrue(results.size() > 0, "Should generate some results for uniform distribution");
-
-        for (List<Element> result : results) {
-            assertEquals(3, result.size());
-            double totalPercentage = 0;
-            for (int i = 0; i < result.size(); i++) {
-                Element elRes = result.get(i);
-                Element elOrig = originalComp.get(i);
-
-                assertNotNull(elRes.getPercentageComposition(), "Percentage should not be null for " + elRes.getSymbol());
-                assertTrue(elRes.getPercentageComposition() >= 0, "Percentage should be non-negative for " + elRes.getSymbol());
-                if (elOrig.getMin() != null) {
-                    assertTrue(elRes.getPercentageComposition() >= elOrig.getMin() - DELTA,
-                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " below min " + elOrig.getMin());
-                }
-                if (elOrig.getMax() != null) {
-                    assertTrue(elRes.getPercentageComposition() <= elOrig.getMax() + DELTA,
-                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " above max " + elOrig.getMax());
-                }
-                totalPercentage += elRes.getPercentageComposition();
-            }
-            assertEquals(100.0, totalPercentage, DELTA, "Sum of percentages should be 100 for result: " + result);
-        }
-    }
-
-    @Test
-    void testGetUniformDistribution_lastElementCalculationWithConstraints() {
-        List<Element> originalComp = new ArrayList<>();
-        originalComp.add(new Element("A", "A", 40.0, 35.0, 42.0, 40.0));
-        originalComp.add(new Element("B", "B", 30.0, 25.0, 32.0, 30.0));
-        originalComp.add(new Element("C", "C", 30.0, 28.0, 33.0, 30.0));
-
-        List<List<Element>> results = new ArrayList<>();
-        cv.getUniformDistribution(0, originalComp, 1.0, 5.0, 0.0, new ArrayList<>(), results);
-
-        assertTrue(results.size() > 0, "Should find valid combinations for last element constraints.");
-
-        for (List<Element> result : results) {
-            Element elC = result.get(2);
-            assertTrue(elC.getPercentageComposition() >= (28.0 - DELTA) && elC.getPercentageComposition() <= (33.0 + DELTA),
-                    "Element C (" + elC.getPercentageComposition() + ") out of its specific range [28, 33] in result: " + result);
-            assertEquals(100.0, sumComposition(result), DELTA, "Sum must be 100 for result: " + result);
-        }
-    }
-
-    @Test
-    void testGetUniformDistribution_noValidResultsDueToStrictConstraints() {
-        List<Element> originalComp = new ArrayList<>();
-        originalComp.add(new Element("A", "A", 10.0,  8.0, 12.0, 10.0));
-        originalComp.add(new Element("B", "B", 10.0,  8.0, 12.0, 10.0));
-        originalComp.add(new Element("C", "C", 80.0, 85.0, 90.0, 80.0));
-
-        List<List<Element>> results = new ArrayList<>();
-        cv.getUniformDistribution(0, originalComp, 0.1, 3.0, 0.0, new ArrayList<>(), results);
-
-        assertEquals(0, results.size(), "Should generate no results due to conflicting constraints for uniform distribution.");
-    }
 
     @Test
     void testGaussianSampling_reproducibilityWithSeed() {

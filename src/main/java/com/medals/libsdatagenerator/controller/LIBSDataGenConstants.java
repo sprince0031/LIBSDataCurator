@@ -118,19 +118,6 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SCALE_COATING_LONG = "dont-scale-coating";
     public static final String CMD_OPT_SCALE_COATING_DESC = "Will scale down all other elements in the composition rather " +
             "than subtracting the coating element percentage from the dominant element's percentage by default. Include flag to disable.";
-    @Deprecated
-    public static final String CMD_OPT_VARY_BY_SHORT = "vb";
-    @Deprecated
-    public static final String CMD_OPT_VARY_BY_LONG = "vary-by";
-    @Deprecated
-    public static final String CMD_OPT_VARY_BY_DESC = "By how much each compositional variation for percentage weight" +
-            " should be varied by.";
-    @Deprecated
-    public static final String CMD_OPT_MAX_DELTA_SHORT = "md";
-    @Deprecated
-    public static final String CMD_OPT_MAX_DELTA_LONG = "max-delta";
-    @Deprecated
-    public static final String CMD_OPT_MAX_DELTA_DESC = "Upper and lower (+-) limits to the variations.";
     public static final String CMD_OPT_VAR_MODE_SHORT = "vm";
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
     public static final String CMD_OPT_VAR_MODE_DESC = """
@@ -263,6 +250,7 @@ public class LIBSDataGenConstants {
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
     public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
     public static final String MATWEB_DATASHEET_TABLE_CSS_SELECTOR = "table.tabledataformat";
+    public static final String MATWEB_LOCAL_CACHE_FOLDER = "datasheets";
 
     /**
      * #### Archive.org Constants ####

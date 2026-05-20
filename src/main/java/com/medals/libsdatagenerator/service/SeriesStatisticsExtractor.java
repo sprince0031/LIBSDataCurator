@@ -35,11 +35,8 @@ public class SeriesStatisticsExtractor {
      * @param matwebGuid GUID of the overview sheet
      * @return SeriesStatistics object containing extracted statistical information
      */
-    public SeriesStatistics extractStatistics(List<String> elementList,
-                                              List<String> compositionList,
-                                              List<String> comments,
-                                              String seriesName,
-                                              String matwebGuid) {
+    public SeriesStatistics extractStatistics(List<String> elementList, List<String> compositionList,
+                                              List<String> comments, String seriesName, String matwebGuid) {
 
         SeriesStatistics seriesStats = new SeriesStatistics(
                 seriesName != null ? seriesName : "Unknown Series",
@@ -61,11 +58,10 @@ public class SeriesStatisticsExtractor {
             }
 
             // Extract statistical information from comment
-            ElementStatistics elementStats = extractElementStatistics(
-                    elementSymbol, compositionRange, comment);
+            ElementStatistics elementStats = extractElementStatistics(elementSymbol, compositionRange, comment);
 
             if (elementStats != null) {
-                seriesStats.addElementStatistics(elementStats);
+                seriesStats.addElementStatisticsToComposition(elementStats);
                 logger.info("Extracted statistics for " + elementSymbol + ": " + elementStats);
             } else {
                 logger.warning("Could not extract statistics for element: " + elementSymbol +
@@ -74,7 +70,7 @@ public class SeriesStatisticsExtractor {
         }
 
         logger.info("Extracted statistics for " + seriesStats.getElementCount() + " elements");
-        logger.info("Total average percentage: " + seriesStats.getTotalAveragePercentage() + "%");
+        logger.info("Total average percentage: " + seriesStats.getEffectiveAveragePercentage() + "%");
 
         return seriesStats;
     }
@@ -128,9 +124,7 @@ public class SeriesStatisticsExtractor {
     /**
      * Extracts statistical information for a single element
      */
-    private ElementStatistics extractElementStatistics(String elementSymbol,
-                                                       String compositionRange,
-                                                       String comment) {
+    private ElementStatistics extractElementStatistics(String elementSymbol, String compositionRange, String comment) {
         if (comment == null || comment.trim().isEmpty()) {
             return null;
         }

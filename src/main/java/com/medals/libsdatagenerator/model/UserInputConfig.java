@@ -19,7 +19,7 @@ public class UserInputConfig {
 
     // --- Input Modes ---
     public String compositionInput;
-    public final String overviewGuid;
+    public String overviewGuid;
     public final boolean isCompositionMode;
     public final boolean isSeriesMode;
 
@@ -32,8 +32,6 @@ public class UserInputConfig {
     public final boolean scaleCoating;
     public final Long seed;
     public final int numDecimalPlaces;
-    @Deprecated public final double varyBy;
-    @Deprecated public final double maxDelta;
 
 
     // --- NIST API Parameters ---
@@ -76,8 +74,6 @@ public class UserInputConfig {
         this.scaleCoating = false;
         this.seed = null;
         this.numDecimalPlaces = 3;
-        this.varyBy = 0.0;
-        this.maxDelta = 0.0;
         
         // Default NIST params
         this.minWavelength = "200";
@@ -138,9 +134,6 @@ public class UserInputConfig {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid number of decimal places. Must be a valid positive integer.", e);
         }
-        this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
-        this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
-
 
         // NIST API parameters
         this.minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "240");

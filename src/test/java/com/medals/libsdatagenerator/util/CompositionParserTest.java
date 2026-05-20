@@ -32,7 +32,7 @@ class CompositionParserTest {
     void testParseValidComposition() throws Exception {
         // Test parsing a simple composition string
         List<String> compositionArray = Arrays.asList("C-0.2", "Fe-99.8");
-        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
+        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
@@ -50,7 +50,7 @@ class CompositionParserTest {
     void testParseCompositionWithRanges() throws Exception {
         // Test parsing composition with ranges (min:max)
         List<String> compositionArray = Arrays.asList("C-0.1:0.3", "Fe-99.7:99.9");
-        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
+        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
@@ -72,7 +72,7 @@ class CompositionParserTest {
     void testParseRemainingPercentage() throws Exception {
         // Test that "#" symbol is handled correctly for remaining percentage
         List<String> compositionArray = Arrays.asList("C-0.2", "Fe-#");
-        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray, 3);
+        Map<String, Object> compositionMetaData = inputCompositionProcessor.generateElementsList(compositionArray);
         List<Element> elements = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
 
         assertNotNull(elements);
@@ -110,7 +110,7 @@ class CompositionParserTest {
         List<String> compositionArray = Arrays.asList("XX-0.2", "Fe-99.8");
 
         assertThrows(IOException.class, () -> {
-            inputCompositionProcessor.generateElementsList(compositionArray, 3);
+            inputCompositionProcessor.generateElementsList(compositionArray);
         });
     }
 }

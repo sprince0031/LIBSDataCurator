@@ -6,6 +6,7 @@ import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
 import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
+import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 
 import java.io.File;
@@ -90,12 +91,11 @@ public class InstrumentProfileController {
                         System.out.println();
 
                         InstrumentProfile profile = profileService.generateProfile(inputFilePath, delimiter,
-                                        composition,
-                                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode);
+                                        composition, instrumentName, baselineCorrectionParams, plasmaZones, debugMode);
 
                         // Save profile
                         Path outputFilePath = Paths.get(outputPath);
-                        profile.saveToFile(outputFilePath);
+                        CommonUtils.getInstance().saveModelToFile(outputFilePath, profile);
 
                         System.out.println();
                         System.out.println("=== Profile Generation Complete ===");

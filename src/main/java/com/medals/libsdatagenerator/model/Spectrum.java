@@ -10,8 +10,6 @@ public class Spectrum {
     double[] wavelengths;
     double[] intensities;
 
-    public Spectrum() {}
-
     public Spectrum(double[] wavelengths, double[] intensities) {
         this.wavelengths = wavelengths;
         this.intensities = intensities;

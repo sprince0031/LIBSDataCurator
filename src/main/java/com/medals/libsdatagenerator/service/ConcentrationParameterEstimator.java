@@ -111,70 +111,6 @@ public class ConcentrationParameterEstimator {
     }
 
     /**
-     * Estimates Dirichlet concentration parameters using method of moments
-     *
-     * @param statistics Series statistics containing element averages and grade counts
-     * @return Array of concentration parameters (alphas) for Dirichlet distribution
-     */
-    public double[] estimateParameters(SeriesStatistics statistics) {
-        if (statistics == null || !statistics.isValidForDirichletSampling()) {
-            logger.warning("Invalid statistics provided for parameter estimation");
-            return null;
-        }
-
-        Map<String, ElementStatistics> elementStats = statistics.getAllElementStatistics();
-        int numElements = elementStats.size();
-
-        logger.info("Estimating Dirichlet parameters for " + numElements + " elements");
-
-        // Convert percentages to proportions and extract statistics
-        double[] means = new double[numElements];
-        double[] variances = new double[numElements];
-        String[] elementOrder = new String[numElements];
-
-        int index = 0;
-        for (Map.Entry<String, ElementStatistics> entry : elementStats.entrySet()) {
-            ElementStatistics stats = entry.getValue();
-            elementOrder[index] = entry.getKey();
-
-            // Convert percentage to proportion
-            means[index] = stats.getAveragePercentage() / 100.0;
-            variances[index] = estimateVariance(stats);
-
-            logger.info(String.format("Element %s: mean=%.4f, variance=%.6f, gradeCount=%d",
-                    stats.getElementSymbol(), means[index], variances[index], stats.getGradeCount()));
-            index++;
-        }
-
-        // Normalize means to ensure they sum to 1.0
-        double meanSum = Arrays.stream(means).sum();
-        if (meanSum <= 0) {
-            logger.severe("Sum of means is non-positive: " + meanSum);
-            return null;
-        }
-
-        for (int i = 0; i < means.length; i++) {
-            means[i] /= meanSum;
-        }
-
-        // Method of moments estimation
-        double totalConcentration = estimateTotalConcentration(means, variances);
-        double[] alphas = new double[numElements];
-
-        for (int i = 0; i < numElements; i++) {
-            alphas[i] = means[i] * totalConcentration;
-        }
-
-        // Validate and adjust parameters
-        alphas = validateAndAdjustParameters(alphas, elementOrder);
-
-        logger.info("Estimated parameters: " + Arrays.toString(alphas));
-        logger.info("Total concentration: " + Arrays.stream(alphas).sum());
-
-        return alphas;
-    }
-
-    /**
      * Estimates variance for an element based on its statistics
      */
     private double estimateVariance(ElementStatistics stats) {
@@ -267,16 +203,6 @@ public class ConcentrationParameterEstimator {
     }
 
     /**
-     * Estimates parameters using alternative maximum likelihood approach (for future enhancement)
-     */
-    public double[] estimateParametersML(SeriesStatistics statistics) {
-        // Placeholder for maximum likelihood estimation
-        // This could be implemented in future versions for improved accuracy
-        logger.info("Maximum likelihood estimation not yet implemented, using method of moments");
-        return estimateParameters(statistics);
-    }
-
-    /**
      * Validates that estimated parameters will produce reasonable samples
      */
     public boolean validateParameters(double[] alphas) {
@@ -293,8 +219,7 @@ public class ConcentrationParameterEstimator {
 
         // Check total concentration is reasonable
         double totalConcentration = Arrays.stream(alphas).sum();
-        if (totalConcentration < MIN_TOTAL_CONCENTRATION ||
-                totalConcentration > MAX_TOTAL_CONCENTRATION) {
+        if (totalConcentration < MIN_TOTAL_CONCENTRATION || totalConcentration > MAX_TOTAL_CONCENTRATION) {
             logger.warning("Total concentration outside reasonable range: " + totalConcentration);
             return false;
         }

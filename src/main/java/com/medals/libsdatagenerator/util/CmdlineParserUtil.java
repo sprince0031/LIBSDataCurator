@@ -103,7 +103,7 @@ public class CmdlineParserUtil {
                 true,
                 LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_DESC);
 
-        // Data output path
+        // Master CSV data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,
                 true,
@@ -132,18 +132,6 @@ public class CmdlineParserUtil {
                 LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_LONG,
                 false,
                 LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_DESC);
-
-        // vary by (for compositions)
-        options.addOption(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT,
-                LIBSDataGenConstants.CMD_OPT_VARY_BY_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_VARY_BY_DESC);
-
-        // Max delta value
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_DESC);
 
         // Variation mode
         options.addOption(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,

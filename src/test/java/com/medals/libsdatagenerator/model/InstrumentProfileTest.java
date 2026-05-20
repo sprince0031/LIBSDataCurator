@@ -1,10 +1,10 @@
 package com.medals.libsdatagenerator.model;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -37,7 +37,8 @@ class InstrumentProfileTest {
                 json.getJSONObject("plasmaParameters").getJSONArray("zones").getJSONObject(0).getDouble("Te"));
 
         // Deserialize from JSON
-        InstrumentProfile deserializedProfile = InstrumentProfile.fromJson(json);
+        InstrumentProfile deserializedProfile = new InstrumentProfile();
+        deserializedProfile.fromJson(json);
         assertNotNull(deserializedProfile);
         assertEquals(instrumentName, deserializedProfile.getInstrumentName());
         assertArrayEquals(wavelengths, deserializedProfile.getWavelengthGrid());

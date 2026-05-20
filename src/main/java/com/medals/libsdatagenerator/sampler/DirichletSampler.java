@@ -5,7 +5,6 @@ import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.CompositionalVariations;
 import com.medals.libsdatagenerator.service.ConcentrationParameterEstimator;
-import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.rng.UniformRandomProvider;
 import org.apache.commons.rng.simple.RandomSource;
 
@@ -150,13 +149,10 @@ public class DirichletSampler implements Sampler {
             double newPercentage = min + (sample[i] * (max - min));
             totalPercentage += newPercentage;
 
-            // Round to appropriate decimal places
-            double roundedValue = CommonUtils.roundToNDecimals(newPercentage, baseElement.getNumberDecimalPlaces());
-
             Element variationElement = new Element(
                     baseElement.getName(),
                     baseElement.getSymbol(),
-                    roundedValue,
+                    newPercentage,
                     baseElement.getMin(),
                     baseElement.getMax(),
                     baseElement.getAverageComposition()

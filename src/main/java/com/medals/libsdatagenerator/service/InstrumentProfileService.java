@@ -105,8 +105,7 @@ public class InstrumentProfileService {
         // 4. Parse composition
         UserInputConfig userInputs =new UserInputConfig();
         userInputs.compositionInput = compositionString;
-        MaterialGrade materialGrade = InputCompositionProcessor.getInstance()
-                .getMaterial(userInputs, null, Integer.parseInt(LIBSDataGenConstants.DEFAULT_N_DECIMAL_PLACES));
+        MaterialGrade materialGrade = InputCompositionProcessor.getInstance().getMaterial(userInputs);
         if (materialGrade.getComposition() == null) {
             throw new IllegalArgumentException("Invalid composition string: " + compositionString);
         }

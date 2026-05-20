@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.JsonModel;
 import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
@@ -11,17 +12,19 @@ import com.medals.libsdatagenerator.service.LIBSDataService;
 import com.medals.libsdatagenerator.service.MatwebDataService;
 
 import java.io.IOException;
-import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class InputCompositionProcessor {
 
@@ -29,9 +32,15 @@ public class InputCompositionProcessor {
     private static final Pattern MATWEB_GUID_PATTERN = Pattern.compile(LIBSDataGenConstants.MATWEB_GUID_REGEX);
     private static final Pattern COMPOSITION_STRING_PATTERN = Pattern.compile(LIBSDataGenConstants.INPUT_COMPOSITION_STRING_REGEX);
     private static final Pattern COATED_SERIES_PATTERN = Pattern.compile(LIBSDataGenConstants.COATED_SERIES_KEY_PATTERN);
+    Path matwebCachePath = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.MATWEB_LOCAL_CACHE_FOLDER);
     private static boolean hasIndividualGuidsToProcess = false;
-
+    private int totalMaterials;
+    private int materialsProcessed;
     private static InputCompositionProcessor instance = null;
+
+    public InputCompositionProcessor() {
+
+    }
 
     public static InputCompositionProcessor getInstance() {
         if (instance == null) {
@@ -180,23 +189,19 @@ public class InputCompositionProcessor {
         return processedSeries;
     }
 
-    public List<MaterialGrade> getMaterialsList(String userInput, int noDecimalPlaces) throws IOException {
-
-        MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
-
-        List<MaterialGrade> materialGrades = new ArrayList<>();
-
-        List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(userInput);
-
+    public List<MaterialGrade> getMaterialsFromCatalogue(String seriesKey) throws Exception {
+        List<SeriesInput> processedSeriesData = parseMaterialsCatalogue(seriesKey);
+        List<MaterialGrade> materialGradesFromCatalogue = new ArrayList<>();
         // Calculate total number of materials to process for progress tracking
-        int totalMaterials = 0;
         for (SeriesInput series : processedSeriesData) {
             totalMaterials += series.getIndividualMaterialGuids().size();
         }
 
-        int materialsProcessed = 0;
-        PrintStream out = System.out;
+        if(!Files.exists(matwebCachePath)) {
+            Files.createDirectories(matwebCachePath);
+        }
 
+        materialsProcessed = 0;
         for (SeriesInput series : processedSeriesData) {
             if (series.getIndividualMaterialGuids().isEmpty()) {
                 logger.info("No individual material GUIDs found for series: " + series.getSeriesKey() + ". Skipping this series entry.");
@@ -207,57 +212,72 @@ public class InputCompositionProcessor {
                     + " individual material(s). Overview GUID for variations: "
                     + (series.getOverviewGuid() != null ? series.getOverviewGuid() : "N/A"));
 
-            // Fetch series statistics from overview datasheet
-            SeriesStatistics seriesStatistics = matwebService.getSeriesStatistics(series.getOverviewGuid());
+            // Fetch series statistics from overview datasheet if not cached already
+            SeriesStatistics seriesStatistics = loadCachedMaterialByGuid(matwebCachePath, series.getOverviewGuid(),
+                    SeriesStatistics.class);
 
-            for (String individualGuid : series.getIndividualMaterialGuids()) {
-                logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
+            if (seriesStatistics == null) { // reading cached stats failed
+                seriesStatistics = MatwebDataService.getInstance().getSeriesStatistics(series.getOverviewGuid());
+                // Cache stats to Json file
+                String cacheFile = String.format("%s.json", series.getOverviewGuid());
+                Path outputPath = matwebCachePath.resolve(cacheFile);
+                CommonUtils.getInstance().saveModelToFile(outputPath, seriesStatistics);
+            }
 
-                // Check if this GUID has already been processed
-                MaterialGrade cachedMaterial = findMaterialByGuid(materialGrades, individualGuid);
-                List<Element> baseComposition;
-                int remainderElement;
-                String materialName;
-                String[] materialAttributes;
+            for (MaterialGrade material: getMaterialsList(series)) {
+                material.setOverviewStatistics(seriesStatistics);
 
-                if (cachedMaterial != null) {
-                    logger.info("Material GUID: " + individualGuid + " already processed. Using cached data.");
-                    // Create a new MaterialGrade with the cached composition but current series context
-                    baseComposition = cachedMaterial.getComposition();
-                    remainderElement = cachedMaterial.getRemainderElementIdx();
-                    materialName = cachedMaterial.getMaterialName();
-                    materialAttributes = cachedMaterial.getMaterialAttributes();
-                } else {
-                    List<String> compositionArray = matwebService.getMaterialComposition(individualGuid);
-
-                    if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
-                        materialsProcessed++;
-                        // Update progress bar even for failed materials
-                        CommonUtils.printProgressBar(materialsProcessed, totalMaterials,
-                                "materials processed. Current: " + LIBSDataService.getInstance().processSeriesKeyToMaterialType(series.getSeriesKey()), out);
-                        continue;
-                    }
-                    Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
-                    baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
-                    remainderElement = (int) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
-                    materialName = matwebService.getDatasheetName();
-                    materialAttributes = matwebService.getDatasheetAttributes();
-                }
-
-                MaterialGrade materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
-                materialGrade.setRemainderElementIdx(remainderElement);
-                materialGrade.setMaterialName(materialName);
-                materialGrade.setMaterialAttributes(materialAttributes);
-                materialGrade.setOverviewStatistics(seriesStatistics);
-                materialGrades.add(materialGrade);
-
+                // Caching new material's datasheet
+                String cacheFile = String.format("%s.json", material.getMatGUID());
+                Path outputPath = matwebCachePath.resolve(cacheFile);
+                CommonUtils.getInstance().saveModelToFile(outputPath, material);
+                materialGradesFromCatalogue.add(material);
                 materialsProcessed++;
 
                 // Calculate and display progress
                 CommonUtils.printProgressBar(materialsProcessed, totalMaterials,
-                        "materials processed. Current: " + LIBSDataService.getInstance().processSeriesKeyToMaterialType(series.getSeriesKey()), out);
+                        "materials processed. Current: " + LIBSDataService.getInstance()
+                                .processSeriesKeyToMaterialType(series.getSeriesKey()), System.out);
             }
+        }
+        return materialGradesFromCatalogue;
+    }
 
+    public List<MaterialGrade> getMaterialsList(SeriesInput series) throws IOException {
+        MatwebDataService matwebService = MatwebDataService.getInstance(); // Initialize MatwebDataService
+        List<MaterialGrade> materialGrades = new ArrayList<>();
+
+        for (String individualGuid : series.getIndividualMaterialGuids()) {
+            logger.info("Processing material GUID: " + individualGuid + " from series: " + series.getSeriesKey());
+
+            // Check if this GUID has already been processed
+            MaterialGrade materialGrade = loadCachedMaterialByGuid(matwebCachePath, individualGuid, MaterialGrade.class);
+            if (materialGrade == null) {
+                List<String> compositionArray = matwebService.getMaterialComposition(individualGuid);
+                if (!matwebService.validateMatwebServiceOutput(compositionArray, individualGuid)) {
+                    materialsProcessed++;
+                    // Update progress bar even for failed materials
+                    CommonUtils.printProgressBar(materialsProcessed, totalMaterials,
+                            "materials processed. Current: " + LIBSDataService.getInstance()
+                                    .processSeriesKeyToMaterialType(series.getSeriesKey()), System.out);
+                    continue;
+                }
+
+                Map<String, Object> compositionMetaData = generateElementsList(compositionArray);
+                List<Element> baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
+                materialGrade = new MaterialGrade(baseComposition, individualGuid, series);
+
+                int remainderElement = (int) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
+                materialGrade.setRemainderElementIdx(remainderElement);
+
+                String materialName = matwebService.getDatasheetName();
+                materialGrade.setMaterialName(materialName);
+
+                String[] materialAttributes = matwebService.getDatasheetAttributes();
+                materialGrade.setMaterialAttributes(materialAttributes);
+
+            }
+            materialGrades.add(materialGrade);
         }
         return materialGrades;
     }
@@ -265,76 +285,69 @@ public class InputCompositionProcessor {
     /**
      * Parses only single composition
      *
-     * @param userInput       full user input config
-     * @param overviewGUID    user provided overviewGUID value, null if not provided
-     * @param noDecimalPlaces number of decimal places to round element percentages to
+     * @param userInput full user input config
      * @return materialGrade
      * @throws IOException Exception for invalid command line arguments
      */
-    public MaterialGrade getMaterial(UserInputConfig userInput, String overviewGUID, int noDecimalPlaces) throws IOException, RuntimeException {
+    public MaterialGrade getMaterial(UserInputConfig userInput) throws IOException, RuntimeException {
         MaterialGrade materialGrade;
-        List<String> compositionArray;
-        String matGuid = null;
         String compositionInput = userInput.compositionInput;
-        String materialName = userInput.materialGrade;
+        String overviewGUID = userInput.overviewGuid;
+        if(!Files.exists(matwebCachePath)) {
+            Files.createDirectories(matwebCachePath);
+        }
         String materialType = userInput.materialType == null ? LIBSDataGenConstants.DIRECT_ENTRY : userInput.materialType;
-        String[] materialAttributes = null;
-        SeriesInput seriesInput = new SeriesInput(materialType, null, overviewGUID);
-        if (COMPOSITION_STRING_PATTERN.matcher(compositionInput).matches()) {
-            compositionArray = Arrays.asList(compositionInput.split(","));
-        } else if (MATWEB_GUID_PATTERN.matcher(compositionInput).matches()) {
-            MatwebDataService matwebService = MatwebDataService.getInstance();
-            seriesInput.setIndividualMaterialGuids(Arrays.asList(compositionInput.split(","))); // Will only have a single GUID in array
-            matGuid = compositionInput;
-            compositionArray = matwebService.getMaterialComposition(compositionInput);
-            if (!matwebService.validateMatwebServiceOutput(compositionArray, matGuid)) {
-                throw new RuntimeException("Unable to process Matweb GUID.");
-            }
-            materialName = matwebService.getDatasheetName();
-            materialAttributes = matwebService.getDatasheetAttributes();
+        if (MATWEB_GUID_PATTERN.matcher(compositionInput).matches()) {
+            List<String> materialGuids = new ArrayList<>();
+            materialGuids.add(compositionInput);
+            SeriesInput seriesInput = new SeriesInput(materialType, materialGuids, overviewGUID);
+            materialGrade = getMaterialsList(seriesInput).getFirst();
+        } else if (COMPOSITION_STRING_PATTERN.matcher(compositionInput).matches()) {
+            List<String> compositionArray = Arrays.asList(compositionInput.split(","));
+            String matGuid = null;
+            String materialName = userInput.materialGrade;
+            String[] materialAttributes = null;
+            Map<String, Object> compositionMetaData = generateElementsList(compositionArray);
+            List<Element> baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
+            int remainderElementIdx = (Integer) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
+            SeriesInput seriesInput = new SeriesInput(materialType, null, overviewGUID);
+            materialGrade = new MaterialGrade(baseComposition, matGuid, seriesInput);
+            materialGrade.setRemainderElementIdx(remainderElementIdx);
+            materialGrade.setMaterialName(materialName);
+            materialGrade.setMaterialAttributes(materialAttributes);
         } else {
             throw new IOException("Invalid command line arguments. Aborting.");
         }
-        Map<String, Object> compositionMetaData = generateElementsList(compositionArray, noDecimalPlaces);
-        List<Element> baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
-        int remainderElementIdx = (Integer) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
-        materialGrade = new MaterialGrade(baseComposition, matGuid, seriesInput);
-        materialGrade.setRemainderElementIdx(remainderElementIdx);
-        materialGrade.setMaterialName(materialName);
-        materialGrade.setMaterialAttributes(materialAttributes);
         return materialGrade;
     }
 
     /**
-     * Searches the provided list of cached {@link MaterialGrade} objects for a material with the specified GUID.
-     * <p>
-     * This method is a key part of the caching feature: it allows efficient lookup of a material by its unique identifier
-     * within the already-processed (cached) materials list, avoiding redundant data retrieval or processing.
-     * </p>
+     * Searches the {@code data/datasheets} directory for previously cached JSON files with datasheet information
+     * from matweb and loads it from file if found.
      *
-     * <b>Caching strategy:</b> The method assumes that {@code materialGrades} is a cache of previously processed materials.
-     * It performs a linear search for the given {@code guid}. If {@code guid} is {@code null}, the method returns {@code null}
-     * immediately, as no valid match can be found.
-     *
-     * @param materialGrades the list of cached {@link MaterialGrade} objects to search
-     * @param guid the material GUID to search for; if {@code null}, no match is possible
-     * @return the {@link MaterialGrade} with the matching GUID if found; {@code null} otherwise
+     * @param path Path to cache directory.
+     * @param guid the material GUID to search for; cache file name is saved as <GUID>.json
+     * @param jsonModel The specific class that implements {@link JsonModel} which can be loaded from file.
+     * @return the {@link JsonModel} type object with data loaded from JSON file if found; {@code null} otherwise.
      */
-    private MaterialGrade findMaterialByGuid(List<MaterialGrade> materialGrades, String guid) {
-        // If GUID is null, we can't find a meaningful match
+    private <T extends JsonModel> T loadCachedMaterialByGuid(Path path, String guid, Class<T> jsonModel) {
         if (guid == null) {
             return null;
         }
 
-        for (MaterialGrade material : materialGrades) {
-            if (guid.equals(material.getMatGUID())) {
-                return material;
-            }
+        try {
+            logger.info("Loading cached datasheet for GUID: " + guid);
+            String cacheFile = String.format("%s.json", guid);
+            Path outputPath = path.resolve(cacheFile);
+            return CommonUtils.getInstance().loadModelFromFile(outputPath, jsonModel);
+        } catch (Exception e) {
+            logger.log(Level.WARNING, "Unable to read cached datasheet. Attempting to fetch from datasheet.", e);
         }
+
         return null;
     }
 
-    public Map<String, Object> generateElementsList(List<String> composition, int noDecimalPlaces) throws IOException {
+    public Map<String, Object> generateElementsList(List<String> composition) throws IOException {
         List<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;
         String remainderElementData = "";
@@ -364,7 +377,6 @@ public class InputCompositionProcessor {
                     maxPercentage = minPercentage;
                 }
                 currentPercentage = (minPercentage + maxPercentage) / 2;
-                currentPercentage = CommonUtils.roundToNDecimals(currentPercentage, noDecimalPlaces);
                 totalPercentage += currentPercentage;
 
                 Element element = new Element(
