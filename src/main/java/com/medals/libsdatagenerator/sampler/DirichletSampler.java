@@ -17,6 +17,8 @@ import java.util.logging.Logger;
 public class DirichletSampler implements Sampler {
 
     private static final Logger logger = Logger.getLogger(DirichletSampler.class.getName());
+    private static final double TARGET_TOTAL_PERCENTAGE = 100.0;
+    private static final double BOUNDS_EPSILON = 1e-9;
 
     private static DirichletSampler instance = null;
 
@@ -138,21 +140,36 @@ public class DirichletSampler implements Sampler {
      * Creates an Element variation from a Dirichlet sample
      */
     private List<Element> createElementVariation(List<Element> baseComp, double[] sample) {
+        if (baseComp == null || sample == null || baseComp.size() != sample.length) {
+            throw new IllegalArgumentException("Base composition and Dirichlet sample must have matching size.");
+        }
+
         List<Element> variation = new ArrayList<>();
-        double totalPercentage = 0;
+        double[] mins = new double[baseComp.size()];
+        double[] maxs = new double[baseComp.size()];
+
         for (int i = 0; i < baseComp.size(); i++) {
             Element baseElement = baseComp.get(i);
-            double min = baseElement.getMin();
-            double max = baseElement.getMax();
+            double min = baseElement.getMin() != null ? baseElement.getMin() : 0.0;
+            double max = baseElement.getMax() != null ? baseElement.getMax() : TARGET_TOTAL_PERCENTAGE;
+            if (max < min) {
+                max = min;
+            }
+            mins[i] = min;
+            maxs[i] = max;
+        }
 
-            // Scale the sample to the element's allowed range
-            double newPercentage = min + (sample[i] * (max - min));
-            totalPercentage += newPercentage;
+        double[] boundedPercentages = generateBoundedPercentages(sample, mins, maxs);
+        if (boundedPercentages == null) {
+            throw new IllegalArgumentException("Could not generate bounded Dirichlet sample within element ranges.");
+        }
 
+        for (int i = 0; i < baseComp.size(); i++) {
+            Element baseElement = baseComp.get(i);
             Element variationElement = new Element(
                     baseElement.getName(),
                     baseElement.getSymbol(),
-                    newPercentage,
+                    boundedPercentages[i],
                     baseElement.getMin(),
                     baseElement.getMax(),
                     baseElement.getAverageComposition()
@@ -160,13 +177,121 @@ public class DirichletSampler implements Sampler {
             variation.add(variationElement);
         }
 
-        // Normalize the composition to sum to 100%
-        if (totalPercentage > 0) {
-            for (Element element : variation) {
-                element.setPercentageComposition((element.getPercentageComposition() / totalPercentage) * 100.0);
+        return variation;
+    }
+
+    private double[] generateBoundedPercentages(double[] sample, double[] mins, double[] maxs) {
+        double minTotal = 0.0;
+        double maxTotal = 0.0;
+        for (int i = 0; i < mins.length; i++) {
+            minTotal += mins[i];
+            maxTotal += maxs[i];
+        }
+
+        if (minTotal > TARGET_TOTAL_PERCENTAGE + BOUNDS_EPSILON ||
+                maxTotal < TARGET_TOTAL_PERCENTAGE - BOUNDS_EPSILON) {
+            return null;
+        }
+
+        double[] weights = getNormalizedWeights(sample, mins, maxs);
+        if (weights == null) {
+            return null;
+        }
+
+        double low = 0.0;
+        double high = 1.0;
+        while (sumWithScale(high, weights, mins, maxs) < TARGET_TOTAL_PERCENTAGE - BOUNDS_EPSILON &&
+                high < 1e12) {
+            high *= 2.0;
+        }
+
+        if (sumWithScale(high, weights, mins, maxs) < TARGET_TOTAL_PERCENTAGE - BOUNDS_EPSILON) {
+            return null;
+        }
+
+        for (int i = 0; i < 100; i++) {
+            double mid = (low + high) / 2.0;
+            double sum = sumWithScale(mid, weights, mins, maxs);
+            if (sum < TARGET_TOTAL_PERCENTAGE) {
+                low = mid;
+            } else {
+                high = mid;
             }
         }
-        return variation;
+
+        double[] values = new double[mins.length];
+        for (int i = 0; i < mins.length; i++) {
+            values[i] = clamp(mins[i] + high * weights[i], mins[i], maxs[i]);
+        }
+
+        double total = 0.0;
+        for (double value : values) {
+            total += value;
+        }
+        double difference = TARGET_TOTAL_PERCENTAGE - total;
+
+        if (difference > 0) {
+            for (int i = 0; i < values.length && difference > BOUNDS_EPSILON; i++) {
+                double available = maxs[i] - values[i];
+                if (available > 0) {
+                    double increment = Math.min(available, difference);
+                    values[i] += increment;
+                    difference -= increment;
+                }
+            }
+        } else if (difference < 0) {
+            double excess = -difference;
+            for (int i = 0; i < values.length && excess > BOUNDS_EPSILON; i++) {
+                double reducible = values[i] - mins[i];
+                if (reducible > 0) {
+                    double decrement = Math.min(reducible, excess);
+                    values[i] -= decrement;
+                    excess -= decrement;
+                }
+            }
+            difference = -excess;
+        }
+
+        return Math.abs(difference) <= 1e-6 ? values : null;
+    }
+
+    private double[] getNormalizedWeights(double[] sample, double[] mins, double[] maxs) {
+        double[] weights = new double[sample.length];
+        double positiveWeightSum = 0.0;
+
+        for (int i = 0; i < sample.length; i++) {
+            if (maxs[i] - mins[i] <= BOUNDS_EPSILON) {
+                weights[i] = 0.0;
+                continue;
+            }
+            double rawWeight = (Double.isFinite(sample[i]) && sample[i] > 0.0) ? sample[i] : 0.0;
+            if (rawWeight == 0.0) {
+                rawWeight = 1e-9;
+            }
+            weights[i] = rawWeight;
+            positiveWeightSum += rawWeight;
+        }
+
+        if (positiveWeightSum <= 0.0) {
+            return null;
+        }
+
+        for (int i = 0; i < weights.length; i++) {
+            weights[i] /= positiveWeightSum;
+        }
+        return weights;
+    }
+
+    private double sumWithScale(double scale, double[] weights, double[] mins, double[] maxs) {
+        double sum = 0.0;
+        for (int i = 0; i < weights.length; i++) {
+            sum += clamp(mins[i] + scale * weights[i], mins[i], maxs[i]);
+        }
+        return sum;
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
     }
 
 }

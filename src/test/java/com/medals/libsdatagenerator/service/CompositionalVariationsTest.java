@@ -1,7 +1,10 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
+import com.medals.libsdatagenerator.model.ElementStatistics;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import org.junit.jupiter.api.Assumptions;
@@ -317,5 +320,40 @@ class CompositionalVariationsTest {
         }
         
         assertTrue(foundDifference, "Different seeds should produce different results");
+    }
+
+    @Test
+    void testDirichletSampling_respectsBaseElementRanges() {
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("Iron", "Fe", 70.0, 69.9, 70.1, 70.0));
+        baseComp.add(new Element("Chromium", "Cr", 20.0, 19.9, 20.1, 20.0));
+        baseComp.add(new Element("Nickel", "Ni", 10.0, 9.9, 10.1, 10.0));
+
+        SeriesInput parentSeries = new SeriesInput("test-series", List.of("mat-guid"), "overview-guid");
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, "mat-guid", parentSeries);
+
+        SeriesStatistics overviewStats = new SeriesStatistics("test-series", "overview-guid");
+        overviewStats.addElementStatisticsToComposition(new ElementStatistics("Fe", 70.0, 50, 0.0, 100.0));
+        overviewStats.addElementStatisticsToComposition(new ElementStatistics("Cr", 20.0, 50, 0.0, 100.0));
+        overviewStats.addElementStatisticsToComposition(new ElementStatistics("Ni", 10.0, 50, 0.0, 100.0));
+        materialGrade.setOverviewStatistics(overviewStats);
+
+        List<List<Element>> variations = new ArrayList<>();
+        DirichletSampler.getInstance().sample(materialGrade, 25, variations, SEED);
+
+        assertEquals(25, variations.size(), "Should generate requested Dirichlet samples within tight base ranges");
+        for (List<Element> variation : variations) {
+            double total = 0.0;
+            for (int i = 0; i < variation.size(); i++) {
+                Element generated = variation.get(i);
+                Element base = baseComp.get(i);
+                assertTrue(generated.getPercentageComposition() >= base.getMin() - DELTA,
+                        generated.getSymbol() + " below base min");
+                assertTrue(generated.getPercentageComposition() <= base.getMax() + DELTA,
+                        generated.getSymbol() + " above base max");
+                total += generated.getPercentageComposition();
+            }
+            assertEquals(100.0, total, 0.01, "Generated sample should sum to 100%");
+        }
     }
 }
