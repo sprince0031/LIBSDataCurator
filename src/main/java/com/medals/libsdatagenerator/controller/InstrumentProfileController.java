@@ -57,24 +57,14 @@ public class InstrumentProfileController {
                         if (!CSVUtils.isValidDelimiter(delimiter)) {
                                 throw new IOException("Invalid delimiter specified");
                         }
-                        String compositionOrRefPath = cmd.getOptionValue(
-                                LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
+                        String compositionOrRefPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
                         String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
-                        String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT,
-                                InstrumentProfile.INSTRUMENT_PROFILE_PATH);
-                        int plasmaZones = Integer
-                                        .parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT,
-                                                        "2"));
-                        double lambda = Double.parseDouble(
-                                        cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT,
-                                                        "10000"));
-                        double p = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,
-                                        "0.001"));
-                        int maxIterations = Integer
-                                        .parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_SHORT,
-                                                        "10"));
-                        BaselineCorrectionParams baselineCorrectionParams = new BaselineCorrectionParams(lambda, p,
-                                        maxIterations);
+                        String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT, InstrumentProfile.INSTRUMENT_PROFILE_PATH);
+                        int plasmaZones = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT, "2"));
+                        double lambda = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT, "10000"));
+                        double p = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,"0.001"));
+                        int maxIterations = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_SHORT,"10"));
+                        BaselineCorrectionParams baselineCorrectionParams = new BaselineCorrectionParams(lambda, p, maxIterations);
                         boolean debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
 
                         // ----------------------------------------------------------------
