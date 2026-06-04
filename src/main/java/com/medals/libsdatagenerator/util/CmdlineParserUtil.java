@@ -282,6 +282,13 @@ public class CmdlineParserUtil {
         input.setRequired(true);
         options.addOption(input);
 
+        // Material family name for which the profile is being created (required)
+        Option materialFamilyName = new Option(LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_DESC);
+        materialFamilyName.setRequired(false);
+        options.addOption(materialFamilyName);
+
         // Input CSV delimiter (optional | default: ;)
         Option delimiter = new Option(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT,
                 LIBSDataGenConstants.CMD_OPT_DELIMITER_LONG,
