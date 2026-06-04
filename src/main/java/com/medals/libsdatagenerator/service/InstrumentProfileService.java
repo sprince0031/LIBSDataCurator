@@ -3,6 +3,7 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.MaterialFamilyProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import com.medals.libsdatagenerator.model.UserInputConfig;
@@ -50,7 +51,6 @@ import java.util.stream.Stream;
 public class InstrumentProfileService {
 
     private static final Logger logger = Logger.getLogger(InstrumentProfileService.class.getName());
-
     private static InstrumentProfileService instance = null;
 
     public static InstrumentProfileService getInstance() {
@@ -63,19 +63,21 @@ public class InstrumentProfileService {
     /**
      * Generates an instrument profile from a sample LIBS measurement CSV file.
      *
-     * @param sampleCsvPath Path to the sample CSV file with real LIBS readings
-     * @param delimiter The delimiter character used by the sample CSV file
-     * @param compositionString Composition of the reference material (e.g.: "Fe-80,C-20")
-     * @param instrumentName Optional name for the instrument
-     * @param baselineParams Object containing lambda, p and maxIter values for baseline correction
-     * @param plasmaZones Number of plasma zones to consider and combine when comparing fit of synthetic spectrum
-     * @param debugMode Enable debug mode which shows browser actions in a browser window
+     * @param sampleCsvPath      Path to the sample CSV file with real LIBS readings
+     * @param delimiter          The delimiter character used by the sample CSV file
+     * @param compositionString  Composition of the reference material (e.g.: "Fe-80,C-20")
+     * @param instrumentName     Optional name for the instrument
+     * @param baselineParams     Object containing lambda, p and maxIter values for baseline correction
+     * @param noPlasmaZones      Number of plasma zones to consider and combine when comparing fit of synthetic spectrum
+     * @param debugMode          Enable debug mode which shows browser actions in a browser window
+     * @param materialFamilyName
+     * @param outputPath
      * @return Generated InstrumentProfile
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
-            String instrumentName, BaselineCorrectionParams baselineParams,
-            int plasmaZones, boolean debugMode) throws IOException {
+                                             String instrumentName, BaselineCorrectionParams baselineParams,
+                                             int noPlasmaZones, boolean debugMode, String materialFamilyName, Path outputPath) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -122,9 +124,17 @@ public class InstrumentProfileService {
         profile.setBaselineParams(baselineParams);
 
         // 6. Optimize plasma parameters
-        logger.info("Starting " + plasmaZones + "-zone plasma parameter optimization...");
-        optimizePlasmaParameters(profile, processedMeasuredSpectrum, materialGrade, plasmaZones, debugMode);
-
+        logger.info("Starting " + noPlasmaZones + "-zone plasma parameter optimization...");
+        MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(materialFamilyName);
+        // Setup output directories
+        Path calibrationDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
+        Files.createDirectories(calibrationDir);
+        Path targetCsv = calibrationDir.resolve("target_processed.csv");
+        Path zonesCsv = calibrationDir.resolve("best_zones.csv");
+        optimizePlasmaParameters(materialFamilyProfile, processedMeasuredSpectrum, materialGrade, noPlasmaZones,
+                debugMode, targetCsv, zonesCsv);
+        profile.addMaterialFamilyProfile(materialFamilyProfile);
+        CommonUtils.getInstance().saveModelToFile(outputPath, profile);
         // 7. Generate Jupyter Report
         if (PythonUtils.getInstance().setupPythonEnvironment()) {
             try {
@@ -133,14 +143,10 @@ public class InstrumentProfileService {
                     throw new IOException("Jupyter executable not found in virtual environment.");
                 }
 
-                Path calibrationDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
                 Path reportPath = calibrationDir
                         .resolve(LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + ".ipynb");
 
-                Path targetCsv = calibrationDir.resolve("target_processed.csv");
-                Path zonesCsv = calibrationDir.resolve("best_zones.csv");
-
-                generateJupyterReport(profile, reportPath, targetCsv, zonesCsv);
+                generateJupyterReport(profile, reportPath, targetCsv, zonesCsv, materialFamilyName);
                 executeNotebook(reportPath, jupyterPath);
                 convertNotebookToPdf(reportPath, jupyterPath, instrumentName);
 
@@ -247,13 +253,14 @@ public class InstrumentProfileService {
 
     /**
      * Generates a Jupyter Notebook report for the calibration.
-     * 
-     * @param profile The instrument profile containing data and parameters
-     * @param outputPath Path to save the .ipynb file
+     *
+     * @param profile            The instrument profile containing data and parameters
+     * @param outputPath         Path to save the .ipynb file
+     * @param materialFamilyName
      * @throws IOException if writing fails
      */
-    public void generateJupyterReport(InstrumentProfile profile, Path outputPath, Path targetCsv, Path zonesCsv)
-            throws IOException {
+    public void generateJupyterReport(InstrumentProfile profile, Path outputPath, Path targetCsv, Path zonesCsv,
+                                      String materialFamilyName) throws IOException {
         // Load template from conf directory
         Path templatePath = Paths.get(CommonUtils.CONF_PATH, LIBSDataGenConstants.CALIBRATION_REPORT_TEMPLATE_FILE);
         String templateContent;
@@ -275,24 +282,25 @@ public class InstrumentProfileService {
 
         // Prepare data strings for replacement
         // Using raw strings for paths, escaped for Python
-        String content = getProcessedNotebook(profile, zonesCsv, templateContent);
+        String content = getProcessedNotebook(profile, zonesCsv, templateContent, materialFamilyName);
 
         // Save filled notebook
         Files.write(outputPath, content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         logger.info("Jupyter notebook report generated: " + outputPath);
     }
 
-    private String getProcessedNotebook(InstrumentProfile profile, Path zonesCsv, String templateContent) {
+    private String getProcessedNotebook(InstrumentProfile profile, Path zonesCsv, String templateContent,
+                                        String materialFamilyName) {
         // Use forward slashes for paths to ensure cross-platform compatibility in
         // Jupyter/Python without needing escaping
         String inputCsvPath = profile.getSourceFile().replace("\\", "/");
         String zonesCsvPath = zonesCsv.toAbsolutePath().toString().replace("\\", "/");
-
+        MaterialFamilyProfile mfProfile = profile.getMaterialFamilyProfile(materialFamilyName);
         // Replace placeholders
         return templateContent
                 .replace(LIBSDataGenConstants.INSTRUMENT_NAME, profile.getInstrumentName())
-                .replace(LIBSDataGenConstants.RSQUARE_SCORE, String.format("%.4f", profile.getRSquaredValue()))
-                .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", profile.getRmse()))
+                .replace(LIBSDataGenConstants.RSQUARE_SCORE, String.format("%.4f", mfProfile.getRSquaredValue()))
+                .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", mfProfile.getRmse()))
                 .replace(LIBSDataGenConstants.INPUT_CSV_PATH, inputCsvPath)
                 .replace(LIBSDataGenConstants.ZONES_CSV_PATH, zonesCsvPath)
                 .replace(LIBSDataGenConstants.LAMBDA, String.valueOf(profile.getLambda()))
@@ -345,11 +353,12 @@ public class InstrumentProfileService {
 
         String avgZonesPath = avgZonesCsvPath.toAbsolutePath().toString().replace("\\", "/");
         String perMatDir = calibDir.toAbsolutePath().toString().replace("\\", "/");
+        MaterialFamilyProfile mfProfile = profile.getMaterialFamilyProfile(materialNames.get(0));
 
         String content = templateContent
                 .replace(LIBSDataGenConstants.INSTRUMENT_NAME, profile.getInstrumentName())
-                .replace(LIBSDataGenConstants.RSQUARE_SCORE, String.format("%.4f", profile.getRSquaredValue()))
-                .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", profile.getRmse()))
+                .replace(LIBSDataGenConstants.RSQUARE_SCORE, String.format("%.4f", mfProfile.getRSquaredValue()))
+                .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", mfProfile.getRmse()))
                 .replace(LIBSDataGenConstants.LAMBDA, String.valueOf(profile.getLambda()))
                 .replace(LIBSDataGenConstants.P, String.valueOf(profile.getP()))
                 .replace(LIBSDataGenConstants.MAX_ITERATIONS, String.valueOf(profile.getMaxIterations()))
@@ -468,15 +477,17 @@ public class InstrumentProfileService {
      * Uses a recursive Grid Search approach with Selenium-based spectrum
      * generation.
      *
-     * @param profile                   InstrumentProfile to update with optimized
-     *                                  parameters
+     * @param profile InstrumentProfile to update with optimized parameters
      * @param processedMeasuredSpectrum Average measured spectrum
-     * @param composition               Material composition
-     * @param plasmaZones               Number of plasma zones to combine
-     * @param debugMode
+     * @param composition Material composition
+     * @param plasmaZones Number of plasma zones to combine
+     * @param debugMode Setting to true ensures Selenium doesn't run in headless mode and the browser window is visible
+     * @param targetCsvPath Path to save target measured spectrum
+     * @param zonesCsvPath Path to save spectra corresponding to optimised plasma zone parameters
      */
-    private void optimizePlasmaParameters(InstrumentProfile profile, Spectrum processedMeasuredSpectrum,
-            MaterialGrade composition, int plasmaZones, boolean debugMode) {
+    private void optimizePlasmaParameters(MaterialFamilyProfile profile, Spectrum processedMeasuredSpectrum,
+                                          MaterialGrade composition, int plasmaZones, boolean debugMode,
+                                          Path targetCsvPath, Path zonesCsvPath) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
@@ -508,13 +519,8 @@ public class InstrumentProfileService {
         PrintStream out = System.out;
 
         try {
-            // Setup output directories
-            Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
-            Files.createDirectories(calibDir);
-
             // Save Target Spectrum
-            Path targetPath = calibDir.resolve("target_processed.csv");
-            saveSpectrumToCsv(targetPath, wavelengthGrid, measuredIntensities);
+            saveSpectrumToCsv(targetCsvPath, wavelengthGrid, measuredIntensities);
 
             // Pre-fetch all necessary spectra
             logger.info("Starting grid search...");
@@ -556,9 +562,8 @@ public class InstrumentProfileService {
             // Recursive Grid Search
             OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
                     normalizedSpectrumCache, normalisedMeasuredSpectrum);
-            bestResult.scaleFactor = maxMeasuredIntensity;
 
-            profile.setZones(bestResult.plasmaZones);
+            profile.setPlasmaZones(bestResult.plasmaZones);
             profile.setRmse(bestResult.rmse);
             profile.setRSquaredValue(bestResult.rSquared);
             profile.setScaleFactor(maxMeasuredIntensity);
@@ -566,7 +571,6 @@ public class InstrumentProfileService {
             logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
 
             // Save Best Zones and Spectra to CSV
-            Path zonesCsvPath = calibDir.resolve("best_zones.csv");
             if (zonesCsvPath != null) {
                 saveZonesToCsv(zonesCsvPath, bestResult.plasmaZones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
             }
@@ -604,20 +608,22 @@ public class InstrumentProfileService {
      * calibration output directory.  At the end, plasma parameters are averaged
      * <em>per zone</em> to produce the final profile.
      *
-     * @param dirPath              Root data directory
-     * @param refCompositionsPath  Path to {@code reference_compositions.json},
-     *                             or {@code null} to use the default location
-     * @param delimiter            CSV delimiter used in the measurement files
-     * @param instrumentName       Name/identifier for the instrument
-     * @param baselineParams       Baseline-correction parameters
-     * @param plasmaZones          Number of plasma zones
-     * @param debugMode            Show Selenium browser window if true
+     * @param dirPath             Root data directory
+     * @param refCompositionsPath Path to {@code reference_compositions.json},
+     *                            or {@code null} to use the default location
+     * @param delimiter           CSV delimiter used in the measurement files
+     * @param instrumentName      Name/identifier for the instrument
+     * @param baselineParams      Baseline-correction parameters
+     * @param numPlasmaZones      Number of plasma zones
+     * @param debugMode           Show Selenium browser window if true
+     * @param outputPath
      * @return The generated {@link InstrumentProfile} with zone-averaged plasma parameters
      * @throws IOException if the reference-compositions file is missing, or no
      *                     material could be processed
      */
     public InstrumentProfile generateProfileFromDirectory(Path dirPath, Path refCompositionsPath, String delimiter,
-            String instrumentName, BaselineCorrectionParams baselineParams, int plasmaZones, boolean debugMode) throws IOException {
+                                                          String instrumentName, BaselineCorrectionParams baselineParams,
+                                                          int numPlasmaZones, boolean debugMode, Path outputPath) throws IOException {
 
         logger.info("Generating instrument profile from directory: " + dirPath);
 
@@ -645,14 +651,12 @@ public class InstrumentProfileService {
         boolean hasSubdirs = hasSubdirectories(dirPath);
         logger.info("Data directory " + (hasSubdirs ? "has" : "does not have") + " material subdirectories");
 
-        // Master state across all materials
-        Map<Integer, List<PlasmaZone>> zonesPerIndex = new HashMap<>();
-        List<Double> rmseValues = new ArrayList<>();
-        List<Double> rSquaredValues = new ArrayList<>();
-        List<String> processedMaterialNames = new ArrayList<>();
-        double[] masterWavelengthGrid = null;
+        // Initialise instrument profile
+        InstrumentProfile profile = new InstrumentProfile(null, dirPath.toString(),
+                "directory:" + refCompositionsPath.toAbsolutePath());
+        profile.setInstrumentName(instrumentName != null ? instrumentName : "Unknown");
+        profile.setBaselineParams(baselineParams);
         int totalShots = 0;
-        int materialsProcessed = 0;
 
         SpectrumUtils spectrumUtils = new SpectrumUtils();
         Path calibDir = Paths.get(CommonUtils.DATA_PATH, LIBSDataGenConstants.CALIBRATION_DIR);
@@ -661,13 +665,23 @@ public class InstrumentProfileService {
         // Iterate over material types
         for (int typeIdx = 0; typeIdx < materialCompositions.length(); typeIdx++) {
             JSONObject materialTypeEntry = materialCompositions.getJSONObject(typeIdx);
-            String materialType = materialTypeEntry.optString("materialType", "Unknown");
+            String materialType = materialTypeEntry.optString("materialType", "Unknown"+typeIdx);
             JSONArray materials = materialTypeEntry.optJSONArray("materials");
 
             if (materials == null || materials.isEmpty()) {
                 logger.warning("No 'materials' array found in material type '" + materialType + "'. Skipping.");
                 continue;
             }
+
+            // Master state across all materials in a family
+            Map<Integer, List<PlasmaZone>> zonesPerIndex = new HashMap<>();
+            List<Double> rmseValues = new ArrayList<>();
+            List<Double> rSquaredValues = new ArrayList<>();
+            List<String> processedMaterialNames = new ArrayList<>();
+            double scaleFactor = Double.MIN_VALUE;
+            int materialsProcessed = 0;
+            MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(materialType);
+            Path targetPath = calibDir.resolve(materialType + "_target_processed.csv");
 
             // Iterate over individual materials within this type
             for (int matIdx = 0; matIdx < materials.length(); matIdx++) {
@@ -701,8 +715,8 @@ public class InstrumentProfileService {
                                 + materialName + "'. Skipping.");
                         continue;
                     }
-                    if (masterWavelengthGrid == null) {
-                        masterWavelengthGrid = wavelengthGrid;
+                    if (profile.getWavelengthGrid() == null) {
+                        profile.setWavelengthGrid(wavelengthGrid);
                     }
 
                     // Collect all spectra from every CSV belonging to this material
@@ -730,10 +744,8 @@ public class InstrumentProfileService {
 
                     // Baseline correction
                     double[] baselineCorrected = BaselineCorrectionService.getInstance().correctBaseline(
-                            clippedSpectrum.getIntensities(),
-                            baselineParams.getLambda(),
-                            baselineParams.getP(),
-                            baselineParams.getMaxIterations());
+                            clippedSpectrum.getIntensities(), baselineParams.getLambda(),
+                            baselineParams.getP(), baselineParams.getMaxIterations());
                     Spectrum processedSpectrum = new Spectrum(
                             clippedSpectrum.getWavelengths(), baselineCorrected);
 
@@ -760,21 +772,18 @@ public class InstrumentProfileService {
 
                     // Run grid-search optimisation; save per-material zones CSV
                     Path matZonesCsvPath = calibDir.resolve(materialName + "_best_zones.csv");
-                    /* TODO: Need to transition to call optimisePlasmaParameters with an InstrumentProfile object
-                     *  per material type (family) JSON object from reference_compositions.json
-                     */
-                    ZoneEstimationResult result = estimateZones(
-                            processedSpectrum, materialGrade, plasmaZones,
-                            debugMode, calibDir, matZonesCsvPath);
+                    optimizePlasmaParameters(materialFamilyProfile, processedSpectrum, materialGrade, numPlasmaZones,
+                            debugMode, targetPath, matZonesCsvPath);
 
                     // Accumulate zones per zone index (never mix zones from different indices)
-                    for (int zoneIdx = 0; zoneIdx < result.zones.size(); zoneIdx++) {
+                    for (int zoneIdx = 0; zoneIdx < materialFamilyProfile.getPlasmaZones().size(); zoneIdx++) {
                         zonesPerIndex
                                 .computeIfAbsent(zoneIdx, k -> new ArrayList<>())
-                                .add(result.zones.get(zoneIdx));
+                                .add(materialFamilyProfile.getPlasmaZones().get(zoneIdx));
                     }
-                    rmseValues.add(result.rmse);
-                    rSquaredValues.add(result.rSquared);
+                    rmseValues.add(materialFamilyProfile.getRmse());
+                    rSquaredValues.add(materialFamilyProfile.getRSquaredValue());
+                    scaleFactor = Math.max(scaleFactor, materialFamilyProfile.getScaleFactor());
                     processedMaterialNames.add(materialName);
                     materialsProcessed++;
 
@@ -789,52 +798,45 @@ public class InstrumentProfileService {
                     SeleniumUtils.getInstance().quitSelenium();
                 }
             }
-        }
-
-        if (materialsProcessed == 0) {
-            throw new IOException(
-                    "No materials could be processed from directory: " + dirPath
-                    + ". Check that reference_compositions.json matches the data files.");
-        }
-
-        // Average plasma parameters per zone
-        List<PlasmaZone> averagedZones = new ArrayList<>();
-        for (int zoneIdx = 0; zoneIdx < plasmaZones; zoneIdx++) {
-            List<PlasmaZone> zoneList = zonesPerIndex.get(zoneIdx);
-            if (zoneList != null && !zoneList.isEmpty()) {
-                double avgTe = zoneList.stream().mapToDouble(PlasmaZone::getTe).average().orElse(0.0);
-                double avgNe = zoneList.stream().mapToDouble(PlasmaZone::getNe).average().orElse(0.0);
-                double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getWeight).average().orElse(0.0);
-                averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight));
+            if (materialsProcessed == 0) {
+                throw new IOException(
+                        "No materials could be processed from directory: " + dirPath
+                                + ". Check that reference_compositions.json matches the data files.");
             }
+
+            // Average plasma parameters per zone
+            List<PlasmaZone> averagedZones = new ArrayList<>();
+            for (int zoneIdx = 0; zoneIdx < numPlasmaZones; zoneIdx++) {
+                List<PlasmaZone> zoneList = zonesPerIndex.get(zoneIdx);
+                if (zoneList != null && !zoneList.isEmpty()) {
+                    double avgTe = zoneList.stream().mapToDouble(PlasmaZone::getTe).average().orElse(0.0);
+                    double avgNe = zoneList.stream().mapToDouble(PlasmaZone::getNe).average().orElse(0.0);
+                    double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getWeight).average().orElse(0.0);
+                    averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight));
+                }
+            }
+
+            double avgRmse = rmseValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+            double avgRSquared = rSquaredValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+
+            materialFamilyProfile.setPlasmaZones(averagedZones);
+            materialFamilyProfile.setRmse(avgRmse);
+            materialFamilyProfile.setRSquaredValue(avgRSquared);
+            materialFamilyProfile.setScaleFactor(scaleFactor);
+            profile.addMaterialFamilyProfile(materialFamilyProfile);
+
+            // Save averaged zones CSV
+            Path avgZonesCsvPath = calibDir.resolve(materialType + "_averaged_best_zones.csv");
+            if (profile.getWavelengthGrid() != null && !averagedZones.isEmpty()) {
+                // Use an empty spectrum cache since we have no per-zone raw spectra to write
+                saveZonesToCsv(avgZonesCsvPath, averagedZones, profile.getWavelengthGrid(),
+                        Collections.emptyMap(), 1.0);
+            }
+            logger.info("Profile generation for " + materialType + " complete. Processed " + materialsProcessed
+                    + " materials, averaged " + averagedZones.size() + " plasma zone(s).");
         }
-
-        double avgRmse = rmseValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-        double avgRSquared = rSquaredValues.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-
-        // Save averaged zones CSV
-        Path avgZonesCsvPath = calibDir.resolve("averaged_best_zones.csv");
-        if (masterWavelengthGrid != null && !averagedZones.isEmpty()) {
-            // Use an empty spectrum cache since we have no per-zone raw spectra to write
-            saveZonesToCsv(avgZonesCsvPath, averagedZones, masterWavelengthGrid,
-                    Collections.emptyMap(), 1.0);
-        }
-
-        // Build the final profile
-        InstrumentProfile profile = new InstrumentProfile(
-                masterWavelengthGrid,
-                dirPath.toString(),
-                "directory:" + refCompositionsPath.getFileName());
-        profile.setInstrumentName(instrumentName != null ? instrumentName : "Unknown");
         profile.setNumShots(totalShots);
-        profile.setBaselineParams(baselineParams);
-        profile.setZones(averagedZones);
-        profile.setRmse(avgRmse);
-        profile.setRSquaredValue(avgRSquared);
-        profile.setScaleFactor(1.0);
-
-        logger.info("Directory profile generation complete. Processed " + materialsProcessed
-                + " materials, averaged " + averagedZones.size() + " plasma zone(s).");
+        CommonUtils.getInstance().saveModelToFile(outputPath, profile);
 
         // Generate Jupyter calibration report for directory mode
         if (PythonUtils.getInstance().setupPythonEnvironment()) {
@@ -847,6 +849,8 @@ public class InstrumentProfileService {
                 Path reportPath = calibDir.resolve(
                         LIBSDataGenConstants.CALIBRATION_REPORT_OUTPUT_FILE + "_multi_material.ipynb");
 
+                // TODO: Refactor notebook to use saved instrument profile JSON rather than piecing everything together
+                //  from the CSVs
                 generateJupyterReportForDirectory(
                         profile, reportPath, avgZonesCsvPath, calibDir,
                         processedMaterialNames);
@@ -977,7 +981,6 @@ public class InstrumentProfileService {
 //        List<Double> weights = new ArrayList<>();
         double rmse = Double.MAX_VALUE;
         double rSquared = Double.MIN_VALUE;
-        double scaleFactor = 1.0;
     }
 
     private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neExponents,

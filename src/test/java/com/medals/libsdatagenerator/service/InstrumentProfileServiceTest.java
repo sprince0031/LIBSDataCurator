@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.MaterialFamilyProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
@@ -162,9 +163,11 @@ public class InstrumentProfileServiceTest {
         List<PlasmaZone> zones = new ArrayList<>();
         zones.add(new PlasmaZone(1.2, 5e16, 0.6));
         zones.add(new PlasmaZone(0.7, 2e16, 0.4));
-        profile.setZones(zones);
-        profile.setRSquaredValue(0.95);
-        profile.setRmse(0.05);
+        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile("testMaterialFamily");
+        mfProfile.setPlasmaZones(zones);
+        mfProfile.setRSquaredValue(0.95);
+        mfProfile.setRmse(0.05);
+        profile.addMaterialFamilyProfile(mfProfile);
 
         // Save to file
         Path outputPath = tempDir.resolve("test_profile.json");
@@ -173,20 +176,21 @@ public class InstrumentProfileServiceTest {
         assertTrue(Files.exists(outputPath));
 
         // Load from file
-        InstrumentProfile loaded = null;
-        loaded = CommonUtils.getInstance().loadModelFromFile(outputPath, InstrumentProfile.class);
+        InstrumentProfile loaded = CommonUtils.getInstance().loadModelFromFile(outputPath, InstrumentProfile.class);
+        MaterialFamilyProfile loadedFamilyProfile = loaded.getMaterialFamilyProfiles().get("testMaterialFamily");
 
         assertNotNull(loaded);
+        assertNotNull(loadedFamilyProfile);
         assertEquals("Test Spectrometer", loaded.getInstrumentName());
         assertEquals("Fe-98.0,C-2.0", loaded.getComposition());
         assertEquals(5, loaded.getNumShots());
-        assertEquals(2, loaded.getZones().size());
-        assertEquals(1.2, loaded.getZones().get(0).getTe(), 0.01);
-        assertEquals(5e16, loaded.getZones().get(0).getNe(), 1e15);
-        assertEquals(0.7, loaded.getZones().get(1).getTe(), 0.01);
-        assertEquals(2e16, loaded.getZones().get(1).getNe(), 1e15);
-        assertEquals(0.95, loaded.getRSquaredValue(), 0.01);
-        assertEquals(0.05, loaded.getRmse(), 0.01);
+        assertEquals(2, loadedFamilyProfile.getPlasmaZones().size());
+        assertEquals(1.2, loadedFamilyProfile.getPlasmaZones().get(0).getTe(), 0.01);
+        assertEquals(5e16, loadedFamilyProfile.getPlasmaZones().get(0).getNe(), 1e15);
+        assertEquals(0.7, loadedFamilyProfile.getPlasmaZones().get(1).getTe(), 0.01);
+        assertEquals(2e16, loadedFamilyProfile.getPlasmaZones().get(1).getNe(), 1e15);
+        assertEquals(0.95, loadedFamilyProfile.getRSquaredValue(), 0.01);
+        assertEquals(0.05, loadedFamilyProfile.getRmse(), 0.01);
     }
 
     @Test
@@ -216,14 +220,17 @@ public class InstrumentProfileServiceTest {
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
         List<PlasmaZone> zones = new ArrayList<>();
         zones.add(new PlasmaZone(1.0, 1e16, 1.0));
-        profile.setZones(zones);
+        String materialFamilyName = "testMaterialFamily";
+        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile(materialFamilyName);
+        mfProfile.setPlasmaZones(zones);
+        profile.addMaterialFamilyProfile(mfProfile);
         profile.setInstrumentName("Test Spectrometer");
 
         Path reportPath = tempDir.resolve("calibration_report.ipynb");
         Path dummyPath = tempDir.resolve("dummy.csv");
         Files.writeString(dummyPath, "Wavelength,Intensity\n200,100");
 
-        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath);
+        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath, materialFamilyName);
 
         assertTrue(Files.exists(reportPath));
         String content = Files.readString(reportPath);
@@ -354,7 +361,7 @@ public class InstrumentProfileServiceTest {
             service.generateProfileFromDirectory(
                 tempDir, null, ";", "Test",
                 new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
-                2, false));
+                2, false, ));
     }
 
     @Test
@@ -364,7 +371,7 @@ public class InstrumentProfileServiceTest {
             service.generateProfileFromDirectory(
                 tempDir, nonExistent, ";", "Test",
                 new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
-                2, false));
+                2, false, ));
     }
 
     // -----------------------------------------------------------------------
@@ -376,13 +383,16 @@ public class InstrumentProfileServiceTest {
         // Build a minimal profile
         double[] wavelengths = { 200.0, 300.0, 400.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "/data/measurements", "directory:ref.json");
+        profile.setInstrumentName("Test Spectrometer");
         List<PlasmaZone> zones = new ArrayList<>();
         zones.add(new PlasmaZone(1.2, 1e16, 0.6));
         zones.add(new PlasmaZone(0.8, 5e15, 0.4));
-        profile.setZones(zones);
-        profile.setInstrumentName("Test Spectrometer");
-        profile.setRSquaredValue(0.92);
-        profile.setRmse(0.08);
+        String materialFamilyProfile = "testProfile";
+        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile(materialFamilyProfile);
+        mfProfile.setPlasmaZones(zones);
+        mfProfile.setRSquaredValue(0.92);
+        mfProfile.setRmse(0.08);
+        profile.addMaterialFamilyProfile(mfProfile);
 
         // Write a dummy averaged_best_zones.csv and per-material zones CSVs
         Path avgZonesCsv = tempDir.resolve("averaged_best_zones.csv");

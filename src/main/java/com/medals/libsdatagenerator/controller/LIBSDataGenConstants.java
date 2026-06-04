@@ -176,6 +176,10 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_INPUT_SHORT = "i";
     public static final String CMD_OPT_INPUT_LONG = "input";
     public static final String CMD_OPT_INPUT_DESC = "Path to a sample LIBS measurement CSV file, or a directory containing measurement CSVs organised by material";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_SHORT = "mf";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_LONG = "material-family";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_DESC = "Name of the family to which the material on which measurements are taken belong to"
+        + " (use this option only if calibrating against single material family)";
     public static final String CMD_OPT_DELIMITER_SHORT = "dl";
     public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
     public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";

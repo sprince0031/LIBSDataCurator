@@ -3,6 +3,7 @@ package com.medals.libsdatagenerator.service;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.MaterialFamilyProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
@@ -47,6 +48,7 @@ import java.util.logging.Logger;
 
 public class LIBSDataService {
     private static Logger logger = Logger.getLogger(LIBSDataService.class.getName());
+    private final String DEFAULT_MATERIAL_FAMILY_PROFILE = "defaultProfile";
 
     public static LIBSDataService instance = null;
     private boolean firstComposition = true;
@@ -252,7 +254,13 @@ public class LIBSDataService {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
         SpectrumUtils spectrumUtils = new  SpectrumUtils();
         try {
-            List<PlasmaZone> plasmaZones = instrumentProfile.getZones();
+            MaterialFamilyProfile familyProfile = instrumentProfile.getMaterialFamilyProfile(
+                    sourceMaterial.getParentSeries().getSeriesKey());
+            if (familyProfile == null) { // use default plasma profile if specific material family profile not available
+                familyProfile = instrumentProfile.getMaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
+            }
+
+            List<PlasmaZone> plasmaZones = familyProfile.getPlasmaZones();
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
                 // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
@@ -289,7 +297,7 @@ public class LIBSDataService {
                         continue;
                     }
                     double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(interpolatedSpectrum, instrumentProfile.getScaleFactor());
+                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(interpolatedSpectrum, familyProfile.getScaleFactor());
                     // First time population of combined spectrum
                     double weight = plasmaZones.get(i).getWeight();
                     if (combinedSpectrum.isEmpty()) {
@@ -361,10 +369,12 @@ public class LIBSDataService {
         // Initialise instrument profile with single default plasma zone if no config file present
         if (instrumentProfile ==  null) {
             instrumentProfile = new InstrumentProfile(null, null, null);
-                PlasmaZone defaultPlasmaZone = new PlasmaZone(Double.parseDouble(config.plasmaTemp),
-                        Double.parseDouble(config.electronDensity), 1.0);
-            instrumentProfile.setZones(new  ArrayList<>(List.of(defaultPlasmaZone)));
         }
+        MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
+        PlasmaZone defaultPlasmaZone = new PlasmaZone(Double.parseDouble(config.plasmaTemp),
+                Double.parseDouble(config.electronDensity), 1.0);
+        materialFamilyProfile.setPlasmaZones(new  ArrayList<>(List.of(defaultPlasmaZone)));
+        instrumentProfile.addMaterialFamilyProfile(materialFamilyProfile);
 
         Set<Double> allWavelengths = new TreeSet<>();
         Map<String, Object> fetchedSpectralData = new HashMap<>();
