@@ -7,7 +7,6 @@ import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
 import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
-import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
 
 import java.io.File;
@@ -107,7 +106,7 @@ public class InstrumentProfileController {
 
                 profile = profileService.generateProfileFromDirectory(
                         dirPath, refCompositionsPath, delimiter,
-                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode, );
+                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode, outputFilePath);
 
             } else if (inputFile.isFile()) {
                 // ---- Single-file mode (backward compatible) -----------------
@@ -130,7 +129,7 @@ public class InstrumentProfileController {
 
                 profile = profileService.generateProfile(inputFilePath, delimiter,
                         compositionOrRefPath, instrumentName,
-                        baselineCorrectionParams, plasmaZones, debugMode, materialFamilyName, );
+                        baselineCorrectionParams, plasmaZones, debugMode, materialFamilyName, outputFilePath);
 
             } else {
                 logger.severe("Input path is neither a file nor a directory: " + inputPath);
@@ -142,7 +141,6 @@ public class InstrumentProfileController {
             // ----------------------------------------------------------------
             // Print summary
             // ----------------------------------------------------------------
-            CommonUtils.getInstance().saveModelToFile(outputFilePath, profile);
 
             System.out.println();
             System.out.println("=== Profile Generation Complete ===");

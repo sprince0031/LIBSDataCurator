@@ -851,12 +851,12 @@ public class InstrumentProfileService {
 
                 // TODO: Refactor notebook to use saved instrument profile JSON rather than piecing everything together
                 //  from the CSVs
-                generateJupyterReportForDirectory(
-                        profile, reportPath, avgZonesCsvPath, calibDir,
-                        processedMaterialNames);
-                executeNotebook(reportPath, jupyterPath);
-                convertNotebookToPdf(reportPath, jupyterPath,
-                        (instrumentName != null ? instrumentName : "Unknown") + "_multi_material");
+//                generateJupyterReportForDirectory(
+//                        profile, reportPath, avgZonesCsvPath, calibDir,
+//                        processedMaterialNames);
+//                executeNotebook(reportPath, jupyterPath);
+//                convertNotebookToPdf(reportPath, jupyterPath,
+//                        (instrumentName != null ? instrumentName : "Unknown") + "_multi_material");
 
             } catch (Exception e) {
                 logger.log(Level.WARNING, "Failed to generate or execute multi-material calibration report", e);
