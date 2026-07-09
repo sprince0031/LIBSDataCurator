@@ -37,7 +37,7 @@ class InstrumentProfileTest {
         assertEquals(instrumentName, json.getString("instrumentName"));
         assertEquals(3, json.getJSONArray("wavelengths").length());
         assertEquals(1.5, json.getJSONObject("materialFamilyProfiles").getJSONObject("testMaterial")
-                .getJSONObject("plasmaParameters").getJSONArray("zones")
+                .getJSONArray("plasmaZones")
                 .getJSONObject(0).getDouble("Te"));
 
         // Deserialize from JSON

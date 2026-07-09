@@ -114,7 +114,7 @@ public class MaterialFamilyProfile implements JsonModel {
         JSONArray zonesArray = json.optJSONArray("plasmaZones");
         if (zonesArray != null) {
             for (int i = 0; i < zonesArray.length(); i++) {
-                this.plasmaZones.add(PlasmaZone.fromJson(zonesArray.getJSONObject(i)));
+                this.plasmaZones.add(PlasmaZone.fromJson(zonesArray.optJSONObject(i)));
             }
         }
         this.calibrationStats = CalibrationStats.fromJson(json.optJSONObject("calibrationStats"));
