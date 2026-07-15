@@ -162,7 +162,7 @@ public class InstrumentProfileController {
                     for (PlasmaZone zone : familyProfile.getPlasmaZones()) {
                         System.out.println("    Zone " + zoneIdx + " (Te=" + String.format("%.3f", zone.getTe()) + " eV):");
                         System.out.printf("      Electron Density: %.3e cm^-3%n", zone.getNe());
-                        System.out.printf("      Weight: %.3f%n", zone.getWeight());
+                        System.out.printf("      Weight: %.3f%n", zone.getVFraction());
                         zoneIdx++;
                     }
                     System.out.println();
