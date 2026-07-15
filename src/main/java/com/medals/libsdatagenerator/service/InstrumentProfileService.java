@@ -503,7 +503,9 @@ public class InstrumentProfileService {
 
         // Define Grid Search Space
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
-        double[] neExponents = { 15.0, 15.5, 16.0, 16.5, 17.0, 17.5 };
+        double[] neValues = { 1e15, 5e15, 1e16, 5e16, 1e17, 5e17 };
+        double[] vFractionValues = { 0.1, 0.3, 0.5, 0.7, 0.9 };
+        double[] kAbsValues = { 0.0, 0.5, 1.0, 2.0, 3.5, 5.0 };
 
         // Normalization for RMSE calculation
         double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
@@ -525,10 +527,9 @@ public class InstrumentProfileService {
             // Pre-fetch all necessary spectra
             logger.info("Starting grid search...");
             int i = 0;
-            int gridSize = teValues.length * neExponents.length;
+            int gridSize = teValues.length * neValues.length;
             for (double te : teValues) {
-                for (double neExp : neExponents) {
-                    double ne = Math.pow(10, neExp);
+                for (double ne : neValues) {
                     String key = String.format("%.2f_%.2e", te, ne);
 
                     if (spectrumCache.containsKey(key))
@@ -560,7 +561,7 @@ public class InstrumentProfileService {
             CommonUtils.finishProgressBar(gridSize, out);
 
             // Recursive Grid Search
-            OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
+            OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neValues,
                     normalizedSpectrumCache, normalisedMeasuredSpectrum);
 
             profile.setPlasmaZones(bestResult.plasmaZones);
@@ -811,8 +812,8 @@ public class InstrumentProfileService {
                 if (zoneList != null && !zoneList.isEmpty()) {
                     double avgTe = zoneList.stream().mapToDouble(PlasmaZone::getTe).average().orElse(0.0);
                     double avgNe = zoneList.stream().mapToDouble(PlasmaZone::getNe).average().orElse(0.0);
-                    double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getWeight).average().orElse(0.0);
-                    averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight));
+                    double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getVFraction).average().orElse(0.0);
+                    averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight, 2.5));
                 }
             }
 
@@ -983,7 +984,7 @@ public class InstrumentProfileService {
         double rSquared = Double.MIN_VALUE;
     }
 
-    private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neExponents,
+    private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neValues,
             Map<String, double[]> normalizedCache, double[] targetSpectrum) {
 
         PrintStream out = System.out;
@@ -992,7 +993,7 @@ public class InstrumentProfileService {
         out.println("Generating parameter and weight combinations for grid search...");
         // Generate parameter combinations
         List<List<PlasmaZone>> allPlasmaZoneCombinations = new ArrayList<>();
-        generateParamCombinations(numZones, teValues, neExponents, new ArrayList<>(), allPlasmaZoneCombinations);
+        generateParamCombinations(numZones, teValues, neValues, new ArrayList<>(), allPlasmaZoneCombinations);
 
         // Generate weight combinations (simplex steps of 0.1)
         List<List<Double>> allWeightCombinations = new ArrayList<>();
@@ -1015,9 +1016,9 @@ public class InstrumentProfileService {
                         possible = false;
                         break;
                     }
-                    pz.setWeight(weights.get(i));
+                    pz.setVFraction(weights.get(i));
                     for (int j = 0; j < combined.length; j++) {
-                        combined[j] += s[j] * pz.getWeight();
+                        combined[j] += s[j] * pz.getVFraction();
                     }
                 }
 
@@ -1055,7 +1056,7 @@ public class InstrumentProfileService {
         return bestResult;
     }
 
-    private void generateParamCombinations(int zonesLeft, double[] teValues, double[] neExponents,
+    private void generateParamCombinations(int zonesLeft, double[] teValues, double[] neValues,
             List<PlasmaZone> current, List<List<PlasmaZone>> results) {
         if (zonesLeft == 0) {
             results.add(new ArrayList<>(current));
@@ -1069,10 +1070,9 @@ public class InstrumentProfileService {
             if (te > lastTe)
                 continue;
 
-            for (double neExp : neExponents) {
-                double ne = Math.pow(10, neExp);
+            for (double ne : neValues) {
                 current.add(new PlasmaZone(te, ne));
-                generateParamCombinations(zonesLeft - 1, teValues, neExponents, current, results);
+                generateParamCombinations(zonesLeft - 1, teValues, neValues, current, results);
                 current.remove(current.size() - 1);
             }
         }
@@ -1126,7 +1126,7 @@ public class InstrumentProfileService {
                 List<Object> record = new ArrayList<>();
                 record.add(zone.getTe());
                 record.add(zone.getNe());
-                record.add(zone.getWeight());
+                record.add(zone.getVFraction());
 
                 if (rawSpectrum != null) {
                     // Normalize and then scale
