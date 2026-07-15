@@ -166,8 +166,8 @@ public class InstrumentProfileServiceTest {
         profile.setNumShots(5);
 
         List<PlasmaZone> zones = new ArrayList<>();
-        zones.add(new PlasmaZone(1.2, 5e16, 0.6));
-        zones.add(new PlasmaZone(0.7, 2e16, 0.4));
+        zones.add(new PlasmaZone(1.2, 5e16, 0.6, 2.5));
+        zones.add(new PlasmaZone(0.7, 2e16, 0.4, 2.5));
         MaterialFamilyProfile mfProfile = new MaterialFamilyProfile("testMaterialFamily");
         mfProfile.setPlasmaZones(zones);
         mfProfile.setRSquaredValue(0.95);
@@ -226,7 +226,7 @@ public class InstrumentProfileServiceTest {
         double[] wavelengths = { 200.0, 300.0, 400.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
         List<PlasmaZone> zones = new ArrayList<>();
-        zones.add(new PlasmaZone(1.0, 1e16, 1.0));
+        zones.add(new PlasmaZone(1.0, 1e16, 1.0, 2.5));
         String materialFamilyName = "testMaterialFamily";
         MaterialFamilyProfile mfProfile = new MaterialFamilyProfile(materialFamilyName);
         mfProfile.setPlasmaZones(zones);
