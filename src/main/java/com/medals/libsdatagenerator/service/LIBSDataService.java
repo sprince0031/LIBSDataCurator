@@ -302,6 +302,7 @@ public class LIBSDataService {
                     double weight = plasmaZones.get(i).getVFraction();
                     if (combinedSpectrum.isEmpty()) {
                         for (Double intensity: scaledSpectrum) {
+                            // TODO: Modularise new combination logic from InstrumentProfileService and update here
                             combinedSpectrum.add(intensity * weight);
                         }
                     } else {
@@ -369,12 +370,12 @@ public class LIBSDataService {
         // Initialise instrument profile with single default plasma zone if no config file present
         if (instrumentProfile ==  null) {
             instrumentProfile = new InstrumentProfile(null, null, null);
+            MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
+            PlasmaZone defaultPlasmaZone = new PlasmaZone(Double.parseDouble(config.plasmaTemp),
+                    Double.parseDouble(config.electronDensity), 1.0, 2.5);
+            materialFamilyProfile.setPlasmaZones(new  ArrayList<>(List.of(defaultPlasmaZone)));
+            instrumentProfile.addMaterialFamilyProfile(materialFamilyProfile);
         }
-        MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
-        PlasmaZone defaultPlasmaZone = new PlasmaZone(Double.parseDouble(config.plasmaTemp),
-                Double.parseDouble(config.electronDensity), 1.0, 2.5);
-        materialFamilyProfile.setPlasmaZones(new  ArrayList<>(List.of(defaultPlasmaZone)));
-        instrumentProfile.addMaterialFamilyProfile(materialFamilyProfile);
 
         Set<Double> allWavelengths = new TreeSet<>();
         Map<String, Object> fetchedSpectralData = new HashMap<>();
