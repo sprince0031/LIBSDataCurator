@@ -1035,7 +1035,7 @@ public class InstrumentProfileService {
                         double vFraction = vFractions.get(i);
                         double kAbs = kValues.get(i);
                         pz.setVFraction(vFraction);
-                        pz.setKAbsorption(kAbs);
+                        pz.setKAbsorption(kAbs); // setting these values here also alters them in plasmaZones in memory.
                         double[] s = normalizedCache.get(key);
                         if (s == null) {
                             possible = false;
