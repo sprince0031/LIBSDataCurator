@@ -368,7 +368,7 @@ public class InstrumentProfileServiceTest {
             service.generateProfileFromDirectory(
                 tempDir, null, ";", "Test",
                 new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
-                2, false, Paths.get("instrument_profile.json")));
+                2, false, Paths.get("instrument_profile.json"), "1000"));
     }
 
     @Test
@@ -378,7 +378,7 @@ public class InstrumentProfileServiceTest {
             service.generateProfileFromDirectory(
                 tempDir, nonExistent, ";", "Test",
                 new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
-                2, false, Paths.get("instrument_profile.json")));
+                2, false, Paths.get("instrument_profile.json"), "1000"));
     }
 
     // -----------------------------------------------------------------------
