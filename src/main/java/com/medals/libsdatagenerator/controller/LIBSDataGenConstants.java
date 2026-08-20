@@ -196,11 +196,14 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_BASELINE_LAMBDA_LONG = "lambda";
     public static final String CMD_OPT_BASELINE_LAMBDA_DESC = "Baseline correction smoothness parameter (lambda). Default: 10000";
     public static final String CMD_OPT_BASELINE_P_SHORT = "bp";
-    public static final String CMD_OPT_BASELINE_P_LONG = "p";
+    public static final String CMD_OPT_BASELINE_P_LONG = "p-value";
     public static final String CMD_OPT_BASELINE_P_DESC = "Baseline correction asymmetry parameter (p). Default: 0.001";
     public static final String CMD_OPT_BASELINE_ITER_SHORT = "bi";
     public static final String CMD_OPT_BASELINE_ITER_LONG = "max-iterations";
     public static final String CMD_OPT_BASELINE_ITER_DESC = "Baseline correction maximum iterations. Default: 10";
+    public static final String CMD_OPT_DISABLE_BASELINE_CORRECTION_SHORT = "db";
+    public static final String CMD_OPT_DISABLE_BASELINE_CORRECTION_LONG = "disable-baseline-correction";
+    public static final String CMD_OPT_DISABLE_BASELINE_CORRECTION_DESC = "Disable baseline correction step if input reference spectra is already baseline corrected";
     public static final String CMD_OPT_HELP_SHORT = "h";
     public static final String CMD_OPT_HELP_LONG = "help";
     public static final String CMD_OPT_HELP_DESC = "Show this help message";
@@ -274,6 +277,7 @@ public class LIBSDataGenConstants {
     public static final String MATERIAL_NAME_CSV_SEPARATOR = "_LSA_";
     // Calibration report template placeholders (single-material)
     public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
+    public static final String MATERIAL_FAMILY = "<MATERIAL_FAMILY>";
     public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
     public static final String RMSE = "<RMSE>";
     public static final String INPUT_CSV_PATH = "<INPUT_CSV_PATH>";

@@ -55,7 +55,8 @@ public class PlasmaZone {
         JSONObject json = new JSONObject();
         json.put("Te", te);
         json.put("Ne", ne);
-        json.put("weight", vFraction);
+        json.put("volumeFraction", vFraction);
+        json.put("kAbsorption", kAbsorption);
         return json;
     }
 
@@ -66,6 +67,7 @@ public class PlasmaZone {
         return new PlasmaZone(
                 json.getDouble("Te"),
                 json.getDouble("Ne"),
-                json.optDouble("weight", 0.0), 2.5);
+                json.optDouble("volumeFraction", 0.0),
+                json.optDouble("kAbsorption", 2.5));
     }
 }
