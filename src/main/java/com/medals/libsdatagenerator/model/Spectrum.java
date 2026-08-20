@@ -9,10 +9,12 @@ public class Spectrum {
 
     double[] wavelengths;
     double[] intensities;
+    long resolution;
 
     public Spectrum(double[] wavelengths, double[] intensities) {
         this.wavelengths = wavelengths;
         this.intensities = intensities;
+        this.resolution = 1000;
     }
 
     public Spectrum(Map<Double, Double> waveMap) {
@@ -28,6 +30,7 @@ public class Spectrum {
             intensities[i] = entry.getValue();
             i++;
         }
+        this.resolution = 1000;
     }
 
     public double[] getIntensities() {
@@ -44,5 +47,13 @@ public class Spectrum {
 
     public void setWavelengths(double[] wavelengths) {
         this.wavelengths = wavelengths;
+    }
+
+    public long getResolution() {
+        return resolution;
+    }
+
+    public void setResolution(long resolution) {
+        this.resolution = resolution;
     }
 }
