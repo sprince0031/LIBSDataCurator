@@ -63,21 +63,24 @@ public class InstrumentProfileService {
     /**
      * Generates an instrument profile from a sample LIBS measurement CSV file.
      *
-     * @param sampleCsvPath      Path to the sample CSV file with real LIBS readings
-     * @param delimiter          The delimiter character used by the sample CSV file
-     * @param compositionString  Composition of the reference material (e.g.: "Fe-80,C-20")
-     * @param instrumentName     Optional name for the instrument
-     * @param baselineParams     Object containing lambda, p and maxIter values for baseline correction
-     * @param noPlasmaZones      Number of plasma zones to consider and combine when comparing fit of synthetic spectrum
-     * @param debugMode          Enable debug mode which shows browser actions in a browser window
+     * @param sampleCsvPath       Path to the sample CSV file with real LIBS readings
+     * @param delimiter           The delimiter character used by the sample CSV file
+     * @param compositionString   Composition of the reference material (e.g.: "Fe-80,C-20")
+     * @param instrumentName      Optional name for the instrument
+     * @param baselineParams      Object containing lambda, p and maxIter values for baseline correction
+     * @param noPlasmaZones       Number of plasma zones to consider and combine when comparing fit of synthetic spectrum
+     * @param debugMode           Enable debug mode which shows browser actions in a browser window
      * @param materialFamilyName
      * @param outputPath
+     * @param blCorrectionEnabled
+     * @param nistResolution
      * @return Generated InstrumentProfile
      * @throws IOException if file cannot be read
      */
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
                                              String instrumentName, BaselineCorrectionParams baselineParams,
-                                             int noPlasmaZones, boolean debugMode, String materialFamilyName, Path outputPath) throws IOException {
+                                             int noPlasmaZones, boolean debugMode, String materialFamilyName,
+                                             Path outputPath, boolean blCorrectionEnabled, String nistResolution) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -98,15 +101,19 @@ public class InstrumentProfileService {
         // 3. Calculate average measured spectrum
         double[] avgMeasuredSpectrum = spectrumUtils.calculateAverageSpectrum(measuredSpectra);
 
-        // 3a. Clip spectrum
-        Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgMeasuredSpectrum);
+        Spectrum processedMeasuredSpectrum;
+        if (blCorrectionEnabled) {
+            // 3a. Clip spectrum
+            Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgMeasuredSpectrum);
 
-        // 3b. Apply Baseline Correction (Asymmetric Least Squares)
-        double[] baselineCorrectedIntensities = BaselineCorrectionService.getInstance().correctBaseline(
-                clippedSpectrum.getIntensities(), baselineParams.getLambda(), baselineParams.getP(),
-                baselineParams.getMaxIterations());
-        Spectrum processedMeasuredSpectrum = new Spectrum(clippedSpectrum.getWavelengths(),
-                baselineCorrectedIntensities);
+            // 3b. Apply Baseline Correction (Asymmetric Least Squares)
+            double[] baselineCorrectedIntensities = BaselineCorrectionService.getInstance().correctBaseline(
+                    clippedSpectrum.getIntensities(), baselineParams.getLambda(), baselineParams.getP(),
+                    baselineParams.getMaxIterations());
+            processedMeasuredSpectrum = new Spectrum(clippedSpectrum.getWavelengths(), baselineCorrectedIntensities);
+        } else {
+            processedMeasuredSpectrum = new Spectrum(wavelengthGrid, avgMeasuredSpectrum);
+        }
 
         // 4. Parse composition
         UserInputConfig userInputs =new UserInputConfig();
@@ -132,8 +139,9 @@ public class InstrumentProfileService {
         Path targetCsv = calibrationDir.resolve("target_processed.csv");
         Path zonesCsv = calibrationDir.resolve("best_zones.csv");
         optimizePlasmaParameters(materialFamilyProfile, processedMeasuredSpectrum, materialGrade, noPlasmaZones,
-                debugMode, targetCsv, zonesCsv);
+                debugMode, targetCsv, zonesCsv, nistResolution);
         profile.addMaterialFamilyProfile(materialFamilyProfile);
+        logger.info("Added material family profile: " + materialFamilyProfile.toJson().toString(4));
         CommonUtils.getInstance().saveModelToFile(outputPath, profile);
         // 7. Generate Jupyter Report
         if (PythonUtils.getInstance().setupPythonEnvironment()) {
@@ -299,6 +307,7 @@ public class InstrumentProfileService {
         // Replace placeholders
         return templateContent
                 .replace(LIBSDataGenConstants.INSTRUMENT_NAME, profile.getInstrumentName())
+                .replace(LIBSDataGenConstants.MATERIAL_FAMILY, materialFamilyName)
                 .replace(LIBSDataGenConstants.RSQUARE_SCORE, String.format("%.4f", mfProfile.getRSquaredValue()))
                 .replace(LIBSDataGenConstants.RMSE, String.format("%.4f", mfProfile.getRmse()))
                 .replace(LIBSDataGenConstants.INPUT_CSV_PATH, inputCsvPath)
@@ -477,17 +486,18 @@ public class InstrumentProfileService {
      * Uses a recursive Grid Search approach with Selenium-based spectrum
      * generation.
      *
-     * @param profile InstrumentProfile to update with optimized parameters
+     * @param profile                   InstrumentProfile to update with optimized parameters
      * @param processedMeasuredSpectrum Average measured spectrum
-     * @param composition Material composition
-     * @param plasmaZones Number of plasma zones to combine
-     * @param debugMode Setting to true ensures Selenium doesn't run in headless mode and the browser window is visible
-     * @param targetCsvPath Path to save target measured spectrum
-     * @param zonesCsvPath Path to save spectra corresponding to optimised plasma zone parameters
+     * @param composition               Material composition
+     * @param plasmaZones               Number of plasma zones to combine
+     * @param debugMode                 Setting to true ensures Selenium doesn't run in headless mode and the browser window is visible
+     * @param targetCsvPath             Path to save target measured spectrum
+     * @param zonesCsvPath              Path to save spectra corresponding to optimised plasma zone parameters
+     * @param nistResolution
      */
     private void optimizePlasmaParameters(MaterialFamilyProfile profile, Spectrum processedMeasuredSpectrum,
                                           MaterialGrade composition, int plasmaZones, boolean debugMode,
-                                          Path targetCsvPath, Path zonesCsvPath) {
+                                          Path targetCsvPath, Path zonesCsvPath, String nistResolution) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
@@ -498,12 +508,13 @@ public class InstrumentProfileService {
         UserInputConfig config = new UserInputConfig();
         config.minWavelength = String.valueOf(wavelengthGrid[0]);
         config.maxWavelength = String.valueOf(wavelengthGrid[wavelengthGrid.length - 1]);
-        config.resolution = "1000";
+        config.resolution = nistResolution;
         UserInputConfig.setDebugMode(debugMode);
 
         // Define Grid Search Space
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
-        double[] neExponents = { 15.0, 15.5, 16.0, 16.5, 17.0, 17.5 };
+        double[] neValues = { 1e15, 5e15, 1e16, 5e16, 1e17, 5e17 };
+        double[] kAbsValues = { 0.0, 0.5, 1.0, 2.0, 2.5, 3.5, 5.0 };
 
         // Normalization for RMSE calculation
         double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
@@ -525,10 +536,9 @@ public class InstrumentProfileService {
             // Pre-fetch all necessary spectra
             logger.info("Starting grid search...");
             int i = 0;
-            int gridSize = teValues.length * neExponents.length;
+            int gridSize = teValues.length * neValues.length;
             for (double te : teValues) {
-                for (double neExp : neExponents) {
-                    double ne = Math.pow(10, neExp);
+                for (double ne : neValues) {
                     String key = String.format("%.2f_%.2e", te, ne);
 
                     if (spectrumCache.containsKey(key))
@@ -560,8 +570,8 @@ public class InstrumentProfileService {
             CommonUtils.finishProgressBar(gridSize, out);
 
             // Recursive Grid Search
-            OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, neExponents,
-                    normalizedSpectrumCache, normalisedMeasuredSpectrum);
+            OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, kAbsValues,
+                    normalizedSpectrumCache, normalisedMeasuredSpectrum, neValues);
 
             profile.setPlasmaZones(bestResult.plasmaZones);
             profile.setRmse(bestResult.rmse);
@@ -572,7 +582,8 @@ public class InstrumentProfileService {
 
             // Save Best Zones and Spectra to CSV
             if (zonesCsvPath != null) {
-                saveZonesToCsv(zonesCsvPath, bestResult.plasmaZones, wavelengthGrid, spectrumCache, maxMeasuredIntensity);
+                saveZonesToCsv(zonesCsvPath, bestResult.plasmaZones, wavelengthGrid, spectrumCache, maxMeasuredIntensity,
+                        bestResult.combinedSpectrum);
             }
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Grid search optimization failed", e);
@@ -617,13 +628,15 @@ public class InstrumentProfileService {
      * @param numPlasmaZones      Number of plasma zones
      * @param debugMode           Show Selenium browser window if true
      * @param outputPath
+     * @param nistResolution
      * @return The generated {@link InstrumentProfile} with zone-averaged plasma parameters
      * @throws IOException if the reference-compositions file is missing, or no
      *                     material could be processed
      */
     public InstrumentProfile generateProfileFromDirectory(Path dirPath, Path refCompositionsPath, String delimiter,
                                                           String instrumentName, BaselineCorrectionParams baselineParams,
-                                                          int numPlasmaZones, boolean debugMode, Path outputPath) throws IOException {
+                                                          int numPlasmaZones, boolean debugMode, Path outputPath,
+                                                          String nistResolution) throws IOException {
 
         logger.info("Generating instrument profile from directory: " + dirPath);
 
@@ -773,7 +786,7 @@ public class InstrumentProfileService {
                     // Run grid-search optimisation; save per-material zones CSV
                     Path matZonesCsvPath = calibDir.resolve(materialName + "_best_zones.csv");
                     optimizePlasmaParameters(materialFamilyProfile, processedSpectrum, materialGrade, numPlasmaZones,
-                            debugMode, targetPath, matZonesCsvPath);
+                            debugMode, targetPath, matZonesCsvPath, nistResolution);
 
                     // Accumulate zones per zone index (never mix zones from different indices)
                     for (int zoneIdx = 0; zoneIdx < materialFamilyProfile.getPlasmaZones().size(); zoneIdx++) {
@@ -811,8 +824,8 @@ public class InstrumentProfileService {
                 if (zoneList != null && !zoneList.isEmpty()) {
                     double avgTe = zoneList.stream().mapToDouble(PlasmaZone::getTe).average().orElse(0.0);
                     double avgNe = zoneList.stream().mapToDouble(PlasmaZone::getNe).average().orElse(0.0);
-                    double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getWeight).average().orElse(0.0);
-                    averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight));
+                    double avgWeight = zoneList.stream().mapToDouble(PlasmaZone::getVFraction).average().orElse(0.0);
+                    averagedZones.add(new PlasmaZone(avgTe, avgNe, avgWeight, 2.5));
                 }
             }
 
@@ -830,7 +843,7 @@ public class InstrumentProfileService {
             if (profile.getWavelengthGrid() != null && !averagedZones.isEmpty()) {
                 // Use an empty spectrum cache since we have no per-zone raw spectra to write
                 saveZonesToCsv(avgZonesCsvPath, averagedZones, profile.getWavelengthGrid(),
-                        Collections.emptyMap(), 1.0);
+                        Collections.emptyMap(), 1.0, new double[profile.getWavelengthGrid().length]);
             }
             logger.info("Profile generation for " + materialType + " complete. Processed " + materialsProcessed
                     + " materials, averaged " + averagedZones.size() + " plasma zone(s).");
@@ -978,76 +991,106 @@ public class InstrumentProfileService {
 
     private static class OptimizationResult {
         List<PlasmaZone> plasmaZones = new ArrayList<>();
-//        List<Double> weights = new ArrayList<>();
         double rmse = Double.MAX_VALUE;
         double rSquared = Double.MIN_VALUE;
+        double[] combinedSpectrum;
+
+        private OptimizationResult(int spectrumLength) {
+            combinedSpectrum = new double[spectrumLength];
+        }
     }
 
-    private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] neExponents,
-            Map<String, double[]> normalizedCache, double[] targetSpectrum) {
+    private OptimizationResult findBestCombination(int numZones, double[] teValues, double[] kAbsValues, Map<String,
+            double[]> normalizedCache, double[] targetSpectrum, double[] neValues) {
 
         PrintStream out = System.out;
-        OptimizationResult bestResult = new OptimizationResult();
+        OptimizationResult bestResult = new OptimizationResult(targetSpectrum.length);
 
-        out.println("Generating parameter and weight combinations for grid search...");
+        out.println("Generating parameter, volume fraction and k combinations for grid search...");
         // Generate parameter combinations
         List<List<PlasmaZone>> allPlasmaZoneCombinations = new ArrayList<>();
-        generateParamCombinations(numZones, teValues, neExponents, new ArrayList<>(), allPlasmaZoneCombinations);
+        generateParamCombinations(numZones, teValues, neValues, new ArrayList<>(), allPlasmaZoneCombinations);
 
         // Generate weight combinations (simplex steps of 0.1)
-        List<List<Double>> allWeightCombinations = new ArrayList<>();
-        generateWeightCombinations(numZones, 1.0, new ArrayList<>(), allWeightCombinations);
+        List<List<Double>> allVFractionCombinations = new ArrayList<>();
+        generateVFractionCombinations(numZones, 1.0, new ArrayList<>(), allVFractionCombinations);
+
+        // Generate k-Absorption combinations
+        List<List<Double>> allKCombinations = new ArrayList<>();
+        generateKCombinations(numZones, kAbsValues, new ArrayList<>(), allKCombinations);
 
         // Iterate and find best
         int progress = 0;
-        int totalCombinations = allPlasmaZoneCombinations.size() * allWeightCombinations.size();
+        int totalCombinations = allPlasmaZoneCombinations.size() * allVFractionCombinations.size() * allKCombinations.size();
         for (List<PlasmaZone> plasmaZones : allPlasmaZoneCombinations) {
-            for (List<Double> weights : allWeightCombinations) {
-                // Combine spectra
-                double[] combined = new double[targetSpectrum.length];
-                boolean possible = true;
+            for (List<Double> vFractions : allVFractionCombinations) {
+                for (List<Double> kValues:  allKCombinations) {
+                    // Combine spectra
+                    double[] combined = new double[targetSpectrum.length];
+                    boolean possible = true;
 
-                for (int i = 0; i < numZones; i++) {
-                    PlasmaZone pz = plasmaZones.get(i);
-                    String key = String.format("%.2f_%.2e", pz.getTe(), pz.getNe());
-                    double[] s = normalizedCache.get(key);
-                    if (s == null) {
-                        possible = false;
-                        break;
+                    for (int i = 0; i < numZones; i++) {
+                        PlasmaZone pz = plasmaZones.get(i);
+                        String key = String.format("%.2f_%.2e", pz.getTe(), pz.getNe());
+                        double vFraction = vFractions.get(i);
+                        double kAbs = kValues.get(i);
+                        pz.setVFraction(vFraction);
+                        pz.setKAbsorption(kAbs);
+                        double[] s = normalizedCache.get(key);
+                        if (s == null) {
+                            possible = false;
+                            break;
+                        }
+
+                        if (i == 0) {
+                            // Zone 0: Hot Core (No self-absorption penalty)
+                            for (int j = 0; j < combined.length; j++) {
+                                combined[j] = s[j] * vFraction;
+                            }
+                        } else {
+                            // Zone 1..n: Cooler Periphery Layers (Radiative Transfer Equation)
+                            for (int j = 0; j < combined.length; j++) {
+                                // Clamp to 0.0 to prevent baseline correction artifacts
+                                double iOuter = Math.max(s[j], 0.0);
+
+                                double transmissionFactor = Math.exp(-kAbs * iOuter);
+
+                                // I_total = (I_inner * transmission) + (V_outer * I_outer)
+                                combined[j] = (combined[j] * transmissionFactor) + (vFraction * iOuter);
+                            }
+                        }
                     }
-                    pz.setWeight(weights.get(i));
-                    for (int j = 0; j < combined.length; j++) {
-                        combined[j] += s[j] * pz.getWeight();
+
+                    if (!possible)
+                        continue;
+
+                    SpectrumUtils spectrumUtils = new SpectrumUtils();
+                    // Normalize combined result for comparison against normalized target
+                    double[] finalCombined = spectrumUtils.normaliseSpectrum(combined);
+
+                    double rmse = spectrumUtils.calculateRMSE(targetSpectrum, finalCombined);
+                    double rSquared = spectrumUtils.calculateSpectralSimilarity(targetSpectrum, finalCombined);
+
+                    // Selection Criteria: Strictly better RMSE and R^2, or improvement in R^2
+                    if (rmse < bestResult.rmse && rSquared > bestResult.rSquared) {
+                        bestResult.rmse = rmse;
+                        bestResult.rSquared = rSquared;
+                        bestResult.plasmaZones = copyPlasmaZones(plasmaZones);
+                        bestResult.combinedSpectrum = finalCombined;
+                    } else if (rmse == bestResult.rmse && rSquared > bestResult.rSquared) {
+                        bestResult.rSquared = rSquared;
+                        bestResult.plasmaZones = copyPlasmaZones(plasmaZones);
+                        bestResult.combinedSpectrum = finalCombined;
+                    } else if (rSquared == bestResult.rSquared && rmse < bestResult.rmse) {
+                        bestResult.rmse = rmse;
+                        bestResult.plasmaZones = copyPlasmaZones(plasmaZones);
+                        bestResult.combinedSpectrum = finalCombined;
                     }
+                    if (progress % 5000 == 0 || progress == totalCombinations - 1) {
+                        CommonUtils.printProgressBar(progress + 1, totalCombinations, "combinations processed", out);
+                    }
+                    progress++;
                 }
-
-                if (!possible)
-                    continue;
-
-                SpectrumUtils spectrumUtils = new SpectrumUtils();
-                // Normalize combined result for comparison against normalized target
-                double[] finalCombined = spectrumUtils.normaliseSpectrum(combined);
-
-                double rmse = spectrumUtils.calculateRMSE(targetSpectrum, finalCombined);
-                double rSquared = spectrumUtils.calculateSpectralSimilarity(targetSpectrum, finalCombined);
-
-                // Selection Criteria: Strictly better RMSE and R^2, or improvement in R^2
-                if (rmse < bestResult.rmse && rSquared > bestResult.rSquared) {
-                    bestResult.rmse = rmse;
-                    bestResult.rSquared = rSquared;
-                    bestResult.plasmaZones = plasmaZones;
-//                    bestResult.weights = weights;
-                } else if (rmse == bestResult.rmse && rSquared > bestResult.rSquared) {
-                    bestResult.rSquared = rSquared;
-                    bestResult.plasmaZones = plasmaZones;
-//                    bestResult.weights = weights;
-                } else if (rSquared == bestResult.rSquared && rmse < bestResult.rmse) {
-                    bestResult.rmse = rmse;
-                    bestResult.plasmaZones = plasmaZones;
-//                    bestResult.weights = weights;
-                }
-                CommonUtils.printProgressBar(progress + 1, totalCombinations, "combinations processed", out);
-                progress++;
             }
         }
         CommonUtils.finishProgressBar(totalCombinations, out);
@@ -1055,7 +1098,7 @@ public class InstrumentProfileService {
         return bestResult;
     }
 
-    private void generateParamCombinations(int zonesLeft, double[] teValues, double[] neExponents,
+    private void generateParamCombinations(int zonesLeft, double[] teValues, double[] neValues,
             List<PlasmaZone> current, List<List<PlasmaZone>> results) {
         if (zonesLeft == 0) {
             results.add(new ArrayList<>(current));
@@ -1069,17 +1112,16 @@ public class InstrumentProfileService {
             if (te > lastTe)
                 continue;
 
-            for (double neExp : neExponents) {
-                double ne = Math.pow(10, neExp);
+            for (double ne : neValues) {
                 current.add(new PlasmaZone(te, ne));
-                generateParamCombinations(zonesLeft - 1, teValues, neExponents, current, results);
+                generateParamCombinations(zonesLeft - 1, teValues, neValues, current, results);
                 current.remove(current.size() - 1);
             }
         }
     }
 
-    private void generateWeightCombinations(int zonesLeft, double remainingWeight,
-            List<Double> current, List<List<Double>> results) {
+    private void generateVFractionCombinations(int zonesLeft, double remainingWeight,
+                                               List<Double> current, List<List<Double>> results) {
         if (zonesLeft == 1) {
             // Last zone gets all remaining weight
             // Rounding to avoid precision errors, though double precision usually suffices
@@ -1096,23 +1138,62 @@ public class InstrumentProfileService {
         // Step size 0.05, up to remaining weight
         for (double w = 0.05; w <= remainingWeight - 0.05 * (zonesLeft - 1); w += 0.05) {
             current.add(w);
-            generateWeightCombinations(zonesLeft - 1, remainingWeight - w, current, results);
+            generateVFractionCombinations(zonesLeft - 1, remainingWeight - w, current, results);
             current.remove(current.size() - 1);
         }
     }
 
+    /**
+     * Generates combinations for the absorption penalty (k).
+     * Zone 0 is always k=0 (the core). Zones 1..n pull from the grid array.
+     */
+    private void generateKCombinations(int zonesLeft, double[] kAbsValues, List<Double> current, List<List<Double>> results) {
+        if (zonesLeft == 0) {
+            results.add(new ArrayList<>(current));
+            return;
+        }
+
+        if (current.isEmpty()) {
+            // Zone 0 (Core) has no absorption penalty
+            current.add(0.0);
+            generateKCombinations(zonesLeft - 1, kAbsValues, current, results);
+            current.remove(current.size() - 1);
+        } else {
+            // Outer zones iterate through the k grid
+            for (double k : kAbsValues) {
+                current.add(k);
+                generateKCombinations(zonesLeft - 1, kAbsValues, current, results);
+                current.remove(current.size() - 1);
+            }
+        }
+    }
+
+    /**
+     * Deep copies the PlasmaZone states to ensure the winning parameters are safely stored
+     * independently from the ongoing loop mutations.
+     */
+    private List<PlasmaZone> copyPlasmaZones(List<PlasmaZone> source) {
+        List<PlasmaZone> copy = new ArrayList<>();
+        for (PlasmaZone pz : source) {
+            // Utilizes PlasmaZone constructor: Te, Ne, VFraction, kAbsorption
+            copy.add(new PlasmaZone(pz.getTe(), pz.getNe(), pz.getVFraction(), pz.getKAbsorption()));
+        }
+        return copy;
+    }
+
     private void saveZonesToCsv(Path outputPath, List<PlasmaZone> zones,
-            double[] wavelengthGrid, Map<String, double[]> spectrumCache,
-            double scaleFactor) throws IOException {
+                                double[] wavelengthGrid, Map<String, double[]> spectrumCache,
+                                double scaleFactor, double[] combinedSpectrum) throws IOException {
 
         try (BufferedWriter writer = Files.newBufferedWriter(outputPath);
                 CSVPrinter printer = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 
-            // Header: Te, Ne, Weight, <Wavelengths>
+            // Header: Te, Ne, VFraction. kAbsorption, <Wavelengths>
             List<String> header = new ArrayList<>();
             header.add("Te");
             header.add("Ne");
-            header.add("Weight");
+            header.add("VFraction");
+            header.add("kAbsorption");
             for (double w : wavelengthGrid)
                 header.add(String.valueOf(w));
             printer.printRecord(header);
@@ -1126,7 +1207,8 @@ public class InstrumentProfileService {
                 List<Object> record = new ArrayList<>();
                 record.add(zone.getTe());
                 record.add(zone.getNe());
-                record.add(zone.getWeight());
+                record.add(zone.getVFraction());
+                record.add(zone.getKAbsorption());
 
                 if (rawSpectrum != null) {
                     // Normalize and then scale
@@ -1138,6 +1220,15 @@ public class InstrumentProfileService {
                 }
                 printer.printRecord(record);
             }
+
+            // Adding combined spectrum as the final row
+            List<Object> record = new ArrayList<>();
+            record.add(Double.NaN);
+            record.add(Double.NaN);
+            record.add(Double.NaN);
+            record.add(Double.NaN);
+            record.addAll(spectrumUtils.normaliseAndScaleSpectrum(combinedSpectrum, scaleFactor));
+            printer.printRecord(record);
         }
     }
 }

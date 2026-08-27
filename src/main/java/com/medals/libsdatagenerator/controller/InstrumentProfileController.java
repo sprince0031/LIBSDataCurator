@@ -53,7 +53,7 @@ public class InstrumentProfileController {
             // Shared parameters
             // ----------------------------------------------------------------
             String inputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_INPUT_SHORT);
-            String materialFamilyName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_SHORT);
+            String materialFamilyName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_SHORT, "Unknown");
             String delimiter = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT, ";");
             if (!CSVUtils.isValidDelimiter(delimiter)) {
                 throw new IOException("Invalid delimiter specified");
@@ -61,12 +61,14 @@ public class InstrumentProfileController {
             String compositionOrRefPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
             String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
             String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT, InstrumentProfile.INSTRUMENT_PROFILE_PATH);
+            String nistResolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
             int plasmaZones = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT, "2"));
             double lambda = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT, "10000"));
             double p = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,"0.001"));
             int maxIterations = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_ITER_SHORT,"10"));
             BaselineCorrectionParams baselineCorrectionParams = new BaselineCorrectionParams(lambda, p, maxIterations);
             boolean debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+            boolean blCorrectionEnabled = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_SHORT);
 
             // ----------------------------------------------------------------
             // Determine mode: single-file vs. directory
@@ -106,7 +108,7 @@ public class InstrumentProfileController {
 
                 profile = profileService.generateProfileFromDirectory(
                         dirPath, refCompositionsPath, delimiter,
-                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode, outputFilePath);
+                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode, outputFilePath, nistResolution);
 
             } else if (inputFile.isFile()) {
                 // ---- Single-file mode (backward compatible) -----------------
@@ -127,9 +129,9 @@ public class InstrumentProfileController {
                 System.out.println("Plasma Zones: " + plasmaZones);
                 System.out.println();
 
-                profile = profileService.generateProfile(inputFilePath, delimiter,
-                        compositionOrRefPath, instrumentName,
-                        baselineCorrectionParams, plasmaZones, debugMode, materialFamilyName, outputFilePath);
+                profile = profileService.generateProfile(inputFilePath, delimiter, compositionOrRefPath, instrumentName,
+                        baselineCorrectionParams, plasmaZones, debugMode, materialFamilyName, outputFilePath,
+                        blCorrectionEnabled, nistResolution);
 
             } else {
                 logger.severe("Input path is neither a file nor a directory: " + inputPath);
@@ -162,7 +164,7 @@ public class InstrumentProfileController {
                     for (PlasmaZone zone : familyProfile.getPlasmaZones()) {
                         System.out.println("    Zone " + zoneIdx + " (Te=" + String.format("%.3f", zone.getTe()) + " eV):");
                         System.out.printf("      Electron Density: %.3e cm^-3%n", zone.getNe());
-                        System.out.printf("      Weight: %.3f%n", zone.getWeight());
+                        System.out.printf("      Weight: %.3f%n", zone.getVFraction());
                         zoneIdx++;
                     }
                     System.out.println();
