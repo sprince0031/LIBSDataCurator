@@ -6,19 +6,17 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class InstrumentProfile implements JsonModel {
     private String instrumentName;
     private double[] wavelengths;
-    private PlasmaParameters plasmaParameters;
-    private CalibrationStats calibrationStats;
+    private Map<String, MaterialFamilyProfile> materialFamilyProfiles;
     private BaselineCorrectionParams baselineParams;
     private int numShots;
     private String sourceFile;
     private String referenceComposition;
-    private double scaleFactor; // Max intensity of averaged measured spectrum
     public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
             LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
 
@@ -26,12 +24,11 @@ public class InstrumentProfile implements JsonModel {
     public InstrumentProfile() {}
 
     // Constructor used in tests and spec
-    public InstrumentProfile(String instrumentName, double[] wavelengths, PlasmaParameters plasmaParameters,
-            CalibrationStats calibrationStats, BaselineCorrectionParams baselineParams) {
+    public InstrumentProfile(String instrumentName, double[] wavelengths,
+                             Map<String, MaterialFamilyProfile> materialFamilyProfiles, BaselineCorrectionParams baselineParams) {
         this.instrumentName = instrumentName;
         this.wavelengths = wavelengths;
-        this.plasmaParameters = plasmaParameters;
-        this.calibrationStats = calibrationStats;
+        this.materialFamilyProfiles = materialFamilyProfiles;
         this.baselineParams = baselineParams;
     }
 
@@ -41,8 +38,7 @@ public class InstrumentProfile implements JsonModel {
         this.sourceFile = sourceFile;
         this.referenceComposition = referenceComposition;
         this.baselineParams = new BaselineCorrectionParams();
-        this.plasmaParameters = new PlasmaParameters(new ArrayList<>());
-        this.calibrationStats = new CalibrationStats(0, 0);
+        this.materialFamilyProfiles = new HashMap<>();
     }
 
     public String getInstrumentName() {
@@ -62,20 +58,16 @@ public class InstrumentProfile implements JsonModel {
         return wavelengths;
     }
 
-    public PlasmaParameters getPlasmaParameters() {
-        return plasmaParameters;
+    public Map<String, MaterialFamilyProfile> getMaterialFamilyProfiles() {
+        return materialFamilyProfiles;
     }
 
-    public void setPlasmaParameters(PlasmaParameters plasmaParameters) {
-        this.plasmaParameters = plasmaParameters;
+    public MaterialFamilyProfile getMaterialFamilyProfile(String familyName) {
+        return materialFamilyProfiles.get(familyName);
     }
 
-    public CalibrationStats getCalibrationStats() {
-        return calibrationStats;
-    }
-
-    public void setCalibrationStats(CalibrationStats calibrationStats) {
-        this.calibrationStats = calibrationStats;
+    public void addMaterialFamilyProfile(MaterialFamilyProfile materialFamilyProfile) {
+        materialFamilyProfiles.put(materialFamilyProfile.getMaterialFamilyName(), materialFamilyProfile);
     }
 
     public BaselineCorrectionParams getBaselineParams() {
@@ -110,14 +102,6 @@ public class InstrumentProfile implements JsonModel {
         this.sourceFile = sourceFile;
     }
 
-    public double getScaleFactor() {
-        return scaleFactor;
-    }
-
-    public void setScaleFactor(double scaleFactor) {
-        this.scaleFactor = scaleFactor;
-    }
-
     public double getMinWavelength() {
         if (wavelengths == null || wavelengths.length == 0)
             return 0.0;
@@ -128,14 +112,6 @@ public class InstrumentProfile implements JsonModel {
         if (wavelengths == null || wavelengths.length == 0)
             return 0.0;
         return wavelengths[wavelengths.length - 1];
-    }
-
-    public List<PlasmaZone> getZones() {
-        return plasmaParameters.getZones();
-    }
-
-    public void setZones(List<PlasmaZone> zones) {
-        this.plasmaParameters.setZones(zones);
     }
 
     // Delegation for Baseline Correction Params
@@ -157,31 +133,6 @@ public class InstrumentProfile implements JsonModel {
         return baselineParams.getMaxIterations();
     }
 
-    // Delegation for CalibrationStats
-    public double getRSquaredValue() {
-        if (calibrationStats == null)
-            return 0;
-        return calibrationStats.getRSquared();
-    }
-
-    public void setRSquaredValue(double score) {
-        if (calibrationStats == null)
-            calibrationStats = new CalibrationStats(0, 0);
-        calibrationStats.setRSquared(score);
-    }
-
-    public double getRmse() {
-        if (calibrationStats == null)
-            return 0;
-        return calibrationStats.getRmse();
-    }
-
-    public void setRmse(double rmse) {
-        if (calibrationStats == null)
-            calibrationStats = new CalibrationStats(0, 0);
-        calibrationStats.setRmse(rmse);
-    }
-
     @Override
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
@@ -192,17 +143,15 @@ public class InstrumentProfile implements JsonModel {
                 wavelengthGrid.put(d);
             }
         }
+        JSONObject materialFamilyProfilesJson = new JSONObject();
+        for (String key : materialFamilyProfiles.keySet()) {
+            materialFamilyProfilesJson.put(key, materialFamilyProfiles.get(key).toJson());
+        }
+        json.put("materialFamilyProfiles", materialFamilyProfilesJson);
         json.put("wavelengths", wavelengthGrid);
         json.put("numShots", numShots);
         json.put("sourceFile", sourceFile);
         json.put("referenceComposition", referenceComposition);
-        json.put("scaleFactor", scaleFactor);
-        if (plasmaParameters != null) {
-            json.put("plasmaParameters", plasmaParameters.toJson());
-        }
-        if (calibrationStats != null) {
-            json.put("calibrationStats", calibrationStats.toJson());
-        }
         if (baselineParams != null) {
             json.put("baselineCorrectionParams", baselineParams.toJson());
         }
@@ -212,7 +161,6 @@ public class InstrumentProfile implements JsonModel {
     @Override
     public void fromJson(JSONObject json) {
         this.instrumentName = json.optString("instrumentName", "");
-
         JSONArray wavelengthsArray = json.optJSONArray("wavelengths");
         this.wavelengths = new double[wavelengthsArray != null ? wavelengthsArray.length() : 0];
         if (wavelengthsArray != null) {
@@ -220,13 +168,18 @@ public class InstrumentProfile implements JsonModel {
                 wavelengths[i] = wavelengthsArray.getDouble(i);
             }
         }
-
-        this.plasmaParameters = PlasmaParameters.fromJson(json.optJSONObject("plasmaParameters"));
-        this.calibrationStats = CalibrationStats.fromJson(json.optJSONObject("calibrationStats"));
+        JSONObject materialFamilyProfilesJson = json.optJSONObject("materialFamilyProfiles");
+        if (materialFamilyProfilesJson != null) {
+            for (String key : materialFamilyProfilesJson.keySet()) {
+                MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(key);
+                materialFamilyProfile.fromJson(materialFamilyProfilesJson.optJSONObject(key));
+                this.materialFamilyProfiles = new HashMap<>();
+                this.materialFamilyProfiles.put(key, materialFamilyProfile);
+            }
+        }
         this.baselineParams = BaselineCorrectionParams.fromJson(json.optJSONObject("baselineCorrectionParams"));
         this.numShots = json.optInt("numShots");
         this.sourceFile = json.optString("sourceFile");
         this.referenceComposition = json.optString("referenceComposition");
-        this.scaleFactor = json.optDouble("scaleFactor");
     }
 }
