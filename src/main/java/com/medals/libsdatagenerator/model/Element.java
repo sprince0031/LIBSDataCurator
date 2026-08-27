@@ -49,8 +49,8 @@ public class Element implements JsonModel {
         // If percentageComposition is still null, maybe default based on min/max or average?
         if (this.percentageComposition == null) {
             if (this.min != null && this.max != null) {
-                // Default to midpoint of specific range if available
-                this.percentageComposition = roundIfNotNull((this.min + this.max) / 2.0);
+                // Default to min of specific range if available
+                this.percentageComposition = roundIfNotNull(this.min);
             } else if (this.averageComposition != null) {
                 // Default to series average if specific range/value is missing
                 this.percentageComposition = this.averageComposition;
