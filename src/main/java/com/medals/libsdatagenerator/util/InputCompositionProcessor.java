@@ -306,7 +306,6 @@ public class InputCompositionProcessor {
             List<String> compositionArray = Arrays.asList(compositionInput.split(","));
             String matGuid = null;
             String materialName = userInput.materialGrade;
-            String[] materialAttributes = null;
             Map<String, Object> compositionMetaData = generateElementsList(compositionArray);
             List<Element> baseComposition = (List<Element>) compositionMetaData.get(LIBSDataGenConstants.ELEMENTS_LIST);
             int remainderElementIdx = (Integer) compositionMetaData.get(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX);
@@ -314,7 +313,7 @@ public class InputCompositionProcessor {
             materialGrade = new MaterialGrade(baseComposition, matGuid, seriesInput);
             materialGrade.setRemainderElementIdx(remainderElementIdx);
             materialGrade.setMaterialName(materialName);
-            materialGrade.setMaterialAttributes(materialAttributes);
+            materialGrade.setMaterialAttributes(null);
         } else {
             throw new IOException("Invalid command line arguments. Aborting.");
         }
@@ -363,7 +362,7 @@ public class InputCompositionProcessor {
                 throw new IOException("Invalid element " + elementNamePercent[0] + " given as input");
             }
 
-            double currentPercentage = -1;
+            double avgPercentage = -1;
             double minPercentage = -1;
             double maxPercentage = -1;
             // If the element percentage value is "#", consider as the remaining percentage composition
@@ -376,18 +375,18 @@ public class InputCompositionProcessor {
                     minPercentage = Double.parseDouble(elementNamePercent[1]);
                     maxPercentage = minPercentage;
                 }
-                currentPercentage = (minPercentage + maxPercentage) / 2;
-                totalPercentage += currentPercentage;
+                avgPercentage = (minPercentage + maxPercentage) / 2;
+                totalPercentage += minPercentage; // Min value in the range is the true percentage rather than the avg in reality
 
                 Element element = new Element(
                         PeriodicTable.getElementName(elementNamePercent[0]),
                         elementNamePercent[0],
-                        currentPercentage,
+                        minPercentage, // Min value in the range is the true percentage rather than the avg in reality
                         minPercentage,
                         maxPercentage,
-                        currentPercentage);
+                        avgPercentage);
                 elementsList.add(element);
-                maxCurrentPercentageIdx = currentPercentage > elementsList.get(maxCurrentPercentageIdx).getPercentageComposition() ? i : maxCurrentPercentageIdx;
+                maxCurrentPercentageIdx = minPercentage > elementsList.get(maxCurrentPercentageIdx).getPercentageComposition() ? i : maxCurrentPercentageIdx;
             } else {
                 remainderElementData = composition.get(i);
             }
@@ -416,7 +415,7 @@ public class InputCompositionProcessor {
                     currentPercentage,
                     minPercentage,
                     maxPercentage,
-                    (minPercentage + maxPercentage) / 2);
+                    currentPercentage);
             elementsList.add(element);
             compositionMetaData.put(LIBSDataGenConstants.REMAINDER_ELEMENT_IDX, elementsList.size() - 1);
         } else {
