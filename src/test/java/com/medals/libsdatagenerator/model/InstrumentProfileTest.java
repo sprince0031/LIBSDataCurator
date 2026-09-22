@@ -19,10 +19,9 @@ class InstrumentProfileTest {
         String instrumentName = "Test Instrument";
         double[] wavelengths = { 200.0, 201.5, 203.0 };
         String materialFamilyName = "testMaterial";
-        PlasmaZone hotCore = new PlasmaZone(1.5, 1e17, 0.7);
-        PlasmaZone coolPeriphery = new PlasmaZone(0.8, 1e16, 0.3);
+        PlasmaZone hotCore = new PlasmaZone(1.5, 1e17, 0.7, 2.5);
+        PlasmaZone coolPeriphery = new PlasmaZone(0.8, 1e16, 0.3, 2.5);
         List<PlasmaZone> plasmaZones = Arrays.asList(hotCore, coolPeriphery);
-//        PlasmaParameters plasmaParameters = new PlasmaParameters(zones);
         CalibrationStats calibrationStats = new CalibrationStats(0.99, 0.05);
         MaterialFamilyProfile familyProfile = new MaterialFamilyProfile(materialFamilyName, plasmaZones, calibrationStats);
         Map<String, MaterialFamilyProfile> materialFamilyProfiles = new HashMap<>();

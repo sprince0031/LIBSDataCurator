@@ -181,6 +181,12 @@ public class CmdlineParserUtil {
                 false,
                 LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_DESC);
 
+        // Specify NOT to process synthetic spectra with the two-zone plasma model
+        options.addOption(LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_DESC);
+
         // Individual material grade name (for single composition mode)
         options.addOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT,
                 LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_LONG,
@@ -319,6 +325,14 @@ public class CmdlineParserUtil {
         name.setRequired(false);
         options.addOption(name);
 
+        // Wavelength resolution (optional)
+        Option resolution = new Option(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_DESC);
+        resolution.setRequired(false);
+        options.addOption(resolution);
+
         // Plasma zones (optional)
         Option plasmaZones = new Option(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT,
                 LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_LONG,
@@ -352,6 +366,12 @@ public class CmdlineParserUtil {
                 LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_LONG,
                 false,
                 LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_DESC);
+
+        // Disable baseline correction
+        options.addOption(LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_DESC);
 
         // Help (optional)
         Option help = new Option(LIBSDataGenConstants.CMD_OPT_HELP_SHORT,

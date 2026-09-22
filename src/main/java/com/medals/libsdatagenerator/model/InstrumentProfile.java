@@ -170,10 +170,10 @@ public class InstrumentProfile implements JsonModel {
         }
         JSONObject materialFamilyProfilesJson = json.optJSONObject("materialFamilyProfiles");
         if (materialFamilyProfilesJson != null) {
+            this.materialFamilyProfiles = new HashMap<>();
             for (String key : materialFamilyProfilesJson.keySet()) {
                 MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(key);
                 materialFamilyProfile.fromJson(materialFamilyProfilesJson.optJSONObject(key));
-                this.materialFamilyProfiles = new HashMap<>();
                 this.materialFamilyProfiles.put(key, materialFamilyProfile);
             }
         }
