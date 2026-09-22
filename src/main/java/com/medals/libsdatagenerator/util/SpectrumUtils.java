@@ -93,7 +93,7 @@ public class SpectrumUtils {
      * Combines N simulated spectra applying the N-Zone Radiative Transfer (Beer-Lambert) law.
      * Zone 0 is assumed to be the Core. Zone N-1 is the outermost periphery.
      */
-    public static double[] combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones) {
+    public double[] combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones) {
         if (zoneSpectra == null || zones == null || zoneSpectra.size() != zones.size()) {
             throw new IllegalArgumentException("Mismatch between spectra data and zone definitions.");
         }
@@ -112,6 +112,7 @@ public class SpectrumUtils {
             maxIntensities[z] = (max == 0.0) ? 1.0 : max; // Prevent division by zero
         }
 
+        // TODO: compare with logic in @InstrumentProfileService to check correctness of combination
         // 2. Evaluate Radiative Transfer Equation for every wavelength
         for (int w = 0; w < numPoints; w++) {
             double totalIntensityAtWavelength = 0.0;
