@@ -171,6 +171,9 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_MATERIAL_TYPE_SHORT = "mt";
     public static final String CMD_OPT_MATERIAL_TYPE_LONG = "material-type";
     public static final String CMD_OPT_MATERIAL_TYPE_DESC = "Material type for label column if running in single composition mode (-c).";
+    public static final String CMD_OPT_NO_TWO_ZONE_SHORT = "ntz";
+    public static final String CMD_OPT_NO_TWO_ZONE_LONG = "no-two-zone";
+    public static final String CMD_OPT_NO_TWO_ZONE_DESC = "Disable two-zone plasma parameter processing from instrument profile and directly use input Te, Ne.";
 
     // Cmdline options for instrument profile calibration
     public static final String CMD_OPT_INPUT_SHORT = "i";
