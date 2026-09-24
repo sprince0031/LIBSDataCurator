@@ -50,24 +50,12 @@ public class CompositionalVariations {
             }
         }
 
-        List<Element> effectiveComposition = materialGrade.getComposition();
         if (allElementsAreFixed) {
             // materialGrade.getComposition() is not empty here due to the check at the beginning.
-            logger.info("All elements in the input composition are fixed. Applying fallback variation logic, ignoring X:X constraints for sampling.");
-            effectiveComposition = new ArrayList<>();
-            for (Element el : materialGrade.getComposition()) {
-                effectiveComposition.add(new Element(
-                        el.getName(),
-                        el.getSymbol(),
-                        el.getPercentageComposition(),
-                        null, // Effectively remove min/max for variation generation
-                        null,
-                        el.getAverageComposition()
-                ));
-            }
+            logger.info("All elements in the input composition are fixed. Cannot generate compositionally varied samples for " +
+                    materialGrade.getMaterialName());
+            return compositions;
         }
-
-        materialGrade.setComposition(effectiveComposition);
 
         // Generate all combinations by Uniform distribution
         // System.out.println("\nGenerating different combinations for the input composition (refer log for list)...");
