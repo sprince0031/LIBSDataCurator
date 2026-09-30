@@ -102,37 +102,24 @@ public class SpectrumUtils {
         int numZones = zones.size();
         double[] combined = new double[numPoints];
 
-        // 1. Precalculate max intensity for each zone to normalize the optical depth (k)
-        double[] maxIntensities = new double[numZones];
-        for (int z = 0; z < numZones; z++) {
-            double max = 0.0;
-            for (double val : zoneSpectra.get(z)) {
-                if (val > max) max = val;
-            }
-            maxIntensities[z] = (max == 0.0) ? 1.0 : max; // Prevent division by zero
-        }
-
-        // TODO: compare with logic in @InstrumentProfileService to check correctness of combination
-        // 2. Evaluate Radiative Transfer Equation for every wavelength
-        for (int w = 0; w < numPoints; w++) {
-            double totalIntensityAtWavelength = 0.0;
-
-            // Iterate from Core (0) to Outermost Periphery (numZones - 1)
-            for (int i = 0; i < numZones; i++) {
-                double currentZoneEmission = zones.get(i).getVFraction() * zoneSpectra.get(i)[w];
-
-                // Calculate accumulated optical depth from all layers OUTSIDE of zone i
-                double accumulatedOpticalDepth = 0.0;
-                for (int j = i + 1; j < numZones; j++) {
-                    double kAbs = zones.get(j).getKAbsorption();
-                    accumulatedOpticalDepth += kAbs * (zoneSpectra.get(j)[w] / maxIntensities[j]);
+        for (int i = 0; i < numZones; i++) {
+            if (i == 0) {
+                // Zone 0: Hot Core (No self-absorption penalty)
+                for (int j = 0; j < combined.length; j++) {
+                    combined[j] = zoneSpectra.get(i)[j] * zones.get(i).getVFraction();
                 }
+            } else {
+                // Zone 1..n: Cooler Periphery Layers (Radiative Transfer Equation)
+                for (int j = 0; j < combined.length; j++) {
+                    // Clamp to 0.0 to prevent baseline correction artifacts
+                    double iOuter = Math.max(zoneSpectra.get(i)[j], 0.0);
 
-                // Beer-Lambert attenuation for the current zone's light traveling outward
-                totalIntensityAtWavelength += currentZoneEmission * Math.exp(-accumulatedOpticalDepth);
+                    double transmissionFactor = Math.exp(-zones.get(i).getKAbsorption() * iOuter);
+
+                    // I_total = (I_inner * transmission) + (V_outer * I_outer)
+                    combined[j] = (combined[j] * transmissionFactor) + (zones.get(i).getVFraction() * iOuter);
+                }
             }
-
-            combined[w] = totalIntensityAtWavelength;
         }
 
         return combined;

@@ -263,7 +263,10 @@ public class LIBSDataService {
                 MaterialFamilyProfile tempMaterialFamilyProfile = instrumentProfile.
                         getMaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
                 tempMaterialFamilyProfile.setScaleFactor(familyProfile.getScaleFactor());
+                config.resolution = String.valueOf(familyProfile.getResolution());
                 familyProfile = tempMaterialFamilyProfile;
+            } else {
+                config.resolution = String.valueOf(familyProfile.getResolution());
             }
 
             List<PlasmaZone> plasmaZones = familyProfile.getPlasmaZones();
@@ -305,7 +308,8 @@ public class LIBSDataService {
                         continue;
                     }
                     double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-                    fetchedZoneSpectra.add(interpolatedSpectrum);
+                    double[] normalisedSpectrum = spectrumUtils.normaliseSpectrum(interpolatedSpectrum);
+                    fetchedZoneSpectra.add(normalisedSpectrum);
                 }
                 double[] combinedSpectrum = spectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
                 List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(combinedSpectrum, familyProfile.getScaleFactor());
@@ -365,14 +369,9 @@ public class LIBSDataService {
         // Initialise instrument profile with single default plasma zone if no config file present
         if (instrumentProfile ==  null) {
             instrumentProfile = new InstrumentProfile(null, null, null);
-            instrumentProfile.addMaterialFamilyProfile(generateDefaultMaterialFamilyProfile(config));
-            logger.info("Instrument profile not found. Default Instrument profile created.");
-        } else if (!config.twoZone) {
-            instrumentProfile.addMaterialFamilyProfile(generateDefaultMaterialFamilyProfile(config));
-            logger.info("Instrument profile found but two-zone disabled. Default material family profile inserted.");
-        } else {
-            logger.info("Instrument profile found and loaded.");
+            logger.info("Instrument not found. Creating new profile with default parameters.");
         }
+        instrumentProfile.addMaterialFamilyProfile(generateDefaultMaterialFamilyProfile(config));
 
         Set<Double> allWavelengths = new TreeSet<>();
         Map<String, Object> fetchedSpectralData = new HashMap<>();
@@ -569,8 +568,10 @@ public class LIBSDataService {
     private MaterialFamilyProfile generateDefaultMaterialFamilyProfile(UserInputConfig config) {
         MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
         PlasmaZone defaultPlasmaZone = new PlasmaZone(Double.parseDouble(config.plasmaTemp),
-                Double.parseDouble(config.electronDensity), 1.0, 1.0);
+                Double.parseDouble(config.electronDensity), 1.0, 0.0);
         materialFamilyProfile.setPlasmaZones(new  ArrayList<>(List.of(defaultPlasmaZone)));
+        materialFamilyProfile.setScaleFactor(36501.135); // average of 5 available family profiles
+        materialFamilyProfile.setResolution(3000);
         return materialFamilyProfile;
     }
 }
