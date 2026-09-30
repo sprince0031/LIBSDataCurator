@@ -80,7 +80,7 @@ public class InstrumentProfileService {
     public InstrumentProfile generateProfile(Path sampleCsvPath, String delimiter, String compositionString,
                                              String instrumentName, BaselineCorrectionParams baselineParams,
                                              int noPlasmaZones, boolean debugMode, String materialFamilyName,
-                                             Path outputPath, boolean blCorrectionEnabled, String nistResolution) throws IOException {
+                                             Path outputPath, boolean blCorrectionEnabled, long nistResolution) throws IOException {
 
         logger.info("Generating instrument profile from: " + sampleCsvPath);
         logger.info("Reference composition: " + compositionString);
@@ -497,10 +497,11 @@ public class InstrumentProfileService {
      */
     private void optimizePlasmaParameters(MaterialFamilyProfile profile, Spectrum processedMeasuredSpectrum,
                                           MaterialGrade composition, int plasmaZones, boolean debugMode,
-                                          Path targetCsvPath, Path zonesCsvPath, String nistResolution) {
+                                          Path targetCsvPath, Path zonesCsvPath, long nistResolution) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
+        SpectrumUtils spectrumUtils = new SpectrumUtils();
 
         logger.info("Starting Grid Search optimization for " + plasmaZones + " plasma zones...");
 
@@ -508,7 +509,7 @@ public class InstrumentProfileService {
         UserInputConfig config = new UserInputConfig();
         config.minWavelength = String.valueOf(wavelengthGrid[0]);
         config.maxWavelength = String.valueOf(wavelengthGrid[wavelengthGrid.length - 1]);
-        config.resolution = nistResolution;
+        config.resolution = String.valueOf(nistResolution);
         UserInputConfig.setDebugMode(debugMode);
 
         // Define Grid Search Space
@@ -518,15 +519,12 @@ public class InstrumentProfileService {
 
         // Normalization for RMSE calculation
         double maxMeasuredIntensity = Arrays.stream(measuredIntensities).max().orElse(1.0);
-        if (maxMeasuredIntensity == 0)
+        if (maxMeasuredIntensity == 0) {
             maxMeasuredIntensity = 1.0;
-        double[] normalisedMeasuredSpectrum = new double[measuredIntensities.length];
-        for (int i = 0; i < measuredIntensities.length; i++) {
-            normalisedMeasuredSpectrum[i] = measuredIntensities[i] / maxMeasuredIntensity;
         }
+        double[] normalisedMeasuredSpectrum = spectrumUtils.normaliseSpectrum(measuredIntensities);
 
-        SpectrumUtils spectrumUtils = new SpectrumUtils();
-        Map<String, double[]> spectrumCache = new HashMap<>();
+        Map<String, double[]> normalisedSpectrumCache = new HashMap<>();
         PrintStream out = System.out;
 
         try {
@@ -541,7 +539,7 @@ public class InstrumentProfileService {
                 for (double ne : neValues) {
                     String key = String.format("%.2f_%.2e", te, ne);
 
-                    if (spectrumCache.containsKey(key))
+                    if (normalisedSpectrumCache.containsKey(key))
                         continue;
 
                     logger.info("Fetching spectrum for " + key);
@@ -551,7 +549,8 @@ public class InstrumentProfileService {
                     if (!csvData.equals(String.valueOf(java.net.HttpURLConnection.HTTP_NOT_FOUND))) {
                         Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, WavelengthUnit.NANOMETER.getUnitString());
                         double[] spectrum = spectrumUtils.interpolateSpectrum(waveMap, wavelengthGrid);
-                        spectrumCache.put(key, spectrum);
+                        double[] normalisedSpectrum = spectrumUtils.normaliseSpectrum(spectrum);
+                        normalisedSpectrumCache.put(key, normalisedSpectrum);
                     }
                     CommonUtils.printProgressBar(i + 1, gridSize, "spectra fetched from NIST LIBS db", out);
                     i++;
@@ -559,30 +558,21 @@ public class InstrumentProfileService {
             }
             CommonUtils.finishProgressBar(gridSize, out);
 
-            // normalize cached spectra for optimization comparison
-            Map<String, double[]> normalizedSpectrumCache = new HashMap<>();
-            i = 0;
-            for (Map.Entry<String, double[]> entry : spectrumCache.entrySet()) {
-                normalizedSpectrumCache.put(entry.getKey(), spectrumUtils.normaliseSpectrum(entry.getValue()));
-                CommonUtils.printProgressBar(i + 1, gridSize, "Spectra normalised", out);
-                i++;
-            }
-            CommonUtils.finishProgressBar(gridSize, out);
-
             // Recursive Grid Search
             OptimizationResult bestResult = findBestCombination(plasmaZones, teValues, kAbsValues,
-                    normalizedSpectrumCache, normalisedMeasuredSpectrum, neValues);
+                    normalisedSpectrumCache, normalisedMeasuredSpectrum, neValues);
 
             profile.setPlasmaZones(bestResult.plasmaZones);
             profile.setRmse(bestResult.rmse);
             profile.setRSquaredValue(bestResult.rSquared);
             profile.setScaleFactor(maxMeasuredIntensity);
+            profile.setResolution(nistResolution);
 
             logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
 
             // Save Best Zones and Spectra to CSV
             if (zonesCsvPath != null) {
-                saveZonesToCsv(zonesCsvPath, bestResult.plasmaZones, wavelengthGrid, spectrumCache, maxMeasuredIntensity,
+                saveZonesToCsv(zonesCsvPath, bestResult.plasmaZones, wavelengthGrid, normalisedSpectrumCache, maxMeasuredIntensity,
                         bestResult.combinedSpectrum);
             }
         } catch (Exception e) {
@@ -636,7 +626,7 @@ public class InstrumentProfileService {
     public InstrumentProfile generateProfileFromDirectory(Path dirPath, Path refCompositionsPath, String delimiter,
                                                           String instrumentName, BaselineCorrectionParams baselineParams,
                                                           int numPlasmaZones, boolean debugMode, Path outputPath,
-                                                          String nistResolution) throws IOException {
+                                                          long nistResolution) throws IOException {
 
         logger.info("Generating instrument profile from directory: " + dirPath);
 

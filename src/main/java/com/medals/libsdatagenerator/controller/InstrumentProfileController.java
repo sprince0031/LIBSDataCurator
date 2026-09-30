@@ -61,7 +61,7 @@ public class InstrumentProfileController {
             String compositionOrRefPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
             String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
             String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT, InstrumentProfile.INSTRUMENT_PROFILE_PATH);
-            String nistResolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
+            long nistResolution = Long.parseLong(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000"));
             int plasmaZones = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT, "2"));
             double lambda = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT, "10000"));
             double p = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,"0.001"));

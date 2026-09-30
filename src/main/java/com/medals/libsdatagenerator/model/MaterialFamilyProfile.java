@@ -11,6 +11,7 @@ public class MaterialFamilyProfile implements JsonModel {
     private List<PlasmaZone> plasmaZones;
     private CalibrationStats calibrationStats;
     private double scaleFactor; // Max intensity of averaged measured spectrum
+    private long resolution; // Resolution to be used when fetching from NIST
 
     // Constructor to load profile from JSON
     public MaterialFamilyProfile() {}
@@ -55,6 +56,14 @@ public class MaterialFamilyProfile implements JsonModel {
         this.scaleFactor = scaleFactor;
     }
 
+    public long getResolution() {
+        return resolution;
+    }
+
+    public void setResolution(long resolution) {
+        this.resolution = resolution;
+    }
+
     public List<PlasmaZone> getPlasmaZones() {
         return plasmaZones;
     }
@@ -93,6 +102,7 @@ public class MaterialFamilyProfile implements JsonModel {
         JSONObject json = new JSONObject();
         json.put("materialFamily", materialFamilyName);
         json.put("scaleFactor", scaleFactor);
+        json.put("resolution", resolution);
         JSONArray zonesArray = new JSONArray();
         if (plasmaZones != null) {
             for (PlasmaZone zone : plasmaZones) {
@@ -110,6 +120,7 @@ public class MaterialFamilyProfile implements JsonModel {
     public void fromJson(JSONObject json) {
         this.materialFamilyName = json.optString("materialFamily", "");
         this.scaleFactor = json.optDouble("scaleFactor");
+        this.resolution = json.optLong("resolution");
         JSONArray zonesArray = json.optJSONArray("plasmaZones");
         if (zonesArray != null) {
             for (int i = 0; i < zonesArray.length(); i++) {
