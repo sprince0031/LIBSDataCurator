@@ -8,7 +8,6 @@ import java.util.List;
 
 public class MaterialFamilyProfile implements JsonModel {
     private String materialFamilyName;
-//    private PlasmaParameters plasmaParameters;
     private List<PlasmaZone> plasmaZones;
     private CalibrationStats calibrationStats;
     private double scaleFactor; // Max intensity of averaged measured spectrum
