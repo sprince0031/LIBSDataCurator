@@ -1,17 +1,21 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.Element; // Assuming this is the correct location
+import com.medals.libsdatagenerator.model.ElementStatistics;
+import com.medals.libsdatagenerator.model.SeriesStatistics;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
+import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.sampler.DirichletSampler;
 import com.medals.libsdatagenerator.sampler.GaussianSampler;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CompositionalVariationsTest {
 
@@ -127,74 +131,6 @@ class CompositionalVariationsTest {
 //            assertEquals(100.0, sumComposition(variant), DELTA, "Sum of percentages should be 100 for variant: " + variant);
 //        }
 //    }
-
-    @Test
-    void testGetUniformDistribution_respectsMinMaxConstraints() {
-        List<Element> originalComp = new ArrayList<>();
-        originalComp.add(new Element("X", "X", 50.0, 48.0, 52.0, 50.0));
-        originalComp.add(new Element("Y", "Y", 30.0, 28.0, 32.0, 30.0));
-        originalComp.add(new Element("Z", "Z", 20.0, 18.0, 22.0, 20.0));
-
-        List<List<Element>> results = new ArrayList<>();
-        cv.getUniformDistribution(0, originalComp, 0.5, 5.0, 0.0, new ArrayList<>(), results);
-
-        assertTrue(results.size() > 0, "Should generate some results for uniform distribution");
-
-        for (List<Element> result : results) {
-            assertEquals(3, result.size());
-            double totalPercentage = 0;
-            for (int i = 0; i < result.size(); i++) {
-                Element elRes = result.get(i);
-                Element elOrig = originalComp.get(i);
-
-                assertNotNull(elRes.getPercentageComposition(), "Percentage should not be null for " + elRes.getSymbol());
-                assertTrue(elRes.getPercentageComposition() >= 0, "Percentage should be non-negative for " + elRes.getSymbol());
-                if (elOrig.getMin() != null) {
-                    assertTrue(elRes.getPercentageComposition() >= elOrig.getMin() - DELTA,
-                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " below min " + elOrig.getMin());
-                }
-                if (elOrig.getMax() != null) {
-                    assertTrue(elRes.getPercentageComposition() <= elOrig.getMax() + DELTA,
-                            elRes.getSymbol() + " value " + elRes.getPercentageComposition() + " above max " + elOrig.getMax());
-                }
-                totalPercentage += elRes.getPercentageComposition();
-            }
-            assertEquals(100.0, totalPercentage, DELTA, "Sum of percentages should be 100 for result: " + result);
-        }
-    }
-
-    @Test
-    void testGetUniformDistribution_lastElementCalculationWithConstraints() {
-        List<Element> originalComp = new ArrayList<>();
-        originalComp.add(new Element("A", "A", 40.0, 35.0, 42.0, 40.0));
-        originalComp.add(new Element("B", "B", 30.0, 25.0, 32.0, 30.0));
-        originalComp.add(new Element("C", "C", 30.0, 28.0, 33.0, 30.0));
-
-        List<List<Element>> results = new ArrayList<>();
-        cv.getUniformDistribution(0, originalComp, 1.0, 5.0, 0.0, new ArrayList<>(), results);
-
-        assertTrue(results.size() > 0, "Should find valid combinations for last element constraints.");
-
-        for (List<Element> result : results) {
-            Element elC = result.get(2);
-            assertTrue(elC.getPercentageComposition() >= (28.0 - DELTA) && elC.getPercentageComposition() <= (33.0 + DELTA),
-                    "Element C (" + elC.getPercentageComposition() + ") out of its specific range [28, 33] in result: " + result);
-            assertEquals(100.0, sumComposition(result), DELTA, "Sum must be 100 for result: " + result);
-        }
-    }
-
-    @Test
-    void testGetUniformDistribution_noValidResultsDueToStrictConstraints() {
-        List<Element> originalComp = new ArrayList<>();
-        originalComp.add(new Element("A", "A", 10.0,  8.0, 12.0, 10.0));
-        originalComp.add(new Element("B", "B", 10.0,  8.0, 12.0, 10.0));
-        originalComp.add(new Element("C", "C", 80.0, 85.0, 90.0, 80.0));
-
-        List<List<Element>> results = new ArrayList<>();
-        cv.getUniformDistribution(0, originalComp, 0.1, 3.0, 0.0, new ArrayList<>(), results);
-
-        assertEquals(0, results.size(), "Should generate no results due to conflicting constraints for uniform distribution.");
-    }
 
     @Test
     void testGaussianSampling_reproducibilityWithSeed() {
@@ -384,5 +320,40 @@ class CompositionalVariationsTest {
         }
         
         assertTrue(foundDifference, "Different seeds should produce different results");
+    }
+
+    @Test
+    void testDirichletSampling_respectsBaseElementRanges() {
+        List<Element> baseComp = new ArrayList<>();
+        baseComp.add(new Element("Iron", "Fe", 70.0, 69.9, 70.1, 70.0));
+        baseComp.add(new Element("Chromium", "Cr", 20.0, 19.9, 20.1, 20.0));
+        baseComp.add(new Element("Nickel", "Ni", 10.0, 9.9, 10.1, 10.0));
+
+        SeriesInput parentSeries = new SeriesInput("test-series", List.of("mat-guid"), "overview-guid");
+        MaterialGrade materialGrade = new MaterialGrade(baseComp, "mat-guid", parentSeries);
+
+        SeriesStatistics overviewStats = new SeriesStatistics("test-series", "overview-guid");
+        overviewStats.addElementStatisticsToComposition(new ElementStatistics("Fe", 70.0, 50, 0.0, 100.0));
+        overviewStats.addElementStatisticsToComposition(new ElementStatistics("Cr", 20.0, 50, 0.0, 100.0));
+        overviewStats.addElementStatisticsToComposition(new ElementStatistics("Ni", 10.0, 50, 0.0, 100.0));
+        materialGrade.setOverviewStatistics(overviewStats);
+
+        List<List<Element>> variations = new ArrayList<>();
+        DirichletSampler.getInstance().sample(materialGrade, 25, variations, SEED);
+
+        assertEquals(25, variations.size(), "Should generate requested Dirichlet samples within tight base ranges");
+        for (List<Element> variation : variations) {
+            double total = 0.0;
+            for (int i = 0; i < variation.size(); i++) {
+                Element generated = variation.get(i);
+                Element base = baseComp.get(i);
+                assertTrue(generated.getPercentageComposition() >= base.getMin() - DELTA,
+                        generated.getSymbol() + " below base min");
+                assertTrue(generated.getPercentageComposition() <= base.getMax() + DELTA,
+                        generated.getSymbol() + " above base max");
+                total += generated.getPercentageComposition();
+            }
+            assertEquals(100.0, total, 0.01, "Generated sample should sum to 100%");
+        }
     }
 }

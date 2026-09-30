@@ -2,19 +2,21 @@ package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
-import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
-import com.medals.libsdatagenerator.util.CommonUtils;
 import org.apache.commons.cli.CommandLine;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Assumptions; // For Gaussian test constant checks
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LIBSDataServiceTest {
 
@@ -56,7 +58,7 @@ class LIBSDataServiceTest {
     }
 
     @Test
-    void testGenerateVariations_allFixed_gaussianFallback() {
+    void testGenerateVariations_allFixed_gaussianFallback() throws Exception {
         assumeGaussianConstantsPresent("A", "B"); // Gaussian tests need these symbols in constants
 
         List<Element> originalComposition = new ArrayList<>();
@@ -66,8 +68,6 @@ class LIBSDataServiceTest {
         MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
         CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "A-50,B-#",
-                "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1",
-                "-"+LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "5.0",
                 "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.GAUSSIAN.getUserOption()),
                 "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
         UserInputConfig config = new UserInputConfig(cmd);
@@ -90,7 +90,7 @@ class LIBSDataServiceTest {
     }
 
     @Test
-    void testGenerateVariations_mixedFixedAndVariable_gaussian() {
+    void testGenerateVariations_mixedFixedAndVariable_gaussian() throws Exception {
         assumeGaussianConstantsPresent("Fe", "Cr");
 
         List<Element> originalComposition = new ArrayList<>();
@@ -100,8 +100,6 @@ class LIBSDataServiceTest {
         MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
         CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
                 "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "Cr-25:35,Fe-#",
-                "-"+LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.5", // varyBy=0.5
-                "-"+LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "2.0", // limit=2 for Cr
                 "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.GAUSSIAN.getUserOption()),
                 "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
         UserInputConfig config = new UserInputConfig(cmd);

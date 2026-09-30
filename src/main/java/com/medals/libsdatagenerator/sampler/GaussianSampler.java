@@ -103,7 +103,7 @@ public class GaussianSampler implements Sampler {
                 if (totalPercentage > 0) {
                     for (Element element : newVariation) {
                         double normalizedPercentage = (element.getPercentageComposition() / totalPercentage) * 100.0;
-                        element.setPercentageComposition(CommonUtils.roundToNDecimals(normalizedPercentage, element.getNumberDecimalPlaces()));
+                        element.setPercentageComposition(normalizedPercentage);
                     }
                 }
 

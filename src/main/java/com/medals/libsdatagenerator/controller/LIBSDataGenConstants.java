@@ -118,19 +118,6 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_SCALE_COATING_LONG = "dont-scale-coating";
     public static final String CMD_OPT_SCALE_COATING_DESC = "Will scale down all other elements in the composition rather " +
             "than subtracting the coating element percentage from the dominant element's percentage by default. Include flag to disable.";
-    @Deprecated
-    public static final String CMD_OPT_VARY_BY_SHORT = "vb";
-    @Deprecated
-    public static final String CMD_OPT_VARY_BY_LONG = "vary-by";
-    @Deprecated
-    public static final String CMD_OPT_VARY_BY_DESC = "By how much each compositional variation for percentage weight" +
-            " should be varied by.";
-    @Deprecated
-    public static final String CMD_OPT_MAX_DELTA_SHORT = "md";
-    @Deprecated
-    public static final String CMD_OPT_MAX_DELTA_LONG = "max-delta";
-    @Deprecated
-    public static final String CMD_OPT_MAX_DELTA_DESC = "Upper and lower (+-) limits to the variations.";
     public static final String CMD_OPT_VAR_MODE_SHORT = "vm";
     public static final String CMD_OPT_VAR_MODE_LONG = "variation-mode";
     public static final String CMD_OPT_VAR_MODE_DESC = """
@@ -178,11 +165,24 @@ public class LIBSDataGenConstants {
     NIST LIBS spectra according to the wavelength grid, intensity range and best n-zone fit. \
     Run the `calibrate` script to generate an instrument profile from measured spectra from your LIBS instrument. 
     """;
+    public static final String CMD_OPT_MATERIAL_GRADE_NAME_SHORT = "mg";
+    public static final String CMD_OPT_MATERIAL_GRADE_NAME_LONG = "material-grade";
+    public static final String CMD_OPT_MATERIAL_GRADE_NAME_DESC = "Material grade name for label column if running in single composition mode (-c).";
+    public static final String CMD_OPT_MATERIAL_TYPE_SHORT = "mt";
+    public static final String CMD_OPT_MATERIAL_TYPE_LONG = "material-type";
+    public static final String CMD_OPT_MATERIAL_TYPE_DESC = "Material type for label column if running in single composition mode (-c).";
+    public static final String CMD_OPT_NO_TWO_ZONE_SHORT = "ntz";
+    public static final String CMD_OPT_NO_TWO_ZONE_LONG = "no-two-zone";
+    public static final String CMD_OPT_NO_TWO_ZONE_DESC = "Disable two-zone plasma parameter processing from instrument profile and directly use input Te, Ne.";
 
     // Cmdline options for instrument profile calibration
     public static final String CMD_OPT_INPUT_SHORT = "i";
     public static final String CMD_OPT_INPUT_LONG = "input";
-    public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
+    public static final String CMD_OPT_INPUT_DESC = "Path to a sample LIBS measurement CSV file, or a directory containing measurement CSVs organised by material";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_SHORT = "mf";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_LONG = "material-family";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_DESC = "Name of the family to which the material on which measurements are taken belong to"
+        + " (use this option only if calibrating against single material family)";
     public static final String CMD_OPT_DELIMITER_SHORT = "dl";
     public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
     public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";
@@ -199,11 +199,14 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_BASELINE_LAMBDA_LONG = "lambda";
     public static final String CMD_OPT_BASELINE_LAMBDA_DESC = "Baseline correction smoothness parameter (lambda). Default: 10000";
     public static final String CMD_OPT_BASELINE_P_SHORT = "bp";
-    public static final String CMD_OPT_BASELINE_P_LONG = "p";
+    public static final String CMD_OPT_BASELINE_P_LONG = "p-value";
     public static final String CMD_OPT_BASELINE_P_DESC = "Baseline correction asymmetry parameter (p). Default: 0.001";
     public static final String CMD_OPT_BASELINE_ITER_SHORT = "bi";
     public static final String CMD_OPT_BASELINE_ITER_LONG = "max-iterations";
     public static final String CMD_OPT_BASELINE_ITER_DESC = "Baseline correction maximum iterations. Default: 10";
+    public static final String CMD_OPT_DISABLE_BASELINE_CORRECTION_SHORT = "db";
+    public static final String CMD_OPT_DISABLE_BASELINE_CORRECTION_LONG = "disable-baseline-correction";
+    public static final String CMD_OPT_DISABLE_BASELINE_CORRECTION_DESC = "Disable baseline correction step if input reference spectra is already baseline corrected";
     public static final String CMD_OPT_HELP_SHORT = "h";
     public static final String CMD_OPT_HELP_LONG = "help";
     public static final String CMD_OPT_HELP_DESC = "Show this help message";
@@ -257,6 +260,7 @@ public class LIBSDataGenConstants {
     public static final String MATWEB_AVG_REGEX = "Average value:\\s*(\\d+(?:\\.\\d+)?)\\s*%?\\s*.*?Grade Count:\\s*(\\d+)";
     public static final String MATWEB_ALT_AVG_REGEX = "Average.*?:\\s*(\\d+(?:\\.\\d+)?).*?Count.*?:\\s*(\\d+)";
     public static final String MATWEB_DATASHEET_TABLE_CSS_SELECTOR = "table.tabledataformat";
+    public static final String MATWEB_LOCAL_CACHE_FOLDER = "datasheets";
 
     /**
      * #### Archive.org Constants ####
@@ -269,10 +273,14 @@ public class LIBSDataGenConstants {
      */
     public static final String CALIBRATION_DIR = "calibration";
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
+    public static final String CALIBRATION_REPORT_MULTI_MATERIAL_TEMPLATE_FILE = "calibration_report_multi_material_template.ipynb";
     public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
     public static final String INSTRUMENT_PROFILE_JSON_FILE = "instrument_profile.json";
-    // Calibration report template placeholders
+    public static final String REFERENCE_COMPOSITIONS_DEFAULT_FILE = "reference_compositions.json";
+    public static final String MATERIAL_NAME_CSV_SEPARATOR = "_LSA_";
+    // Calibration report template placeholders (single-material)
     public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
+    public static final String MATERIAL_FAMILY = "<MATERIAL_FAMILY>";
     public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
     public static final String RMSE = "<RMSE>";
     public static final String INPUT_CSV_PATH = "<INPUT_CSV_PATH>";
@@ -280,12 +288,17 @@ public class LIBSDataGenConstants {
     public static final String LAMBDA = "<LAMBDA>";
     public static final String P = "<P>";
     public static final String MAX_ITERATIONS = "<MAX_ITERATIONS>";
+    // Calibration report template placeholders (multi-material / directory mode)
+    public static final String AVERAGED_ZONES_CSV_PATH = "<AVERAGED_ZONES_CSV_PATH>";
+    public static final String NUM_MATERIALS_PROCESSED = "<NUM_MATERIALS_PROCESSED>";
+    public static final String MATERIAL_NAMES_LIST = "<MATERIAL_NAMES_LIST>";
+    public static final String PER_MATERIAL_ZONES_CSV_DIR = "<PER_MATERIAL_ZONES_CSV_DIR>";
 
     /**
      * #### Miscellaneous Constants ####
      */
     public static final String MASTER_DATASET_FILENAME = "master_dataset.csv";
-    public static final String INPUT_COMPOSITION_STRING_REGEX = "^([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#]))(?:,([A-Za-z]{1,2}-((100(\\.0{1,5})?|[0-9]{1,2}(\\.\\d{1,5})?)%?|[#])))*$";
+    public static final String INPUT_COMPOSITION_STRING_REGEX = "^[A-Za-z]{1,2}-(?:(?:100(?:\\.0{1,5})?|[0-9]{1,2}(?:\\.\\d{1,5})?)(?::(?:100(?:\\.0{1,5})?|[0-9]{1,2}(?:\\.\\d{1,5})?))?|#)%?(?:,[A-Za-z]{1,2}-(?:(?:100(?:\\.0{1,5})?|[0-9]{1,2}(?:\\.\\d{1,5})?)(?::(?:100(?:\\.0{1,5})?|[0-9]{1,2}(?:\\.\\d{1,5})?))?|#)%?)*$";
     public static final String COATED_SERIES_KEY_PATTERN = "([A-Za-z]+)-([0-9]+(?:\\.[0-9]+)?)\\.coated\\.(.*?)";
     public static final String DIRECT_ENTRY = "Direct-entry"; // Used to mark MatGUID series list entry via -c option
     public static final String CSV_HEADER_MATERIAL_GRADE_NAME = "material_grade_name"; // Multi-class target column name

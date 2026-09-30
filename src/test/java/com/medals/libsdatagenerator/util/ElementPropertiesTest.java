@@ -18,11 +18,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class ElementPropertiesTest {
 
     private static final String TEST_PROPERTIES_PATH = "src/test/resources/test_elements.properties";
-    private CommonUtils commonUtils;
 
     @BeforeEach
     void setUp() throws IOException {
-        commonUtils = new CommonUtils();
 
         // Create a test resources directory if it doesn't exist
         Path testResources = Paths.get("src/test/resources");
@@ -43,7 +41,7 @@ class ElementPropertiesTest {
 
     @Test
     void testReadProperties() {
-        Properties props = commonUtils.readProperties(TEST_PROPERTIES_PATH);
+        Properties props = CommonUtils.getInstance().readProperties(TEST_PROPERTIES_PATH);
 
         assertNotNull(props);
         assertEquals(3, props.size());
@@ -78,20 +76,9 @@ class ElementPropertiesTest {
     }
 
     @Test
-    void testElementDecimalPrecision() {
-        // Test customizing decimal precision
-        Element silicon = new Element("Silicon", "Si", 1.23456, null, null, null);
-        assertEquals(1.235, silicon.getPercentageComposition()); // Default 3 places
-
-        silicon.setNumberDecimalPlaces(2);
-        silicon.setPercentageComposition(1.23456);
-        assertEquals(1.23, silicon.getPercentageComposition()); // Now 2 places
-    }
-
-    @Test
     void testMissingPropertiesFile() {
         // Test behavior when properties file doesn't exist
-        Properties props = commonUtils.readProperties("non_existent_file.properties");
+        Properties props = CommonUtils.getInstance().readProperties("non_existent_file.properties");
         assertNotNull(props);
         assertTrue(props.isEmpty());
     }

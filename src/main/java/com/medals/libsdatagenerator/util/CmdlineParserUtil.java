@@ -103,7 +103,7 @@ public class CmdlineParserUtil {
                 true,
                 LIBSDataGenConstants.CMD_OPT_INTENSITY_SCALE_DESC);
 
-        // Data output path
+        // Master CSV data output path
         options.addOption(LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_SHORT,
                 LIBSDataGenConstants.CMD_OPT_OUTPUT_PATH_LONG,
                 true,
@@ -132,18 +132,6 @@ public class CmdlineParserUtil {
                 LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_LONG,
                 false,
                 LIBSDataGenConstants.CMD_OPT_NO_APPEND_MODE_DESC);
-
-        // vary by (for compositions)
-        options.addOption(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT,
-                LIBSDataGenConstants.CMD_OPT_VARY_BY_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_VARY_BY_DESC);
-
-        // Max delta value
-        options.addOption(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT,
-                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_LONG,
-                true,
-                LIBSDataGenConstants.CMD_OPT_MAX_DELTA_DESC);
 
         // Variation mode
         options.addOption(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT,
@@ -192,6 +180,24 @@ public class CmdlineParserUtil {
                 LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_LONG,
                 false,
                 LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_DESC);
+
+        // Specify NOT to process synthetic spectra with the two-zone plasma model
+        options.addOption(LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_DESC);
+
+        // Individual material grade name (for single composition mode)
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_DESC);
+
+        // Individual material type (for single composition mode)
+        options.addOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_DESC);
 
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
@@ -282,6 +288,13 @@ public class CmdlineParserUtil {
         input.setRequired(true);
         options.addOption(input);
 
+        // Material family name for which the profile is being created (required)
+        Option materialFamilyName = new Option(LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_DESC);
+        materialFamilyName.setRequired(false);
+        options.addOption(materialFamilyName);
+
         // Input CSV delimiter (optional | default: ;)
         Option delimiter = new Option(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT,
                 LIBSDataGenConstants.CMD_OPT_DELIMITER_LONG,
@@ -289,11 +302,13 @@ public class CmdlineParserUtil {
         delimiter.setRequired(false);
         options.addOption(delimiter);
 
-        // Composition (required)
+        // Composition (optional for directory mode; required for single-file mode - validated in controller)
         Option composition = new Option(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT,
                 LIBSDataGenConstants.CMD_OPT_COMPOSITION_LONG,
-                true, LIBSDataGenConstants.CMD_OPT_COMPOSITION_DESC);
-        composition.setRequired(true);
+                true,
+                "For single-file mode: composition string (e.g. \"Fe-80,C-20\"). "
+                + "For directory mode: path to reference_compositions.json (defaults to <input_dir>/reference_compositions.json).");
+        composition.setRequired(false);
         options.addOption(composition);
 
         // Output path (optional)
@@ -309,6 +324,14 @@ public class CmdlineParserUtil {
                 true, LIBSDataGenConstants.CMD_OPT_NAME_DESC);
         name.setRequired(false);
         options.addOption(name);
+
+        // Wavelength resolution (optional)
+        Option resolution = new Option(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_RESOLUTION_DESC);
+        resolution.setRequired(false);
+        options.addOption(resolution);
 
         // Plasma zones (optional)
         Option plasmaZones = new Option(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT,
@@ -343,6 +366,12 @@ public class CmdlineParserUtil {
                 LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_LONG,
                 false,
                 LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_DESC);
+
+        // Disable baseline correction
+        options.addOption(LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_DISABLE_BASELINE_CORRECTION_DESC);
 
         // Help (optional)
         Option help = new Option(LIBSDataGenConstants.CMD_OPT_HELP_SHORT,

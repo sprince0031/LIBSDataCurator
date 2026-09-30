@@ -5,16 +5,18 @@ import org.json.JSONObject;
 public class PlasmaZone {
     private double te;
     private double ne;
-    private double weight;
+    private double vFraction;
+    private double kAbsorption;
 
     public PlasmaZone(double te, double ne) {
-        this(te, ne, 0.0);
+        this(te, ne, 0.0, 2.5);
     }
 
-    public PlasmaZone(double te, double ne, double weight) {
+    public PlasmaZone(double te, double ne, double vFraction, double kAbsorption) {
         this.te = te;
         this.ne = ne;
-        this.weight = weight;
+        this.vFraction = vFraction;
+        this.kAbsorption = kAbsorption;
     }
 
     public double getTe() {
@@ -33,19 +35,28 @@ public class PlasmaZone {
         this.ne = ne;
     }
 
-    public double getWeight() {
-        return weight;
+    public double getVFraction() {
+        return vFraction;
     }
 
-    public void setWeight(double weight) {
-        this.weight = weight;
+    public void setVFraction(double vFraction) {
+        this.vFraction = vFraction;
+    }
+
+    public double getKAbsorption() {
+        return kAbsorption;
+    }
+
+    public void setKAbsorption(double kAbsorption) {
+        this.kAbsorption = kAbsorption;
     }
 
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
         json.put("Te", te);
         json.put("Ne", ne);
-        json.put("weight", weight);
+        json.put("volumeFraction", vFraction);
+        json.put("kAbsorption", kAbsorption);
         return json;
     }
 
@@ -56,6 +67,7 @@ public class PlasmaZone {
         return new PlasmaZone(
                 json.getDouble("Te"),
                 json.getDouble("Ne"),
-                json.optDouble("weight", 0.0));
+                json.optDouble("volumeFraction", 0.0),
+                json.optDouble("kAbsorption", 2.5));
     }
 }

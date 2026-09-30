@@ -31,6 +31,7 @@ build/lib/
 .idea/
 target/
 src/test/resources/test_elements.properties
+conf/instrument_profile.json
 docs/assets/
 docs/Common Steel Grades in Steel Scrap.md
 data/
