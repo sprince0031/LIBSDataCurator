@@ -175,7 +175,11 @@ public class LIBSDataGenConstants {
     // Cmdline options for instrument profile calibration
     public static final String CMD_OPT_INPUT_SHORT = "i";
     public static final String CMD_OPT_INPUT_LONG = "input";
-    public static final String CMD_OPT_INPUT_DESC = "Path to sample LIBS measurement CSV file containing real instrument readings";
+    public static final String CMD_OPT_INPUT_DESC = "Path to a sample LIBS measurement CSV file, or a directory containing measurement CSVs organised by material";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_SHORT = "mf";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_LONG = "material-family";
+    public static final String CMD_OPT_MATERIAL_FAMILY_NAME_DESC = "Name of the family to which the material on which measurements are taken belong to"
+        + " (use this option only if calibrating against single material family)";
     public static final String CMD_OPT_DELIMITER_SHORT = "dl";
     public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
     public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";
@@ -263,9 +267,12 @@ public class LIBSDataGenConstants {
      */
     public static final String CALIBRATION_DIR = "calibration";
     public static final String CALIBRATION_REPORT_TEMPLATE_FILE = "calibration_report_template.ipynb";
+    public static final String CALIBRATION_REPORT_MULTI_MATERIAL_TEMPLATE_FILE = "calibration_report_multi_material_template.ipynb";
     public static final String CALIBRATION_REPORT_OUTPUT_FILE = "calibration_report";
     public static final String INSTRUMENT_PROFILE_JSON_FILE = "instrument_profile.json";
-    // Calibration report template placeholders
+    public static final String REFERENCE_COMPOSITIONS_DEFAULT_FILE = "reference_compositions.json";
+    public static final String MATERIAL_NAME_CSV_SEPARATOR = "_LSA_";
+    // Calibration report template placeholders (single-material)
     public static final String INSTRUMENT_NAME = "<INSTRUMENT_NAME>";
     public static final String RSQUARE_SCORE = "<RSQUARE_SCORE>";
     public static final String RMSE = "<RMSE>";
@@ -274,6 +281,11 @@ public class LIBSDataGenConstants {
     public static final String LAMBDA = "<LAMBDA>";
     public static final String P = "<P>";
     public static final String MAX_ITERATIONS = "<MAX_ITERATIONS>";
+    // Calibration report template placeholders (multi-material / directory mode)
+    public static final String AVERAGED_ZONES_CSV_PATH = "<AVERAGED_ZONES_CSV_PATH>";
+    public static final String NUM_MATERIALS_PROCESSED = "<NUM_MATERIALS_PROCESSED>";
+    public static final String MATERIAL_NAMES_LIST = "<MATERIAL_NAMES_LIST>";
+    public static final String PER_MATERIAL_ZONES_CSV_DIR = "<PER_MATERIAL_ZONES_CSV_DIR>";
 
     /**
      * #### Miscellaneous Constants ####

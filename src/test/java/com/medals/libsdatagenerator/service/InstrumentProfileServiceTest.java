@@ -1,9 +1,11 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.MaterialFamilyProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
+import org.json.JSONObject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -11,12 +13,15 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -163,9 +168,11 @@ public class InstrumentProfileServiceTest {
         List<PlasmaZone> zones = new ArrayList<>();
         zones.add(new PlasmaZone(1.2, 5e16, 0.6));
         zones.add(new PlasmaZone(0.7, 2e16, 0.4));
-        profile.setZones(zones);
-        profile.setRSquaredValue(0.95);
-        profile.setRmse(0.05);
+        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile("testMaterialFamily");
+        mfProfile.setPlasmaZones(zones);
+        mfProfile.setRSquaredValue(0.95);
+        mfProfile.setRmse(0.05);
+        profile.addMaterialFamilyProfile(mfProfile);
 
         // Save to file
         Path outputPath = tempDir.resolve("test_profile.json");
@@ -174,20 +181,21 @@ public class InstrumentProfileServiceTest {
         assertTrue(Files.exists(outputPath));
 
         // Load from file
-        InstrumentProfile loaded = null;
-        loaded = CommonUtils.getInstance().loadModelFromFile(outputPath, InstrumentProfile.class);
+        InstrumentProfile loaded = CommonUtils.getInstance().loadModelFromFile(outputPath, InstrumentProfile.class);
+        MaterialFamilyProfile loadedFamilyProfile = loaded.getMaterialFamilyProfiles().get("testMaterialFamily");
 
         assertNotNull(loaded);
+        assertNotNull(loadedFamilyProfile);
         assertEquals("Test Spectrometer", loaded.getInstrumentName());
         assertEquals("Fe-98.0,C-2.0", loaded.getComposition());
         assertEquals(5, loaded.getNumShots());
-        assertEquals(2, loaded.getZones().size());
-        assertEquals(1.2, loaded.getZones().get(0).getTe(), 0.01);
-        assertEquals(5e16, loaded.getZones().get(0).getNe(), 1e15);
-        assertEquals(0.7, loaded.getZones().get(1).getTe(), 0.01);
-        assertEquals(2e16, loaded.getZones().get(1).getNe(), 1e15);
-        assertEquals(0.95, loaded.getRSquaredValue(), 0.01);
-        assertEquals(0.05, loaded.getRmse(), 0.01);
+        assertEquals(2, loadedFamilyProfile.getPlasmaZones().size());
+        assertEquals(1.2, loadedFamilyProfile.getPlasmaZones().get(0).getTe(), 0.01);
+        assertEquals(5e16, loadedFamilyProfile.getPlasmaZones().get(0).getNe(), 1e15);
+        assertEquals(0.7, loadedFamilyProfile.getPlasmaZones().get(1).getTe(), 0.01);
+        assertEquals(2e16, loadedFamilyProfile.getPlasmaZones().get(1).getNe(), 1e15);
+        assertEquals(0.95, loadedFamilyProfile.getRSquaredValue(), 0.01);
+        assertEquals(0.05, loadedFamilyProfile.getRmse(), 0.01);
     }
 
     @Test
@@ -195,19 +203,21 @@ public class InstrumentProfileServiceTest {
         double[] wavelengths = new double[] { 250.0, 260.0, 270.0 };
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "test.csv", "Fe-100");
         profile.setInstrumentName("Test");
-
+        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile("testMaterialFamily");
+        profile.addMaterialFamilyProfile(mfProfile);
         org.json.JSONObject json = profile.toJson();
 
         assertNotNull(json);
         assertTrue(json.has("instrumentName"));
         assertTrue(json.has("wavelengths"));
-        assertTrue(json.has("plasmaParameters"));
-        assertTrue(json.has("calibrationStats"));
+        assertTrue(json.has("materialFamilyProfiles"));
+
+        org.json.JSONObject materialFamilyProfiles = json.getJSONObject("materialFamilyProfiles");
+        org.json.JSONObject familyProfile = materialFamilyProfiles.getJSONObject("testMaterialFamily");
 
         // Check plasma parameters structure
-        org.json.JSONObject params = json.getJSONObject("plasmaParameters");
-        assertTrue(params.has("zones"));
-        assertEquals(0, params.getJSONArray("zones").length());
+        org.json.JSONArray  jsonPlasmaZones = familyProfile.getJSONArray("plasmaZones");
+        assertEquals(0, jsonPlasmaZones.length());
     }
 
     @Test
@@ -217,14 +227,17 @@ public class InstrumentProfileServiceTest {
         InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
         List<PlasmaZone> zones = new ArrayList<>();
         zones.add(new PlasmaZone(1.0, 1e16, 1.0));
-        profile.setZones(zones);
+        String materialFamilyName = "testMaterialFamily";
+        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile(materialFamilyName);
+        mfProfile.setPlasmaZones(zones);
+        profile.addMaterialFamilyProfile(mfProfile);
         profile.setInstrumentName("Test Spectrometer");
 
         Path reportPath = tempDir.resolve("calibration_report.ipynb");
         Path dummyPath = tempDir.resolve("dummy.csv");
         Files.writeString(dummyPath, "Wavelength,Intensity\n200,100");
 
-        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath);
+        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath, materialFamilyName);
 
         assertTrue(Files.exists(reportPath));
         String content = Files.readString(reportPath);
@@ -235,4 +248,188 @@ public class InstrumentProfileServiceTest {
         assertTrue(content.contains("import matplotlib.pyplot as plt"));
         assertTrue(content.contains("plt.plot"));
     }
+
+    @Test
+    void testBuildCompositionStringFromJson() {
+        // "#" value should produce "Fe-#"
+        JSONObject composition = new JSONObject();
+        composition.put("C", 0.279);
+        composition.put("Fe", "#");
+
+        String result = service.buildCompositionStringFromJson(composition);
+
+        assertNotNull(result);
+        // Both key-value pairs must be present
+        assertTrue(result.contains("C-0.279"), "Expected C-0.279 in: " + result);
+        assertTrue(result.contains("Fe-#"), "Expected Fe-# in: " + result);
+    }
+
+    @Test
+    void testBuildCompositionStringFromJsonMultipleElements() {
+        JSONObject composition = new JSONObject();
+        composition.put("C", 0.279);
+        composition.put("Si", 0.421);
+        composition.put("Cr", 11.93);
+        composition.put("Fe", "#");
+
+        String result = service.buildCompositionStringFromJson(composition);
+
+        assertNotNull(result);
+        assertTrue(result.contains("C-0.279"));
+        assertTrue(result.contains("Si-0.421"));
+        assertTrue(result.contains("Cr-11.93"));
+        assertTrue(result.contains("Fe-#"));
+        // Should be comma-separated without leading/trailing commas
+        assertFalse(result.startsWith(","));
+        assertFalse(result.endsWith(","));
+    }
+
+    // -----------------------------------------------------------------------
+    // findMaterialCsvFiles – flat layout
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testFindMaterialCsvFilesFlat() throws IOException {
+        // Flat layout: CSV files named <materialName>_LSA_*.csv
+        Files.writeString(tempDir.resolve("469_LSA_point1.csv"), "dummy");
+        Files.writeString(tempDir.resolve("469_LSA_point2.csv"), "dummy");
+        Files.writeString(tempDir.resolve("470_LSA_point1.csv"), "dummy");
+        Files.writeString(tempDir.resolve("readme.txt"), "ignore me");
+
+        List<Path> files469 = service.findMaterialCsvFiles(tempDir, "469", false);
+        List<Path> files470 = service.findMaterialCsvFiles(tempDir, "470", false);
+        List<Path> filesUnknown = service.findMaterialCsvFiles(tempDir, "999", false);
+
+        assertEquals(2, files469.size(), "Should find 2 CSVs for material 469");
+        assertEquals(1, files470.size(), "Should find 1 CSV for material 470");
+        assertEquals(0, filesUnknown.size(), "Should find 0 CSVs for unknown material");
+        // Non-csv file should be ignored
+        files469.forEach(p -> assertTrue(p.getFileName().toString().endsWith(".csv")));
+    }
+
+    @Test
+    void testFindMaterialCsvFilesFlatIgnoresNonCsv() throws IOException {
+        Files.writeString(tempDir.resolve("469_LSA_point1.csv"), "dummy");
+        Files.writeString(tempDir.resolve("469_LSA_readme.txt"), "ignore");
+        Files.writeString(tempDir.resolve("469_LSA_data.json"), "ignore");
+
+        List<Path> files = service.findMaterialCsvFiles(tempDir, "469", false);
+
+        assertEquals(1, files.size(), "Only the .csv file should be returned");
+    }
+
+    // -----------------------------------------------------------------------
+    // findMaterialCsvFiles – subdirectory layout
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testFindMaterialCsvFilesSubdir() throws IOException {
+        // Subdirectory layout: <sourceDir>/<materialName>/<anything>.csv
+        Path matDir = tempDir.resolve("469");
+        Files.createDirectories(matDir);
+        Files.writeString(matDir.resolve("shot1.csv"), "dummy");
+        Files.writeString(matDir.resolve("shot2.csv"), "dummy");
+        Files.writeString(matDir.resolve("notes.txt"), "ignore");
+
+        Path otherDir = tempDir.resolve("470");
+        Files.createDirectories(otherDir);
+        Files.writeString(otherDir.resolve("shot1.csv"), "dummy");
+
+        List<Path> files469 = service.findMaterialCsvFiles(tempDir, "469", true);
+        List<Path> files470 = service.findMaterialCsvFiles(tempDir, "470", true);
+        List<Path> filesUnknown = service.findMaterialCsvFiles(tempDir, "999", true);
+
+        assertEquals(2, files469.size(), "Should find 2 CSVs inside 469/ subdir");
+        assertEquals(1, files470.size(), "Should find 1 CSV inside 470/ subdir");
+        assertEquals(0, filesUnknown.size(), "Should find 0 CSVs for absent material");
+        files469.forEach(p -> assertTrue(p.getFileName().toString().endsWith(".csv")));
+    }
+
+    @Test
+    void testFindMaterialCsvFilesSubdirIgnoresNonCsv() throws IOException {
+        Path matDir = tempDir.resolve("551");
+        Files.createDirectories(matDir);
+        Files.writeString(matDir.resolve("reading.csv"), "dummy");
+        Files.writeString(matDir.resolve("metadata.json"), "ignore");
+
+        List<Path> files = service.findMaterialCsvFiles(tempDir, "551", true);
+
+        assertEquals(1, files.size(), "Only the .csv file should be returned");
+    }
+
+    // -----------------------------------------------------------------------
+    // generateProfileFromDirectory – reference_compositions.json missing
+    // -----------------------------------------------------------------------
+
+    @Test
+    void testGenerateProfileFromDirectoryMissingRefFile() {
+        // No reference_compositions.json → should throw IOException
+        assertThrows(IOException.class, () ->
+            service.generateProfileFromDirectory(
+                tempDir, null, ";", "Test",
+                new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
+                2, false, Paths.get("instrument_profile.json")));
+    }
+
+    @Test
+    void testGenerateProfileFromDirectoryExplicitRefPathMissing() {
+        Path nonExistent = tempDir.resolve("custom_ref.json");
+        assertThrows(IOException.class, () ->
+            service.generateProfileFromDirectory(
+                tempDir, nonExistent, ";", "Test",
+                new com.medals.libsdatagenerator.model.BaselineCorrectionParams(10000, 0.001, 10),
+                2, false, Paths.get("instrument_profile.json")));
+    }
+
+    // -----------------------------------------------------------------------
+    // generateJupyterReportForDirectory
+    // -----------------------------------------------------------------------
+
+//    @Test
+//    void testGenerateJupyterReportForDirectory() throws Exception {
+//        // Build a minimal profile
+//        double[] wavelengths = { 200.0, 300.0, 400.0 };
+//        InstrumentProfile profile = new InstrumentProfile(wavelengths, "/data/measurements", "directory:ref.json");
+//        profile.setInstrumentName("Test Spectrometer");
+//        List<PlasmaZone> zones = new ArrayList<>();
+//        zones.add(new PlasmaZone(1.2, 1e16, 0.6));
+//        zones.add(new PlasmaZone(0.8, 5e15, 0.4));
+//        String materialFamilyProfile = "testProfile";
+//        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile(materialFamilyProfile);
+//        mfProfile.setPlasmaZones(zones);
+//        mfProfile.setRSquaredValue(0.92);
+//        mfProfile.setRmse(0.08);
+//        profile.addMaterialFamilyProfile(mfProfile);
+//
+//        // Write a dummy averaged_best_zones.csv and per-material zones CSVs
+//        Path avgZonesCsv = tempDir.resolve("averaged_best_zones.csv");
+//        Files.writeString(avgZonesCsv, "Te,Ne,Weight\n1.0,1e16,0.5\n0.7,5e15,0.5\n");
+//
+//        Path matZonesCsv = tempDir.resolve("469_best_zones.csv");
+//        Files.writeString(matZonesCsv, "Te,Ne,Weight\n1.2,1e16,0.6\n0.8,5e15,0.4\n");
+//
+//        List<String> matNames = List.of("469");
+//        Path reportPath = tempDir.resolve("calibration_report_multi_material.ipynb");
+//
+//        service.generateJupyterReportForDirectory(profile, reportPath, avgZonesCsv, tempDir, matNames);
+//
+//        assertTrue(Files.exists(reportPath), "Report notebook should have been written");
+//        String content = Files.readString(reportPath);
+//
+//        // Verify placeholders were substituted
+//        assertFalse(content.contains("<INSTRUMENT_NAME>"),        "INSTRUMENT_NAME placeholder must be replaced");
+//        assertFalse(content.contains("<RSQUARE_SCORE>"),          "RSQUARE_SCORE placeholder must be replaced");
+//        assertFalse(content.contains("<RMSE>"),                   "RMSE placeholder must be replaced");
+//        assertFalse(content.contains("<AVERAGED_ZONES_CSV_PATH>"),"AVERAGED_ZONES_CSV_PATH placeholder must be replaced");
+//        assertFalse(content.contains("<PER_MATERIAL_ZONES_CSV_DIR>"), "PER_MATERIAL_ZONES_CSV_DIR placeholder must be replaced");
+//        assertFalse(content.contains("<NUM_MATERIALS_PROCESSED>"),"NUM_MATERIALS_PROCESSED placeholder must be replaced");
+//        assertFalse(content.contains("<MATERIAL_NAMES_LIST>"),    "MATERIAL_NAMES_LIST placeholder must be replaced");
+//
+//        // Verify expected values are in the notebook
+//        assertTrue(content.contains("Test Spectrometer"),  "Instrument name should be present");
+//        assertTrue(content.contains("[\"469\"]"),          "Material names list should be present");
+//        assertTrue(content.contains("1"),                  "Num materials should be present");
+//        assertTrue(content.contains("\"cells\""),          "Valid notebook JSON structure required");
+//        assertTrue(content.contains("import matplotlib.pyplot as plt"), "Plotting import required");
+//    }
 }
