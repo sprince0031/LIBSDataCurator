@@ -200,8 +200,10 @@ public class DirichletSampler implements Sampler {
 
         double low = 0.0;
         double high = 1.0;
-        while (sumWithScale(high, weights, mins, maxs) < TARGET_TOTAL_PERCENTAGE - BOUNDS_EPSILON &&
-                high < 1e12) {
+        while (sumWithScale(high, weights, mins, maxs) < TARGET_TOTAL_PERCENTAGE - BOUNDS_EPSILON) {
+            if (high > Double.MAX_VALUE / 2.0) {
+                return null;
+            }
             high *= 2.0;
         }
 
