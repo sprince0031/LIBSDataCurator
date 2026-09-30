@@ -1171,44 +1171,6 @@ public class InstrumentProfileService {
         return copy;
     }
 
-    /**
-     * Generates combinations for the absorption penalty (k).
-     * Zone 0 is always k=0 (the core). Zones 1..n pull from the grid array.
-     */
-    private void generateKCombinations(int zonesLeft, double[] kAbsValues, List<Double> current, List<List<Double>> results) {
-        if (zonesLeft == 0) {
-            results.add(new ArrayList<>(current));
-            return;
-        }
-
-        if (current.isEmpty()) {
-            // Zone 0 (Core) has no absorption penalty
-            current.add(0.0);
-            generateKCombinations(zonesLeft - 1, kAbsValues, current, results);
-            current.remove(current.size() - 1);
-        } else {
-            // Outer zones iterate through the k grid
-            for (double k : kAbsValues) {
-                current.add(k);
-                generateKCombinations(zonesLeft - 1, kAbsValues, current, results);
-                current.remove(current.size() - 1);
-            }
-        }
-    }
-
-    /**
-     * Deep copies the PlasmaZone states to ensure the winning parameters are safely stored
-     * independently from the ongoing loop mutations.
-     */
-    private List<PlasmaZone> copyPlasmaZones(List<PlasmaZone> source) {
-        List<PlasmaZone> copy = new ArrayList<>();
-        for (PlasmaZone pz : source) {
-            // Utilizes PlasmaZone constructor: Te, Ne, VFraction, kAbsorption
-            copy.add(new PlasmaZone(pz.getTe(), pz.getNe(), pz.getVFraction(), pz.getKAbsorption()));
-        }
-        return copy;
-    }
-
     private void saveZonesToCsv(Path outputPath, List<PlasmaZone> zones,
                                 double[] wavelengthGrid, Map<String, double[]> spectrumCache,
                                 double scaleFactor, double[] combinedSpectrum) throws IOException {
