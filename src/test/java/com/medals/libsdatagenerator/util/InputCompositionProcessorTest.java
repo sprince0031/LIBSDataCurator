@@ -2,11 +2,12 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -23,10 +24,16 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Comprehensive tests for InputCompositionProcessor
@@ -80,56 +87,13 @@ class InputCompositionProcessorTest {
 
     // ===== COMPOSITION STRING PROCESSING TESTS =====
 
-    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
-//    @Test
-//    void testGetMaterialsList_withCompositionString_singleElement() throws IOException {
-//        List<MaterialGrade> result = processor.getMaterialsList("Fe-100");
-//
-//        assertNotNull(result);
-//        assertEquals(1, result.size());
-//
-//        MaterialGrade grade = result.get(0);
-//        assertNotNull(grade.getComposition());
-//        assertEquals(1, grade.getComposition().size());
-//
-//        Element element = grade.getComposition().get(0);
-//        assertEquals("Fe", element.getSymbol());
-//        assertEquals(100.0, element.getPercentageComposition(), 0.001);
-//
-//        // No progress bar should appear for composition strings
-//        String output = outputStream.toString();
-//        assertFalse(output.contains("["), "Progress bar should not appear for composition strings");
-//    }
-
-    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
-//    @Test
-//    void testGetMaterialsList_withCompositionString_multipleElements() throws IOException {
-//        List<MaterialGrade> result = processor.getMaterialsList("Fe-80,C-20");
-//
-//        assertNotNull(result);
-//        assertEquals(1, result.size());
-//
-//        MaterialGrade grade = result.get(0);
-//        assertNotNull(grade.getComposition());
-//        assertEquals(2, grade.getComposition().size());
-//
-//        // Verify elements
-//        boolean foundFe = false, foundC = false;
-//        for (Element element : grade.getComposition()) {
-//            if ("Fe".equals(element.getSymbol()) && element.getPercentageComposition() == 80.0) {
-//                foundFe = true;
-//            } else if ("C".equals(element.getSymbol()) && element.getPercentageComposition() == 20.0) {
-//                foundC = true;
-//            }
-//        }
-//        assertTrue(foundFe, "Fe element should be present with 80% composition");
-//        assertTrue(foundC, "C element should be present with 20% composition");
-//    }
-
     @Test
     void testGetMaterial_withCompositionString_overviewGuid() throws IOException {
         String overviewGuid = "12345678901234567890123456789012";
-        MaterialGrade result = processor.getMaterial("Fe-80,C-20", overviewGuid, 3);
+        UserInputConfig userInputs = new UserInputConfig();
+        userInputs.compositionInput = "Fe-80,C-20";
+        userInputs.overviewGuid = overviewGuid;
+        MaterialGrade result = processor.getMaterial(userInputs);
         
         assertNotNull(result);
 
@@ -438,33 +402,7 @@ class InputCompositionProcessorTest {
         assertFalse(guidPattern.matcher("invalid-guid").matches()); // Completely invalid
     }
 
-    // ===== PROGRESS BAR TESTS =====
-
-    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
-//    @Test
-//    void testCompositionStringProcessingNoProgressBar() throws IOException {
-//        List<MaterialGrade> result = processor.getMaterialsList("Fe-80,C-20");
-//
-//        assertNotNull(result);
-//        assertEquals(1, result.size());
-//
-//        // Progress bar should not appear for composition strings
-//        String output = outputStream.toString();
-//        assertFalse(output.contains("["), "Progress bar should not appear for composition strings");
-//    }
-
     // ===== ERROR HANDLING TESTS =====
-
-    // Deprecated test due to change resulting in -s option not handling any direct composition strings.
-//    @Test
-//    void testGetMaterialsList_invalidCompositionString() {
-//        // Test with invalid element symbol - this should throw an exception in LIBSDataService
-//        IOException exception = assertThrows(IOException.class, () -> {
-//            processor.getMaterialsList("InvalidElement-50,Fe-50");
-//        });
-//
-//        assertTrue(exception.getMessage().contains("Invalid element InvalidElement"));
-//    }
 
     @Test
     void testParseSeriesEntry_withCommasAndSpaces() throws Exception {
@@ -481,37 +419,6 @@ class InputCompositionProcessorTest {
     }
 
     // ===== INTEGRATION TESTS =====
-
-    // Deprecated test due to change resulting in -c option not calling -s handler methods
-//    @Test
-//    void testGetMaterial_withOverviewGuidAppending() throws IOException {
-//        String overviewGuid = "81a26031d1b44cbb911f70ab863281f5";
-//
-//        try (MockedStatic<CommonUtils> mockedUtils = Mockito.mockStatic(CommonUtils.class)) {
-//            CommonUtils mockCommonUtils = mock(CommonUtils.class);
-//            Properties props = new Properties();
-//            props.setProperty("test.series", "3a9cc570fbb24d119f08db22a53e2421");
-//
-//            mockedUtils.when(CommonUtils::getInstance).thenReturn(mockCommonUtils);
-//            when(mockCommonUtils.readProperties(anyString())).thenReturn(props);
-//
-//            // Mock MatwebDataService
-//            try (MockedStatic<MatwebDataService> mockedMatweb = Mockito.mockStatic(MatwebDataService.class)) {
-//                MatwebDataService mockMatwebService = mock(MatwebDataService.class);
-//                mockedMatweb.when(MatwebDataService::getInstance).thenReturn(mockMatwebService);
-//
-//                when(mockMatwebService.getMaterialComposition(anyString())).thenReturn(new String[]{"Fe-80", "C-20"});
-//                when(mockMatwebService.validateMatwebServiceOutput(any(), anyString())).thenReturn(true);
-//                when(mockMatwebService.getDatasheetName()).thenReturn("Test Material");
-//
-//                MaterialGrade result = processor.getMaterial("test.series", overviewGuid);
-//
-//                assertNotNull(result);
-//                // This should trigger the processing path that appends overview GUID
-//                verify(mockMatwebService, atLeastOnce()).getMaterialComposition(anyString());
-//            }
-//        }
-//    }
 
     @Test
     void testProcessSeriesList_withEmptyAndValidKeys() throws Exception {

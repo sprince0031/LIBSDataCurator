@@ -2,12 +2,15 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.JsonModel;
 import org.apache.http.client.utils.URIBuilder;
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -287,6 +290,20 @@ public class CommonUtils {
         if (total > 1) {
             out.println();
         }
+    }
+
+    public void saveModelToFile(Path path, JsonModel model) throws IOException {
+        try (FileWriter writer = new FileWriter(path.toFile())) {
+            writer.write(model.toJson().toString(4));
+        }
+    }
+
+    public <T extends JsonModel> T loadModelFromFile(Path path, Class<T> model) throws Exception {
+        String content = Files.readString(path);
+        JSONObject json = new JSONObject(content);
+        T instance = model.getDeclaredConstructor().newInstance();
+        instance.fromJson(json);
+        return instance;
     }
 
 }

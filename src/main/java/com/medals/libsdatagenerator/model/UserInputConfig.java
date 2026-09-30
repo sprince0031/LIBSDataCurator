@@ -18,8 +18,8 @@ import org.apache.commons.cli.CommandLine;
 public class UserInputConfig {
 
     // --- Input Modes ---
-    public final String compositionInput;
-    public final String overviewGuid;
+    public String compositionInput;
+    public String overviewGuid;
     public final boolean isCompositionMode;
     public final boolean isSeriesMode;
 
@@ -32,8 +32,6 @@ public class UserInputConfig {
     public final boolean scaleCoating;
     public final Long seed;
     public final int numDecimalPlaces;
-    @Deprecated public final double varyBy;
-    @Deprecated public final double maxDelta;
 
 
     // --- NIST API Parameters ---
@@ -55,7 +53,12 @@ public class UserInputConfig {
     public boolean genStats;
     public boolean noInstrumentProfile;
     private static boolean debugMode;
-    
+
+    // --- Miscellaneous Parameters ---
+    public String materialGrade;
+    public String materialType;
+    public boolean twoZone;
+
     /**
      * Default constructor for manual configuration.
      */
@@ -72,8 +75,6 @@ public class UserInputConfig {
         this.scaleCoating = false;
         this.seed = null;
         this.numDecimalPlaces = 3;
-        this.varyBy = 0.0;
-        this.maxDelta = 0.0;
         
         // Default NIST params
         this.minWavelength = "200";
@@ -93,6 +94,9 @@ public class UserInputConfig {
         this.genStats = false;
         this.noInstrumentProfile = true;
         UserInputConfig.debugMode = false;
+
+        this.materialGrade = null;
+        this.materialType = null;
     }
 
     /**
@@ -131,13 +135,10 @@ public class UserInputConfig {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid number of decimal places. Must be a valid positive integer.", e);
         }
-        this.varyBy = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VARY_BY_SHORT, "0.1"));
-        this.maxDelta = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_DELTA_SHORT, "0.05"));
-
 
         // NIST API parameters
-        this.minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "240");
-        this.maxWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "420");
+        this.minWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MIN_WAVELENGTH_SHORT, "340");
+        this.maxWavelength = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MAX_WAVELENGTH_SHORT, "900");
         this.resolution = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000");
         this.plasmaTemp = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_TEMP_SHORT, "1");
         this.electronDensity = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_ELECTRON_DENSITY_SHORT, "1e17");
@@ -154,6 +155,11 @@ public class UserInputConfig {
         this.genStats = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_GEN_STATS_SHORT);
         this.noInstrumentProfile = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_INSTRUMENT_PROFILE_SHORT);
         debugMode = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_DEBUG_MODE_SHORT);
+
+        // Misc params
+        this.materialGrade = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT, null);
+        this.materialType = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT, null);
+        this.twoZone = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_SHORT);
     }
 
     public static boolean debugModeEnabled() {

@@ -1,0 +1,8 @@
+{
+  "track_id": "libs_wavelengths_20260820",
+  "type": "feature",
+  "status": "completed",
+  "created_at": "2026-08-20T14:38:00Z",
+  "updated_at": "2026-08-24T11:47:30Z",
+  "description": "Create Jupyter notebook to extract top 100 wavelengths per element from composition CSVs and plot line spectra"
+}

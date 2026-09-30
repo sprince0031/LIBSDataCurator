@@ -1,5 +1,6 @@
 package com.medals.libsdatagenerator.util;
 
+import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
@@ -88,11 +89,39 @@ public class SpectrumUtils {
         return scaledSpectrum;
     }
 
-    public double[] combineSpectra(double[] spectrum1, double[] spectrum2, double weight) {
-        double[] combined = new double[spectrum1.length];
-        for (int i = 0; i < spectrum1.length; i++) {
-            combined[i] = weight * spectrum1[i] + (1.0 - weight) * spectrum2[i];
+    /**
+     * Combines N simulated spectra applying the N-Zone Radiative Transfer (Beer-Lambert) law.
+     * Zone 0 is assumed to be the Core. Zone N-1 is the outermost periphery.
+     */
+    public double[] combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones) {
+        if (zoneSpectra == null || zones == null || zoneSpectra.size() != zones.size()) {
+            throw new IllegalArgumentException("Mismatch between spectra data and zone definitions.");
         }
+
+        int numPoints = zoneSpectra.getFirst().length;
+        int numZones = zones.size();
+        double[] combined = new double[numPoints];
+
+        for (int i = 0; i < numZones; i++) {
+            if (i == 0) {
+                // Zone 0: Hot Core (No self-absorption penalty)
+                for (int j = 0; j < combined.length; j++) {
+                    combined[j] = zoneSpectra.get(i)[j] * zones.get(i).getVFraction();
+                }
+            } else {
+                // Zone 1..n: Cooler Periphery Layers (Radiative Transfer Equation)
+                for (int j = 0; j < combined.length; j++) {
+                    // Clamp to 0.0 to prevent baseline correction artifacts
+                    double iOuter = Math.max(zoneSpectra.get(i)[j], 0.0);
+
+                    double transmissionFactor = Math.exp(-zones.get(i).getKAbsorption() * iOuter);
+
+                    // I_total = (I_inner * transmission) + (V_outer * I_outer)
+                    combined[j] = (combined[j] * transmissionFactor) + (zones.get(i).getVFraction() * iOuter);
+                }
+            }
+        }
+
         return combined;
     }
 

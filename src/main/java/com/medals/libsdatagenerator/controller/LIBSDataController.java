@@ -1,13 +1,16 @@
 package com.medals.libsdatagenerator.controller;
 
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.service.DatasetStatisticsService;
 import com.medals.libsdatagenerator.service.LIBSDataService;
+import com.medals.libsdatagenerator.service.MatwebDataService;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
+import com.medals.libsdatagenerator.util.SeleniumUtils;
 import org.apache.commons.cli.CommandLine;
 
 import java.net.HttpURLConnection;
@@ -51,6 +54,7 @@ public class LIBSDataController {
 
            // Read and build user input configuration
             UserInputConfig userInputs = new UserInputConfig(cmd);
+            boolean debugModeByUser = UserInputConfig.debugModeEnabled();
 
             if (userInputs.seed != null) {
                 logger.info("Seed: " + userInputs.seed);
@@ -62,29 +66,33 @@ public class LIBSDataController {
             if (!userInputs.noInstrumentProfile) {
                 Path instrumentProfilePath = Paths.get(InstrumentProfile.INSTRUMENT_PROFILE_PATH);
                 if (Files.exists(instrumentProfilePath)) {
-                    instrumentProfile = InstrumentProfile.loadFromFile(instrumentProfilePath);
+                    instrumentProfile = commonUtils.loadModelFromFile(instrumentProfilePath, InstrumentProfile.class);
                 } else {
                     logger.warning("No instrument profile found. Proceeding without instrument profile.");
                 }
             }
 
             List<MaterialGrade> materialGrades = new ArrayList<>();
+            Element.setNumberDecimalPlaces(userInputs.numDecimalPlaces);
 
             if (userInputs.isSeriesMode) {
                 // Process input for -s (series) option
                 logger.info("Processing with -s (series) option.");
-                materialGrades = compositionProcessor.getMaterialsList(userInputs.compositionInput, userInputs.numDecimalPlaces);
+                materialGrades = compositionProcessor.getMaterialsFromCatalogue(userInputs.compositionInput);
                 System.out.println("\n--Finished fetching material grade compositions from Matweb--");
             }
 
             if (userInputs.isCompositionMode) {
                 // Process input for -c (composition) option
                 logger.info("Processing with -c (composition) option.");
-                materialGrades.add(compositionProcessor.getMaterial(userInputs.compositionInput, userInputs.overviewGuid, userInputs.numDecimalPlaces));
+                materialGrades.add(compositionProcessor.getMaterial(userInputs));
             }
 
             // Note: The case where neither -s nor -c is provided is handled by CommonUtils.getTerminalArgHandler
 
+            if (!debugModeByUser && new MatwebDataService().getBotCircumventionFlag()) {
+                SeleniumUtils.getInstance().resetSelenium(false);
+            }
             libsDataService.generateDataset(materialGrades, userInputs, instrumentProfile);
 
             // After dataset generation, calculate statistics if requested

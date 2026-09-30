@@ -50,12 +50,11 @@ public class MatwebDataService {
                 logger.info("Enabling debug mode to try and circumvent bot protection.");
                 System.out.println("Enabling debug mode to try and circumvent bot protection. If you see a browser window pop up, it is the tool trying to fetch data. :)");
                 System.out.println("Please solve CAPTCHA challenge in browser window to continue...");
-                UserInputConfig.setDebugMode(true);
+                seleniumUtils.resetSelenium(true);
+                seleniumUtils = SeleniumUtils.getInstance();
 //                seleniumUtils.quitSelenium();
             }
             // Creating new SeleniumUtils instance to apply new chrome options disabling headless mode.
-            SeleniumUtils.instance =  new SeleniumUtils();
-            seleniumUtils = SeleniumUtils.instance;
             return datasheetUrl;
         }
         logger.warning("Matweb.com is not online. Attempting to find a snapshot on archive.org...");
@@ -426,4 +425,11 @@ public class MatwebDataService {
         return datasheetAttributes;
     }
 
+    public boolean getBotCircumventionFlag() {
+        return botCircumvention;
+    }
+
+    public void getBotCircumventionFlag(boolean botCircumvention) {
+        this.botCircumvention = botCircumvention;
+    }
 }
