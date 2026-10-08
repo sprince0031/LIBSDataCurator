@@ -43,8 +43,7 @@ public class DirichletSampler implements Sampler {
         
         // Check if parent series is available, fall back to Gaussian if not
         if (baseMaterialGrade.getParentSeries() == null) {
-            logger.info("No parent series available. Falling back to Gaussian sampling.");
-            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
+            logger.info("No parent series available. Skipping material " + baseMaterialGrade.getMaterialName());
             return;
         }
 
@@ -55,9 +54,8 @@ public class DirichletSampler implements Sampler {
 
         SeriesStatistics seriesStats = baseMaterialGrade.getOverviewStatistics();
         if (seriesStats == null) {
-            logger.severe("Failed to extract series statistics from overview sheet. Falling back to Gaussian sampling.");
-            // Fallback to Gaussian sampling
-            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
+            logger.severe("Failed to extract series statistics from overview sheet. Skipping material "
+                    + baseMaterialGrade.getMaterialName());
             return;
         }
 
@@ -74,16 +72,16 @@ public class DirichletSampler implements Sampler {
         // Estimate Dirichlet concentration parameters for the base composition elements only
         double[] concentrationParams = parameterEstimator.estimateParametersForElements(seriesStats, elementOrder);
         if (concentrationParams == null || !parameterEstimator.validateParameters(concentrationParams)) {
-            logger.severe("Failed to estimate valid Dirichlet parameters. Falling back to Gaussian sampling.");
-            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
+            logger.severe("Failed to estimate valid Dirichlet parameters. Skipping material "
+                    + baseMaterialGrade.getMaterialName());
             return;
         }
 
         // Verify arrays have same length
         if (concentrationParams.length != elementOrder.length) {
             logger.severe("Mismatch between concentration parameters (" + concentrationParams.length +
-                    ") and element order (" + elementOrder.length + "). Falling back to Gaussian sampling.");
-            GaussianSampler.getInstance().sample(baseMaterialGrade, numSamples, variations, seed);
+                    ") and element order (" + elementOrder.length + "). Skipping material "
+                    + baseMaterialGrade.getMaterialName());
             return;
         }
 

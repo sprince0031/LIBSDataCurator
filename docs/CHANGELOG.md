@@ -98,12 +98,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.9.2] - 2025-11-09
 
 ### Changed
-- **Refactored Gaussian Sampler**: Converted `GaussianSampler` from using Java's built-in `Random.nextGaussian()` to Apache Commons RNG `ZigguratSampler.NormalizedGaussian` for better performance and consistency with `DirichletSampler`
-- **Enhanced Seeding Support for Gaussian Sampler**: Updated `GaussianSampler` to properly use the provided seed parameter for reproducible random sampling
+- **Refactored Gaussian Sampler**: Converted `PlasmaTempSampler` from using Java's built-in `Random.nextGaussian()` to Apache Commons RNG `ZigguratSampler.NormalizedGaussian` for better performance and consistency with `DirichletSampler`
+- **Enhanced Seeding Support for Gaussian Sampler**: Updated `PlasmaTempSampler` to properly use the provided seed parameter for reproducible random sampling
 - **Enhanced Seeding Support for Dirichlet Sampler**: Updated `DirichletSampler` to use Apache Commons RNG with seed parameter for reproducible sampling
   - Uses `RandomSource.XO_RO_SHI_RO_128_PP.create(seed)` to initialize the RNG when seed is provided
   - Falls back to unseeded RNG when no seed is specified
-- **Improved Logging**: Added informative logging to both `GaussianSampler` and `DirichletSampler` to indicate whether seeded or random sampling is being used
+- **Improved Logging**: Added informative logging to both `PlasmaTempSampler` and `DirichletSampler` to indicate whether seeded or random sampling is being used
 
 ### Added
 - **Test Coverage for Gaussian Sampling with Seeding**: Added test cases to verify reproducibility:

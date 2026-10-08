@@ -139,6 +139,12 @@ public class CmdlineParserUtil {
                 true,
                 LIBSDataGenConstants.CMD_OPT_VAR_MODE_DESC);
 
+        // Rel std deviation for Gaussian plasma temp sampler
+        options.addOption(LIBSDataGenConstants.CMD_OPT_RELATIVE_STD_DEVIATION_SHORT,
+                LIBSDataGenConstants.CMD_OPT_RELATIVE_STD_DEVIATION_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_RELATIVE_STD_DEVIATION_DESC);
+
         // Class label type
         options.addOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT,
                 LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_LONG,

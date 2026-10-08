@@ -5,7 +5,6 @@ import com.medals.libsdatagenerator.model.UserInputConfig;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.VariationMode;
 import com.medals.libsdatagenerator.sampler.DirichletSampler;
-import com.medals.libsdatagenerator.sampler.GaussianSampler;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -63,9 +62,7 @@ public class CompositionalVariations {
 
         int numVariationsToGenerate = Math.max(0, config.numSamples - 1);
 
-        if (config.variationMode == VariationMode.GAUSSIAN) {
-            GaussianSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions, config.seed);
-        } else if (config.variationMode == VariationMode.DIRICHLET) {
+        if (config.variationMode == VariationMode.DIRICHLET) {
             DirichletSampler.getInstance().sample(materialGrade, numVariationsToGenerate, compositions, config.seed);
         } else { // For uniform distribution
             System.out.println("Unsupported variation mode. Please try again with a valid variation mode.");

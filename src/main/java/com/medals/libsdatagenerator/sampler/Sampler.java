@@ -4,7 +4,6 @@ import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 
 import java.util.List;
-import java.util.Map;
 
 public interface Sampler {
 
