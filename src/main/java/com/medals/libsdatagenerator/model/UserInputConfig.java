@@ -59,6 +59,8 @@ public class UserInputConfig {
     public String materialGrade;
     public String materialType;
     public boolean twoZone;
+    public boolean injectResiduals;
+    public double residualsProbability;
 
     /**
      * Default constructor for manual configuration.
@@ -99,6 +101,8 @@ public class UserInputConfig {
 
         this.materialGrade = null;
         this.materialType = null;
+        this.injectResiduals = false;
+        this.residualsProbability = 0.30;
     }
 
     /**
@@ -163,6 +167,8 @@ public class UserInputConfig {
         this.materialGrade = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT, null);
         this.materialType = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT, null);
         this.twoZone = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_NO_TWO_ZONE_SHORT);
+        this.injectResiduals = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_INJECT_RESIDUALS_SHORT);
+        this.residualsProbability = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESIDUALS_PROB_SHORT, "0.30"));
     }
 
     public static boolean debugModeEnabled() {

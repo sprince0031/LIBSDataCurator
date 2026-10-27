@@ -182,6 +182,17 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_MATERIAL_FAMILY_NAME_LONG = "material-family";
     public static final String CMD_OPT_MATERIAL_FAMILY_NAME_DESC = "Name of the family to which the material on which measurements are taken belong to"
         + " (use this option only if calibrating against single material family)";
+    public static final String CMD_OPT_HOLDOUT_CSVS_SHORT = "hc";
+    public static final String CMD_OPT_HOLDOUT_CSVS_LONG = "holdout-csvs";
+    public static final String CMD_OPT_HOLDOUT_CSVS_DESC = "Number of spatial point CSV files to hold out for validation. Default: 1";
+
+    public static final String CMD_OPT_INJECT_RESIDUALS_SHORT = "ir";
+    public static final String CMD_OPT_INJECT_RESIDUALS_LONG = "inject-residuals";
+    public static final String CMD_OPT_INJECT_RESIDUALS_DESC = "Inject tramp element residuals via Bernoulli trials during synthetic generation.";
+
+    public static final String CMD_OPT_RESIDUALS_PROB_SHORT = "rp";
+    public static final String CMD_OPT_RESIDUALS_PROB_LONG = "residuals-prob";
+    public static final String CMD_OPT_RESIDUALS_PROB_DESC = "Probability of tramp element occurrence in Bernoulli trials. Default: 0.30";
     public static final String CMD_OPT_DELIMITER_SHORT = "dl";
     public static final String CMD_OPT_DELIMITER_LONG = "delimiter";
     public static final String CMD_OPT_DELIMITER_DESC = "Delimiter used in input CSV file";

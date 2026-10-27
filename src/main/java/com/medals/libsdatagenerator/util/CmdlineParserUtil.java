@@ -205,6 +205,18 @@ public class CmdlineParserUtil {
                 true,
                 LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_DESC);
 
+        // Inject residuals via Bernoulli trials
+        options.addOption(LIBSDataGenConstants.CMD_OPT_INJECT_RESIDUALS_SHORT,
+                LIBSDataGenConstants.CMD_OPT_INJECT_RESIDUALS_LONG,
+                false,
+                LIBSDataGenConstants.CMD_OPT_INJECT_RESIDUALS_DESC);
+
+        // Probability of tramp element occurrence
+        options.addOption(LIBSDataGenConstants.CMD_OPT_RESIDUALS_PROB_SHORT,
+                LIBSDataGenConstants.CMD_OPT_RESIDUALS_PROB_LONG,
+                true,
+                LIBSDataGenConstants.CMD_OPT_RESIDUALS_PROB_DESC);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter helpFormatter = new HelpFormatter();
 
@@ -269,6 +281,10 @@ public class CmdlineParserUtil {
         helpFormatter.printHelp("run" + osSpecificScriptExtension, header, options, footer, true);
     }
 
+    public CommandLine parseCommandLineArgsForLIBSGeneration(String[] args) {
+        return getTerminalArgHandler(args);
+    }
+
     public static boolean containsHelp(String[] args) {
         for (String arg : args) {
             if ("-h".equals(arg) || "--help".equals(arg)) {
@@ -300,6 +316,27 @@ public class CmdlineParserUtil {
                 true, LIBSDataGenConstants.CMD_OPT_MATERIAL_FAMILY_NAME_DESC);
         materialFamilyName.setRequired(false);
         options.addOption(materialFamilyName);
+
+        // Material type / family alias
+        Option materialType = new Option(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_LONG,
+                true, "Material family type for multi-family calibration");
+        materialType.setRequired(false);
+        options.addOption(materialType);
+
+        // Material grade / name
+        Option materialGrade = new Option(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT,
+                LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_LONG,
+                true, "Material grade name for multi-material calibration");
+        materialGrade.setRequired(false);
+        options.addOption(materialGrade);
+
+        // Holdout CSV count
+        Option holdoutCsvs = new Option(LIBSDataGenConstants.CMD_OPT_HOLDOUT_CSVS_SHORT,
+                LIBSDataGenConstants.CMD_OPT_HOLDOUT_CSVS_LONG,
+                true, LIBSDataGenConstants.CMD_OPT_HOLDOUT_CSVS_DESC);
+        holdoutCsvs.setRequired(false);
+        options.addOption(holdoutCsvs);
 
         // Input CSV delimiter (optional | default: ;)
         Option delimiter = new Option(LIBSDataGenConstants.CMD_OPT_DELIMITER_SHORT,
