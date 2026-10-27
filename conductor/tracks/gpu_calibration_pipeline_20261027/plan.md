@@ -59,21 +59,21 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 4: PyTorch CUDA Calibration Engine & Non-Destructive Profile Upsert' (Protocol in workflow.md)
 
 ### Phase 5: Forward Synthetic Pipeline Integration, Batch Runner & Legacy Hard-Deletion
-- [~] Task: Optional residuals injection for tramp elements using Bernoulli trials
-    - [ ] Add CLI flag `--inject-residuals` / `-ir` (and optional `--residuals-prob`) to `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java`
-    - [ ] Write unit tests for Bernoulli trial occurrence sampling, tramp concentration injection, and CLI flag gating
-    - [ ] Implement `ResidualsInjector` to inject tramp elements (e.g., Cu, Sn, Pb, As, Sb, Cr, Ni) via independent Bernoulli trials with scrap contamination ranges and matrix (Fe) rebalancing only when `--inject-residuals` is active
-    - [ ] Integrate `ResidualsInjector` into the forward synthetic composition generation flow (`LIBSDataController` / `run.sh`)
-- [ ] Task: Coupled (Te, Ne) Gaussian sampling in forward synthesis
-    - [ ] Write unit tests for `PlasmaTempSampler.java` coupled sampling in $(T_e, \log_{10} N_e)$
-    - [ ] Update `src/main/java/com/medals/libsdatagenerator/sampler/PlasmaTempSampler.java` using per-zone mean and std dev from profile
-- [ ] Task: SpectrumUtils multi-zone synthesis & instrument response application
-    - [ ] Write unit tests for `SpectrumUtils.combineNZones()` applying absorption exponentiation and $\mathbf{r}(\lambda) \times \text{scaleFactor}$
-    - [ ] Update `SpectrumUtils.java` to integrate differential Voigt transfer matrix and spectral response
-- [ ] Task: Update batch calibration runner script
-    - [ ] Update `Code/Notebooks/UtilScripts/run_batch_calibration.py` to read `reference_compositions.json`, format `-c` strings, pass `-mt`, `-mg`, `-z`, and `-hc`, and invoke `./calibrate.sh`
-- [ ] Task: Delete deprecated legacy files & verify clean build
-    - [ ] Hard delete deprecated template notebooks (`conf/calibration_report_template.ipynb`, `conf/calibration_report_multi_material_template.ipynb`, and resource copies)
-    - [ ] Remove deprecated ALS baseline classes and obsolete optimization methods in `InstrumentProfileService.java`
-    - [ ] Run full project test suite (`mvn clean test`) and end-to-end forward synthesis dry run
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Forward Synthetic Pipeline Integration, Batch Runner & Legacy Hard-Deletion' (Protocol in workflow.md)
+- [x] Task: Optional residuals injection for tramp elements using Bernoulli trials (005092c)
+    - [x] Add CLI flag `--inject-residuals` / `-ir` (and optional `--residuals-prob`) to `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java`
+    - [x] Write unit tests for Bernoulli trial occurrence sampling, tramp concentration injection, and CLI flag gating
+    - [x] Implement `ResidualsInjector` to inject tramp elements (e.g., Cu, Sn, Pb, As, Sb, Cr, Ni) via independent Bernoulli trials with scrap contamination ranges and matrix (Fe) rebalancing only when `--inject-residuals` is active
+    - [x] Integrate `ResidualsInjector` into the forward synthetic composition generation flow (`LIBSDataController` / `run.sh`)
+- [x] Task: Coupled (Te, Ne) Gaussian sampling in forward synthesis (6e18108)
+    - [x] Write unit tests for `PlasmaTempSampler.java` coupled sampling in $(T_e, \log_{10} N_e)$
+    - [x] Update `src/main/java/com/medals/libsdatagenerator/sampler/PlasmaTempSampler.java` using per-zone mean and std dev from profile
+- [x] Task: SpectrumUtils multi-zone synthesis & instrument response application (649343c)
+    - [x] Write unit tests for `SpectrumUtils.combineNZones()` applying absorption exponentiation and $\mathbf{r}(\lambda) \times \text{scaleFactor}$
+    - [x] Update `SpectrumUtils.java` to integrate differential Voigt transfer matrix and spectral response
+- [x] Task: Update batch calibration runner script (completed)
+    - [x] Update `/home/puser/Work/PhD/Code/Notebooks/UtilScripts/run_batch_calibration.py` to read `reference_compositions.json`, format `-c` strings, pass `-mt`, `-mg`, `-z`, and `-hc`, and invoke `./calibrate.sh`
+- [x] Task: Delete deprecated legacy files & verify clean build (c148388)
+    - [x] Hard delete deprecated template notebooks (`conf/calibration_report_template.ipynb`, `conf/calibration_report_multi_material_template.ipynb`, and resource copies)
+    - [x] Remove deprecated ALS baseline classes and obsolete optimization methods in `InstrumentProfileService.java`
+    - [x] Run full project test suite (`mvn clean test`) and end-to-end forward synthesis dry run
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Forward Synthetic Pipeline Integration, Batch Runner & Legacy Hard-Deletion' (Protocol in workflow.md)

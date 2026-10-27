@@ -10,9 +10,14 @@
 - **Data Processing:** 
     - Apache Commons CSV 1.10.0
     - org.json 20231013
+    - com.fasterxml.jackson.core:jackson-databind 2.17.0
 - **Mathematics & Sampling:**
     - Apache Commons Math 3.6.1
     - Apache Commons RNG 1.6
+- **Calibration Engine (Python/GPU):**
+    - PyTorch 2.5+ with CUDA support
+    - SciPy (ndimage, optimize, interpolate)
+    - NumPy, Pandas
 - **Network & I/O:**
     - Apache HTTP Client 4.5.13
     - Apache Commons IO 2.14.0
