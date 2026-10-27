@@ -59,7 +59,9 @@ public class PythonUtils {
      * 3. Installs requirements.
      * 
      * @return true if environment is ready, false otherwise.
+     * @deprecated Legacy Jupyter notebook reporting environment setup is deprecated.
      */
+    @Deprecated
     public boolean setupPythonEnvironment() {
         if (!isPythonInstalled()) {
             logger.warning("Python 3 is not installed. Skipping calibration report generation.");
@@ -119,6 +121,10 @@ public class PythonUtils {
         }
     }
 
+    /**
+     * @deprecated Legacy notebook reporting is deprecated.
+     */
+    @Deprecated
     public Path getVenvJupyterPath() {
         Path venvPath = Paths.get(CommonUtils.HOME_PATH, VENV_DIR_NAME);
         return getVenvExecutable(venvPath, "jupyter");

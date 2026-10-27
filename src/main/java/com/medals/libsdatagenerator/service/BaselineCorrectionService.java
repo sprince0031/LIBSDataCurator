@@ -17,8 +17,11 @@ import static com.medals.libsdatagenerator.model.BaselineCorrectionParams.MAX_IT
  * Service to apply baseline correction algorithms to spectra.
  * Implements Asymmetric Least Squares (ALS) smoothing.
  *
+ * @deprecated Deprecated as part of track gpu_calibration_pipeline_20261027.
+ *             Baseline correction is now handled via PyTorch Morphological Opening in scripts/gpu_calibration_engine.py.
  * @author Siddharth Prince, Antigravity | 08/02/26 22:22
  */
+@Deprecated
 public class BaselineCorrectionService {
 
     private static final Logger logger = Logger.getLogger(BaselineCorrectionService.class.getName());
