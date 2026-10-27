@@ -27,6 +27,7 @@ public class UserInputConfig {
     public final boolean performVariations;
     public final int numSamples;
     public final VariationMode variationMode;
+    public final double relativeStdDeviation;
     public final ClassLabelType classLabelType;
     public final boolean classLabelTypeExplicitlySet;
     public final boolean scaleCoating;
@@ -70,6 +71,7 @@ public class UserInputConfig {
         this.performVariations = false;
         this.numSamples = 0;
         this.variationMode = VariationMode.DIRICHLET;
+        this.relativeStdDeviation = 0.05;
         this.classLabelType = ClassLabelType.COMPOSITION_PERCENTAGE;
         this.classLabelTypeExplicitlySet = false;
         this.scaleCoating = false;
@@ -114,6 +116,7 @@ public class UserInputConfig {
         this.performVariations = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_COMP_VAR_SHORT);
         this.numSamples = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "20"));
         this.variationMode = VariationMode.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, "1")));
+        this.relativeStdDeviation = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RELATIVE_STD_DEVIATION_SHORT, "0.05"));
         this.classLabelTypeExplicitlySet = cmd.hasOption(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT);
         this.classLabelType = ClassLabelType.fromOption(Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_CLASS_TYPE_SHORT, "1")));
         this.scaleCoating = !cmd.hasOption(LIBSDataGenConstants.CMD_OPT_SCALE_COATING_SHORT);

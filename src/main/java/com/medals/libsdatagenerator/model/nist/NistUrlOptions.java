@@ -147,7 +147,7 @@ public class NistUrlOptions {
     public enum VariationMode implements UserSelectable {
 
         DIRICHLET(1), // Default
-        GAUSSIAN(2);
+        PLASMATEMP(2);
 
         private final int userOption;
 

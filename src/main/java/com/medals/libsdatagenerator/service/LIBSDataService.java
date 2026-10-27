@@ -10,6 +10,7 @@ import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
+import com.medals.libsdatagenerator.sampler.PlasmaTempSampler;
 import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
@@ -246,7 +247,8 @@ public class LIBSDataService {
     }
 
     private void fetchAndProcessSpectra(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions,
-                                        UserInputConfig config, MaterialGrade sourceMaterial, InstrumentProfile instrumentProfile) {
+                                        List<List<PlasmaZone>> plasmaZonesVariations, UserInputConfig config,
+                                        MaterialGrade sourceMaterial, InstrumentProfile instrumentProfile, double scaleFactor) {
         int compositionsProcessed = 0;
         PrintStream out = System.out;
 
@@ -254,96 +256,84 @@ public class LIBSDataService {
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
         SpectrumUtils spectrumUtils = new  SpectrumUtils();
         try {
-            MaterialFamilyProfile familyProfile = instrumentProfile.getMaterialFamilyProfile(
-                    sourceMaterial.getParentSeries().getSeriesKey());
-            // use default plasma profile if specific material family profile not available
-            if (familyProfile == null) {
-                familyProfile = instrumentProfile.getMaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
-            } else if (!config.twoZone) {
-                MaterialFamilyProfile tempMaterialFamilyProfile = instrumentProfile.
-                        getMaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
-                tempMaterialFamilyProfile.setScaleFactor(familyProfile.getScaleFactor());
-                config.resolution = String.valueOf(familyProfile.getResolution());
-                familyProfile = tempMaterialFamilyProfile;
-            } else {
-                config.resolution = String.valueOf(familyProfile.getResolution());
-            }
 
-            List<PlasmaZone> plasmaZones = familyProfile.getPlasmaZones();
+//            List<PlasmaZone> plasmaZones = familyProfile.getPlasmaZones();
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
-                // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
-                Map<String, Object> compWaveIntensityMap = new HashMap<>();
+                for (List<PlasmaZone> plasmaZones : plasmaZonesVariations) {
+                    // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
+                    String csvData;
+                    Map<String, Object> compWaveIntensityMap = new HashMap<>();
+                    String compositionId = CommonUtils.getInstance().buildCompositionStringForFilename(composition);
+                    logger.info("Applying instrument profile to synthetic spectra for " + compositionId +
+                            " (" + sourceMaterial.getMaterialName() + ")");
+                    List<double[]>  fetchedZoneSpectra = new ArrayList<>();
+                    for (PlasmaZone plasmaZone : plasmaZones) {
+                        double te = plasmaZone.getTe();
+                        double ne = plasmaZone.getNe();
+                        compositionId += String.format("_%.3f_%.3e", te, ne);
 
-                // Fetch CSV data from NIST
-                String csvData;
-                String compositionId = CommonUtils.getInstance().buildCompositionStringForFilename(composition);
-
-                logger.info("Applying instrument profile to synthetic spectra for " + compositionId +
-                        " (" + sourceMaterial.getMaterialName() + ")");
-                List<double[]>  fetchedZoneSpectra = new ArrayList<>();
-
-                for (int i = 0; i < plasmaZones.size(); i++) {
-                    csvData = fetchPlasmaZoneSpectrum(composition, config, plasmaZones.get(i).getTe(),
-                            plasmaZones.get(i).getNe(), sourceMaterial.getRemainderElementIdx());
-                    // If fetch failed, skip
-                    if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
-                        logger.severe("Failed to fetch data for composition " + compositionId + " and plasma zone "
-                                + plasmaZones.get(i).toJson());
-                        break; // Stop if fails for even 1 plasma zone as combination won't work
-                    }
-                    logger.info("Fetched NIST spectrum for zone: " + plasmaZones.get(i).toJson());
-                    // Parse wave->intensity
-                    Map<Double, Double> waveMap;
-                    try {
-                        waveMap = NISTUtils.parseNistCsv(csvData, config.wavelengthUnit.getUnitString());
-                        // One-time check to add first instance of wavelengths if instrument profile not available
-                        if (instrumentProfile.getWavelengthGrid() == null) {
-                            double[] wavelengthGrid = waveMap.keySet()
-                                    .stream().mapToDouble(Double::doubleValue).toArray();
-                            instrumentProfile.setWavelengthGrid(wavelengthGrid);
+                        // Fetch CSV data from NIST
+                        csvData = fetchPlasmaZoneSpectrum(composition, config, te, ne, sourceMaterial.getRemainderElementIdx());
+                        // If fetch failed, skip
+                        if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+                            logger.severe("Failed to fetch data for composition " + compositionId + " and plasma zone "
+                                    + plasmaZone.toJson());
+                            break; // Stop if fails for even 1 plasma zone as combination won't work
                         }
-                    } catch (Exception e) {
-                        logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
-                        continue;
+                        logger.info("Fetched NIST spectrum for zone: " + plasmaZone.toJson());
+                        // Parse wave->intensity
+                        Map<Double, Double> waveMap;
+                        try {
+                            waveMap = NISTUtils.parseNistCsv(csvData, config.wavelengthUnit.getUnitString());
+                            // One-time check to add first instance of wavelengths if instrument profile not available
+                            if (instrumentProfile.getWavelengthGrid() == null) {
+                                double[] wavelengthGrid = waveMap.keySet()
+                                        .stream().mapToDouble(Double::doubleValue).toArray();
+                                instrumentProfile.setWavelengthGrid(wavelengthGrid);
+                            }
+                        } catch (Exception e) {
+                            logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
+                            continue;
+                        }
+                        double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
+                        double[] normalisedSpectrum = spectrumUtils.normaliseSpectrum(interpolatedSpectrum);
+                        fetchedZoneSpectra.add(normalisedSpectrum);
                     }
-                    double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-                    double[] normalisedSpectrum = spectrumUtils.normaliseSpectrum(interpolatedSpectrum);
-                    fetchedZoneSpectra.add(normalisedSpectrum);
+                    double[] combinedSpectrum = spectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
+                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(combinedSpectrum, scaleFactor);
+
+                    compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, scaledSpectrum);
+
+                    // Also store element symbols + their percentages
+                    Map<String, Double> elemMap = new HashMap<>();
+                    for (Element elem : composition) {
+                        elemMap.put(elem.getSymbol(), elem.getPercentageComposition());
+                    }
+                    compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_COMPOSITIONS, elemMap);
+
+                    // Add class label columns based on configuration
+                    // If user explicitly specified a class type, only add that specific column
+                    // Otherwise, add both material grade name and material type columns by default
+                    if (config.classLabelTypeExplicitlySet) {
+                        // User explicitly selected a class type
+                        if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
+                            // Add only the specific class column requested
+                            String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
+                            String classLabel = generateClassLabel(config.classLabelType, sourceMaterial);
+                            compWaveIntensityMap.put(classLabelColumnName, classLabel);
+                        }
+                        // For composition percentages (type 1), no additional class column is needed as the individual element columns serve as the class labels
+                    } else {
+                        // Default behavior: add both material columns
+                        String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial);
+                        String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial);
+                        compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME, gradeLabel);
+                        compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE, typeLabel);
+                    }
+                    fetchedSpectralData.put(compositionId, compWaveIntensityMap);
                 }
-                double[] combinedSpectrum = spectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
-                List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(combinedSpectrum, familyProfile.getScaleFactor());
                 newVariation = true;
-
-                compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, scaledSpectrum);
-
-                // Also store element symbols + their percentages
-                Map<String, Double> elemMap = new HashMap<>();
-                for (Element elem : composition) {
-                    elemMap.put(elem.getSymbol(), elem.getPercentageComposition());
-                }
-                compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_COMPOSITIONS, elemMap);
-
-                // Add class label columns based on configuration
-                // If user explicitly specified a class type, only add that specific column
-                // Otherwise, add both material grade name and material type columns by default
-                if (config.classLabelTypeExplicitlySet) {
-                    // User explicitly selected a class type
-                    if (config.classLabelType != ClassLabelType.COMPOSITION_PERCENTAGE) {
-                        // Add only the specific class column requested
-                        String classLabelColumnName = getClassLabelColumnName(config.classLabelType);
-                        String classLabel = generateClassLabel(config.classLabelType, sourceMaterial);
-                        compWaveIntensityMap.put(classLabelColumnName, classLabel);
-                    }
-                    // For composition percentages (type 1), no additional class column is needed as the individual element columns serve as the class labels
-                } else {
-                    // Default behavior: add both material columns
-                    String gradeLabel = generateClassLabel(ClassLabelType.MATERIAL_GRADE_NAME, sourceMaterial);
-                    String typeLabel = generateClassLabel(ClassLabelType.MATERIAL_TYPE, sourceMaterial);
-                    compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_GRADE_NAME, gradeLabel);
-                    compWaveIntensityMap.put(LIBSDataGenConstants.CSV_HEADER_MATERIAL_TYPE, typeLabel);
-                }
-                fetchedSpectralData.put(compositionId, compWaveIntensityMap);
 
                 // Calculate progress
                 CommonUtils.printProgressBar(compositionsProcessed + 1, compositions.size(), "samples completed", out);
@@ -375,9 +365,17 @@ public class LIBSDataService {
 
         Set<Double> allWavelengths = new TreeSet<>();
         Map<String, Object> fetchedSpectralData = new HashMap<>();
-        fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, allWavelengths); // Initialise wavelength TreeSet to be updated for each composition
 
         for (MaterialGrade materialGrade : materialGrades) {
+            List<List<Element>> compositions = new ArrayList<>(); // Dummy list of list just to hold one composition for compatability
+            compositions.add(materialGrade.getComposition());
+
+            List<List<PlasmaZone>> plasmaZones = new ArrayList<>();
+            MaterialFamilyProfile familyProfile = getMaterialFamilyProfileForMaterialGrade(materialGrade, config.twoZone,
+                    instrumentProfile);
+            plasmaZones.add(familyProfile.getPlasmaZones());
+            config.resolution = String.valueOf(familyProfile.getResolution());
+
             if (config.performVariations) {
                 if (config.variationMode == NistUrlOptions.VariationMode.DIRICHLET) {
                     if (materialGrade.getParentSeries().getOverviewGuid() == null) {
@@ -386,31 +384,30 @@ public class LIBSDataService {
                                 + CommonUtils.getInstance().buildCompositionString(materialGrade.getComposition()) + ". Skipping!");
                         continue;
                     }
-                }
+                    compositions = CompositionalVariations.getInstance().generateCompositionalVariations(materialGrade, config);
 
-                List<List<Element>> compositions = CompositionalVariations.getInstance()
-                        .generateCompositionalVariations(materialGrade, config);
-
-                if (compositions != null && !compositions.isEmpty()) {
-                    // Apply coating to all variations of material if this is a coated series
-                    if (materialGrade.getParentSeries().isCoated()) {
-                        SeriesInput series = materialGrade.getParentSeries();
-                        compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
-                                series.getCoatingElement(), config.scaleCoating);
+                    if (compositions != null && !compositions.isEmpty()) {
+                        // Apply coating to all variations of material if this is a coated series
+                        if (materialGrade.getParentSeries().isCoated()) {
+                            SeriesInput series = materialGrade.getParentSeries();
+                            compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
+                                    series.getCoatingElement(), config.scaleCoating);
+                        }
+                    } else {
+                        logger.warning("No compositions generated for input: " + materialGrade);
                     }
-                    System.out.println("Fetching LIBS spectra from NIST for all variations of " + materialGrade.getMaterialName());
-                    fetchAndProcessSpectra(fetchedSpectralData, compositions, config, materialGrade, instrumentProfile);
-                    logger.info("Successfully fetched LIBS spectra for all variations of " + materialGrade);
-                } else {
-                    logger.warning("No compositions generated for input: " + materialGrade);
                 }
-            } else {
-                // This is the original non-variation path for -c
-                List<List<Element>> compositions = new ArrayList<>(); // Dummy list of list just to hold one composition for compatability
-                compositions.add(materialGrade.getComposition());
-                fetchAndProcessSpectra(fetchedSpectralData, compositions, config, materialGrade, instrumentProfile);
-                logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
+
+                if (config.variationMode == NistUrlOptions.VariationMode.PLASMATEMP) {
+                    plasmaZones.addAll(PlasmaTempSampler.getInstance().sample(familyProfile.getPlasmaZones(),
+                            config.numSamples, config.relativeStdDeviation, config.seed));
+                }
             }
+
+            System.out.println("Fetching LIBS spectra from NIST for " + materialGrade.getMaterialName());
+            fetchAndProcessSpectra(fetchedSpectralData, compositions, plasmaZones, config, materialGrade,
+                    instrumentProfile, familyProfile.getScaleFactor());
+            logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
         }
         fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, instrumentProfile.getWavelengthGrid());
         writeSpectralDataToMasterCsv(fetchedSpectralData, config);
@@ -573,5 +570,21 @@ public class LIBSDataService {
         materialFamilyProfile.setScaleFactor(36501.135); // average of 5 available family profiles
         materialFamilyProfile.setResolution(3000);
         return materialFamilyProfile;
+    }
+
+    private MaterialFamilyProfile getMaterialFamilyProfileForMaterialGrade(MaterialGrade materialGrade, Boolean twoZone,
+                                                                           InstrumentProfile instrumentProfile) {
+        MaterialFamilyProfile familyProfile = instrumentProfile.getMaterialFamilyProfile(
+                materialGrade.getParentSeries().getSeriesKey());
+        // use default plasma profile if specific material family profile not available
+        if (familyProfile == null) {
+            familyProfile = instrumentProfile.getMaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
+        } else if (!twoZone) {
+            MaterialFamilyProfile tempMaterialFamilyProfile = instrumentProfile.
+                    getMaterialFamilyProfile(DEFAULT_MATERIAL_FAMILY_PROFILE);
+            tempMaterialFamilyProfile.setScaleFactor(familyProfile.getScaleFactor());
+            familyProfile = tempMaterialFamilyProfile;
+        }
+        return familyProfile;
     }
 }

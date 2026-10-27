@@ -1,9 +1,5 @@
 package com.medals.libsdatagenerator.controller;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * All constants used throughout the codebase.
  *
@@ -123,14 +119,17 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_VAR_MODE_DESC = """
             Chooses the variation mode: \
             
-            1 -> Dirichlet sampling (default)\
+            1 -> Compositional variations (default)\
             
-            2 -> Gaussian sampling""";
+            2 -> Plasma temperature variations""";
+    public static final String CMD_OPT_RELATIVE_STD_DEVIATION_SHORT = "std";
+    public static final String CMD_OPT_RELATIVE_STD_DEVIATION_LONG = "std-deviation";
+    public static final String CMD_OPT_RELATIVE_STD_DEVIATION_DESC = "Relative std deviation " +
+            "required for plasma temp sampling mode (mode 2) for Gaussian sampling of plasma temp values. Default: 0.05";
     public static final String CMD_OPT_OVERVIEW_GUID_SHORT = "og";
     public static final String CMD_OPT_OVERVIEW_GUID_LONG = "overview-guid";
     public static final String CMD_OPT_OVERVIEW_GUID_DESC = "Matweb GUID for the series overview datasheet. " +
-            "Required for Dirichlet sampling mode (mode 1) to get series average compositions.";
-
+            "Required for compositional variation mode (mode 1) to get series average compositions.";
     public static final String CMD_OPT_CLASS_TYPE_SHORT = "ct";
     public static final String CMD_OPT_CLASS_TYPE_LONG = "class-type";
     public static final String CMD_OPT_CLASS_TYPE_DESC = """
@@ -316,28 +315,5 @@ public class LIBSDataGenConstants {
             "Ti", "Nb", "Co", "W", "Sn", "Pb", "B", "As", "Zr", "Bi", "Cd",
             "Se", "Zn"//, "N"
     };
-
-    // Fallback to use if Gaussian sampling chosen over Dirichlet sampling.
-    @Deprecated
-    public static final Map<String, Double> ELEMENT_STD_DEVS_FALLBACK;
-
-    static {
-        Map<String, Double> elements = new HashMap<>();
-        elements.put("C", 0.113);
-        elements.put("Mn", 0.396);
-        elements.put("Si", 0.211);
-        elements.put("Ni", 0.526);
-        elements.put("Cr", 3.212);
-        elements.put("V", 0.219);
-        elements.put("Mo", 0.370);
-        elements.put("Cu", 0.242);
-        elements.put("Fe", 2.841);
-        elements.put("S", 0.05);
-        elements.put("P", 0.05);
-        // Add other elements with estimated SDs if needed for Gaussian fallback
-
-        ELEMENT_STD_DEVS_FALLBACK = Collections.unmodifiableMap(elements);
-
-    }
 
 }
