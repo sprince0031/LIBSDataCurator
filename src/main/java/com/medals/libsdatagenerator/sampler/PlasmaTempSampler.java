@@ -7,19 +7,20 @@ import org.apache.commons.rng.sampling.distribution.ZigguratSampler;
 import org.apache.commons.rng.simple.RandomSource;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Logger;
 
+/**
+ * Generates perturbed N-zone plasma configurations per synthetic shot using coupled (Te, Ne) Gaussian sampling.
+ * A single standard normal draw per shot perturbs both Te and log10(Ne) across all plasma zones simultaneously,
+ * preserving T_core > T_periphery physical hierarchy and Te-Ne covariance.
+ */
 public class PlasmaTempSampler implements PlasmaSampler {
 
     private static final Logger logger = Logger.getLogger(PlasmaTempSampler.class.getName());
-    private static final double K_TO_EV_CONVERSION_FACTOR = 11604.525;
-
     private static PlasmaTempSampler instance = null;
 
-    public static PlasmaTempSampler getInstance() {
+    public static synchronized PlasmaTempSampler getInstance() {
         if (instance == null) {
             instance = new PlasmaTempSampler();
         }
@@ -27,71 +28,60 @@ public class PlasmaTempSampler implements PlasmaSampler {
     }
 
     /**
-     * Generates perturbed 2-zone configurations per synthetic shot.
-     *
-     * @param baseZones    Base zones from instrument profile (e.g., core and periphery)
-     * @param numSamples   Number of synthetic spectra to generate
-     * @param relativeStdDev Relative standard deviation (e.g., 0.05 for 5% pulse-to-pulse fluctuation)
-     * @param seed         PRNG seed for reproducibility
-     * @return List of shot configurations, each containing perturbed PlasmaZones
+     * Interface implementation delegating to coupled multi-zone sampling.
      */
     @Override
-    public List<List<PlasmaZone>> sample(List<PlasmaZone> baseZones, int numSamples, double relativeStdDev, Long seed) {
+    public List<List<PlasmaZone>> sample(List<PlasmaZone> baseZones, int numSamples, double relativeStdDeviation, Long seed) {
+        return sampleZones(baseZones, numSamples, relativeStdDeviation, seed);
+    }
 
-        Set<String> plasmaKeySet = new HashSet<>();
-        // Adding base zone key to key set
-        String basePlasmaKey = "";
-        for (PlasmaZone base : baseZones) {
-            basePlasmaKey += String.format("_%.3f_%.3e", base.getTe(), base.getNe());
-        }
-        plasmaKeySet.add(basePlasmaKey);
+    /**
+     * Samples coupled multi-zone plasma parameters across synthetic shots.
+     *
+     * @param baseZones Base plasma zones from calibrated profile
+     * @param numSamples Number of shots to simulate
+     * @param defaultRelativeStdDev Default relative standard deviation if profile lacks stddevs
+     * @param seed Optional PRNG seed
+     * @return List of perturbed plasma zone configurations per shot
+     */
+    public List<List<PlasmaZone>> sampleZones(
+            List<PlasmaZone> baseZones,
+            int numSamples,
+            double defaultRelativeStdDev,
+            Long seed) {
+
         List<List<PlasmaZone>> shotZoneProfiles = new ArrayList<>(numSamples);
-        UniformRandomProvider rng = seed != null ?
-                RandomSource.XO_RO_SHI_RO_128_PP.create(seed) :
-                RandomSource.XO_RO_SHI_RO_128_PP.create();
+        UniformRandomProvider rng = (seed != null)
+                ? RandomSource.XO_RO_SHI_RO_128_PP.create(seed)
+                : RandomSource.XO_RO_SHI_RO_128_PP.create();
+        ContinuousSampler normalSampler = ZigguratSampler.NormalizedGaussian.of(rng);
 
-        ContinuousSampler gaussianSampler = ZigguratSampler.NormalizedGaussian.of(rng);
-        logger.info("Starting Gaussian sampling of Te with " + (seed != null ? "seed: " + seed : "random seed"));
+        logger.info("Starting coupled Gaussian sampling of (Te, Ne) with " + (seed != null ? "seed: " + seed : "random seed"));
 
-        int successfulSamples = 0;
-        int currentSample = 0;
-        int maxAttempts = numSamples * 10;
-        while (successfulSamples < numSamples-1 && currentSample < maxAttempts) {
-            currentSample++;
-            // Sample a common laser energy / ablation fluctuation factor per shot
-            double shotDeltaFactor = gaussianSampler.sample() * relativeStdDev;
-            // Clamp shot fluctuation to the physical pulse-to-pulse bound (+/- 10%)
-//            shotDeltaFactor = Math.clamp(shotDeltaFactor, -0.20, 0.20);
+        for (int i = 0; i < numSamples; i++) {
+            // Single standard normal variate per shot preserves T_core > T_periphery and Te-Ne covariance
+            double zShot = Math.max(-2.0, Math.min(2.0, normalSampler.sample()));
 
-            String plasmaKey = "";
-            List<PlasmaZone> sampledZones = new ArrayList<>();
+            List<PlasmaZone> perturbedZones = new ArrayList<>(baseZones.size());
             for (PlasmaZone base : baseZones) {
-                PlasmaZone perturbed = createPerturbed(base, shotDeltaFactor);
-                plasmaKey += String.format("_%.3f_%.3e", perturbed.getTe(), perturbed.getNe());
-                sampledZones.add(perturbed);
+                PlasmaZone perturbed = new PlasmaZone(base);
+
+                double sigmaTeEv = (base.getTeStdDev() > 0.0)
+                        ? base.getTeStdDev()
+                        : base.getTe() * defaultRelativeStdDev;
+                double newTeEv = Math.max(0.45, Math.min(2.20, base.getTe() + zShot * sigmaTeEv));
+                perturbed.setTe(Math.round(newTeEv * 10000.0) / 10000.0);
+
+                double sigmaLogNe = (base.getNeLogStdDev() > 0.0)
+                        ? base.getNeLogStdDev()
+                        : 0.4343 * defaultRelativeStdDev;
+                double newLogNe = Math.max(15.0, Math.min(18.0, Math.log10(base.getNe()) + zShot * sigmaLogNe));
+                perturbed.setNe(Math.pow(10.0, newLogNe));
+
+                perturbedZones.add(perturbed);
             }
-            if (!plasmaKeySet.contains(plasmaKey)) {
-                shotZoneProfiles.add(sampledZones);
-                plasmaKeySet.add(plasmaKey);
-                successfulSamples++;
-            }
+            shotZoneProfiles.add(perturbedZones);
         }
         return shotZoneProfiles;
     }
-
-    private PlasmaZone createPerturbed(PlasmaZone base, double shotDeltaFactor) {
-        PlasmaZone perturbed = new PlasmaZone(base.getTe(), base.getNe(), base.getVFraction(), base.getKAbsorption());
-        double baseTempK = perturbed.getTe() * K_TO_EV_CONVERSION_FACTOR;
-
-        // Correlated perturbation maintains T_core > T_periphery
-        double newTempK = baseTempK * (1.0 + shotDeltaFactor);
-
-        // Clamp within analytical window bounds [7,500 K, 12,000 K]
-        newTempK = Math.clamp(newTempK, 5802.26, 13925.43); // 0.5eV to 1.2eV
-        double tempElectronVolts = Math.round((newTempK/K_TO_EV_CONVERSION_FACTOR) * 1000.0) / 1000.0;
-
-        perturbed.setTe(tempElectronVolts);
-        return perturbed;
-    }
-
 }
