@@ -22,10 +22,10 @@
     - [x] Write unit tests for `-mt` (`--material-type`), `-mg` (`--material-grade`), `-hc` (`--holdout-csvs`), and directory path parsing for `-i`
     - [x] Update `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java` to expose and validate the new options
     - [x] Verify CLI parser tests pass
-- [~] Task: Conductor - User Manual Verification 'Phase 2: Model & CLI Argument Refactoring' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Model & CLI Argument Refactoring' (Protocol in workflow.md)
 
 ### Phase 3: Incremental Manifest & Selenium 48-State NIST Grid Caching
-- [ ] Task: Multi-CSV directory scanning and holdout partitioning
+- [~] Task: Multi-CSV directory scanning and holdout partitioning
     - [ ] Write unit tests in `InstrumentProfileServiceTest` verifying scanning of `-i` directory (5 CSVs) and 4-calibration / 1-holdout partitioning
     - [ ] Implement directory scanning and CSV partitioning logic in `InstrumentProfileService.java`
 - [ ] Task: Selenium 48-state (Te, Ne) NIST anchor grid caching
