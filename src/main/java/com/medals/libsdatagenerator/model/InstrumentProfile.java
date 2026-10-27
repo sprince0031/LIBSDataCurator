@@ -1,5 +1,7 @@
 package com.medals.libsdatagenerator.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import org.json.JSONArray;
@@ -9,14 +11,39 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class InstrumentProfile implements JsonModel {
+
+    @JsonProperty("instrumentName")
     private String instrumentName;
+
+    @JsonProperty("wavelengths")
     private double[] wavelengths;
-    private Map<String, MaterialFamilyProfile> materialFamilyProfiles;
-    private BaselineCorrectionParams baselineParams;
+
+    @JsonProperty("spectralResponse")
+    private double[] spectralResponse;
+
+    @JsonProperty("voigtProfile")
+    private VoigtProfile voigtProfile;
+
+    @JsonProperty("finotelloNoiseBeta")
+    private double finotelloNoiseBeta;
+
+    @JsonProperty("materialFamilyProfiles")
+    private Map<String, MaterialFamilyProfile> materialFamilyProfiles = new HashMap<>();
+
+    @JsonProperty("baselineCorrectionParams")
+    private BaselineCorrectionParams baselineParams = new BaselineCorrectionParams();
+
+    @JsonProperty("numShots")
     private int numShots;
+
+    @JsonProperty("sourceFile")
     private String sourceFile;
+
+    @JsonProperty("referenceComposition")
     private String referenceComposition;
+
     public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
             LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
 
@@ -28,8 +55,8 @@ public class InstrumentProfile implements JsonModel {
                              Map<String, MaterialFamilyProfile> materialFamilyProfiles, BaselineCorrectionParams baselineParams) {
         this.instrumentName = instrumentName;
         this.wavelengths = wavelengths;
-        this.materialFamilyProfiles = materialFamilyProfiles;
-        this.baselineParams = baselineParams;
+        this.materialFamilyProfiles = materialFamilyProfiles != null ? materialFamilyProfiles : new HashMap<>();
+        this.baselineParams = baselineParams != null ? baselineParams : new BaselineCorrectionParams();
     }
 
     // Constructor used in InstrumentProfileService
@@ -58,15 +85,54 @@ public class InstrumentProfile implements JsonModel {
         return wavelengths;
     }
 
+    public double[] getWavelengths() {
+        return wavelengths;
+    }
+
+    public void setWavelengths(double[] wavelengths) {
+        this.wavelengths = wavelengths;
+    }
+
+    public double[] getSpectralResponse() {
+        return spectralResponse;
+    }
+
+    public void setSpectralResponse(double[] spectralResponse) {
+        this.spectralResponse = spectralResponse;
+    }
+
+    public VoigtProfile getVoigtProfile() {
+        return voigtProfile;
+    }
+
+    public void setVoigtProfile(VoigtProfile voigtProfile) {
+        this.voigtProfile = voigtProfile;
+    }
+
+    public double getFinotelloNoiseBeta() {
+        return finotelloNoiseBeta;
+    }
+
+    public void setFinotelloNoiseBeta(double finotelloNoiseBeta) {
+        this.finotelloNoiseBeta = finotelloNoiseBeta;
+    }
+
     public Map<String, MaterialFamilyProfile> getMaterialFamilyProfiles() {
         return materialFamilyProfiles;
     }
 
+    public void setMaterialFamilyProfiles(Map<String, MaterialFamilyProfile> profiles) {
+        this.materialFamilyProfiles = profiles != null ? profiles : new HashMap<>();
+    }
+
     public MaterialFamilyProfile getMaterialFamilyProfile(String familyName) {
-        return materialFamilyProfiles.get(familyName);
+        return materialFamilyProfiles != null ? materialFamilyProfiles.get(familyName) : null;
     }
 
     public void addMaterialFamilyProfile(MaterialFamilyProfile materialFamilyProfile) {
+        if (this.materialFamilyProfiles == null) {
+            this.materialFamilyProfiles = new HashMap<>();
+        }
         materialFamilyProfiles.put(materialFamilyProfile.getMaterialFamilyName(), materialFamilyProfile);
     }
 
@@ -115,18 +181,21 @@ public class InstrumentProfile implements JsonModel {
     }
 
     // Delegation for Baseline Correction Params
+    @Deprecated
     public double getLambda() {
         if (baselineParams == null)
             return 0;
         return baselineParams.getLambda();
     }
 
+    @Deprecated
     public double getP() {
         if (baselineParams == null)
             return 0;
         return baselineParams.getP();
     }
 
+    @Deprecated
     public int getMaxIterations() {
         if (baselineParams == null)
             return 0;
@@ -143,12 +212,30 @@ public class InstrumentProfile implements JsonModel {
                 wavelengthGrid.put(d);
             }
         }
+        json.put("wavelengths", wavelengthGrid);
+
+        if (spectralResponse != null) {
+            JSONArray srArr = new JSONArray();
+            for (double d : spectralResponse) {
+                srArr.put(d);
+            }
+            json.put("spectralResponse", srArr);
+        }
+
+        if (voigtProfile != null) {
+            json.put("voigtProfile", voigtProfile.toJson());
+        }
+
+        json.put("finotelloNoiseBeta", finotelloNoiseBeta);
+
         JSONObject materialFamilyProfilesJson = new JSONObject();
-        for (String key : materialFamilyProfiles.keySet()) {
-            materialFamilyProfilesJson.put(key, materialFamilyProfiles.get(key).toJson());
+        if (materialFamilyProfiles != null) {
+            for (String key : materialFamilyProfiles.keySet()) {
+                materialFamilyProfilesJson.put(key, materialFamilyProfiles.get(key).toJson());
+            }
         }
         json.put("materialFamilyProfiles", materialFamilyProfilesJson);
-        json.put("wavelengths", wavelengthGrid);
+
         json.put("numShots", numShots);
         json.put("sourceFile", sourceFile);
         json.put("referenceComposition", referenceComposition);
@@ -160,6 +247,7 @@ public class InstrumentProfile implements JsonModel {
 
     @Override
     public void fromJson(JSONObject json) {
+        if (json == null) return;
         this.instrumentName = json.optString("instrumentName", "");
         JSONArray wavelengthsArray = json.optJSONArray("wavelengths");
         this.wavelengths = new double[wavelengthsArray != null ? wavelengthsArray.length() : 0];
@@ -168,9 +256,24 @@ public class InstrumentProfile implements JsonModel {
                 wavelengths[i] = wavelengthsArray.getDouble(i);
             }
         }
+
+        JSONArray srArray = json.optJSONArray("spectralResponse");
+        if (srArray != null) {
+            this.spectralResponse = new double[srArray.length()];
+            for (int i = 0; i < srArray.length(); i++) {
+                this.spectralResponse[i] = srArray.getDouble(i);
+            }
+        }
+
+        if (json.has("voigtProfile")) {
+            this.voigtProfile = VoigtProfile.fromJson(json.optJSONObject("voigtProfile"));
+        }
+
+        this.finotelloNoiseBeta = json.optDouble("finotelloNoiseBeta", 0.0);
+
         JSONObject materialFamilyProfilesJson = json.optJSONObject("materialFamilyProfiles");
+        this.materialFamilyProfiles = new HashMap<>();
         if (materialFamilyProfilesJson != null) {
-            this.materialFamilyProfiles = new HashMap<>();
             for (String key : materialFamilyProfilesJson.keySet()) {
                 MaterialFamilyProfile materialFamilyProfile = new MaterialFamilyProfile(key);
                 materialFamilyProfile.fromJson(materialFamilyProfilesJson.optJSONObject(key));
