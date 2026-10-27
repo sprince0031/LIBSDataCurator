@@ -11,6 +11,7 @@ import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions.ClassLabelType;
 import com.medals.libsdatagenerator.sampler.PlasmaTempSampler;
+import com.medals.libsdatagenerator.sampler.ResidualsInjector;
 import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CommonUtils;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
@@ -457,6 +458,18 @@ public class LIBSDataService {
                     compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
                             series.getCoatingElement(), config.scaleCoating);
                 }
+            }
+
+            if (!config.performVariations && config.injectResiduals && config.numSamples > 1) {
+                compositions.clear();
+                for (int s = 0; s < config.numSamples; s++) {
+                    compositions.add(materialGrade.getComposition());
+                }
+            }
+
+            if (config.injectResiduals) {
+                compositions = ResidualsInjector.getInstance().injectResidualsBatch(
+                        compositions, config.residualsProbability, config.seed);
             }
 
             System.out.println("Fetching LIBS spectra from NIST for " + materialGrade.getMaterialName());
