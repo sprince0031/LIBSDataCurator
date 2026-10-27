@@ -18,11 +18,11 @@
     - [x] Update `src/main/java/com/medals/libsdatagenerator/model/PlasmaZone.java` to support `teStdDev`, `neLogStdDev`, `volumeFraction`, and `kAbsorption`
     - [x] Update `MaterialFamilyProfile.java` and `InstrumentProfile.java` to support `spectralResponse`, `voigtProfile`, `finotelloNoiseBeta`, and `validationHoldoutCsvs`
     - [x] Verify model tests pass
-- [~] Task: Extend CLI argument parser for material hierarchy and directory input
-    - [ ] Write unit tests for `-mt` (`--material-type`), `-mg` (`--material-grade`), `-hc` (`--holdout-csvs`), and directory path parsing for `-i`
-    - [ ] Update `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java` to expose and validate the new options
-    - [ ] Verify CLI parser tests pass
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Model & CLI Argument Refactoring' (Protocol in workflow.md)
+- [x] Task: Extend CLI argument parser for material hierarchy and directory input (2fc799a)
+    - [x] Write unit tests for `-mt` (`--material-type`), `-mg` (`--material-grade`), `-hc` (`--holdout-csvs`), and directory path parsing for `-i`
+    - [x] Update `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java` to expose and validate the new options
+    - [x] Verify CLI parser tests pass
+- [~] Task: Conductor - User Manual Verification 'Phase 2: Model & CLI Argument Refactoring' (Protocol in workflow.md)
 
 ### Phase 3: Incremental Manifest & Selenium 48-State NIST Grid Caching
 - [ ] Task: Multi-CSV directory scanning and holdout partitioning
