@@ -13,12 +13,12 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Cleanup & Deprecation of Legacy Reporting & ALS Baseline' (Protocol in workflow.md)
 
 ### Phase 2: Model & CLI Argument Refactoring
-- [~] Task: Update domain models for profile and plasma zones
-    - [ ] Write unit tests for updated `PlasmaZone`, `MaterialFamilyProfile`, and `InstrumentProfile` JSON serialization and deserialization
-    - [ ] Update `src/main/java/com/medals/libsdatagenerator/model/PlasmaZone.java` to support `teStdDev`, `neLogStdDev`, `volumeFraction`, and `kAbsorption`
-    - [ ] Update `MaterialFamilyProfile.java` and `InstrumentProfile.java` to support `spectralResponse`, `voigtProfile`, `finotelloNoiseBeta`, and `validationHoldoutCsvs`
-    - [ ] Verify model tests pass
-- [ ] Task: Extend CLI argument parser for material hierarchy and directory input
+- [x] Task: Update domain models for profile and plasma zones (cd3be7f)
+    - [x] Write unit tests for updated `PlasmaZone`, `MaterialFamilyProfile`, and `InstrumentProfile` JSON serialization and deserialization
+    - [x] Update `src/main/java/com/medals/libsdatagenerator/model/PlasmaZone.java` to support `teStdDev`, `neLogStdDev`, `volumeFraction`, and `kAbsorption`
+    - [x] Update `MaterialFamilyProfile.java` and `InstrumentProfile.java` to support `spectralResponse`, `voigtProfile`, `finotelloNoiseBeta`, and `validationHoldoutCsvs`
+    - [x] Verify model tests pass
+- [~] Task: Extend CLI argument parser for material hierarchy and directory input
     - [ ] Write unit tests for `-mt` (`--material-type`), `-mg` (`--material-grade`), `-hc` (`--holdout-csvs`), and directory path parsing for `-i`
     - [ ] Update `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java` to expose and validate the new options
     - [ ] Verify CLI parser tests pass
