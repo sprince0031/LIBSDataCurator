@@ -256,12 +256,7 @@ public class InstrumentProfileService {
         if (blCorrectionEnabled) {
             // 3a. Clip spectrum
             Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgMeasuredSpectrum);
-
-            // 3b. Apply Baseline Correction (Asymmetric Least Squares)
-            double[] baselineCorrectedIntensities = BaselineCorrectionService.getInstance().correctBaseline(
-                    clippedSpectrum.getIntensities(), baselineParams.getLambda(), baselineParams.getP(),
-                    baselineParams.getMaxIterations());
-            processedMeasuredSpectrum = new Spectrum(clippedSpectrum.getWavelengths(), baselineCorrectedIntensities);
+            processedMeasuredSpectrum = clippedSpectrum;
         } else {
             processedMeasuredSpectrum = new Spectrum(wavelengthGrid, avgMeasuredSpectrum);
         }
@@ -895,13 +890,7 @@ public class InstrumentProfileService {
 
                     // Clip spectrum to valid LIBS range
                     Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgSpectrum);
-
-                    // Baseline correction
-                    double[] baselineCorrected = BaselineCorrectionService.getInstance().correctBaseline(
-                            clippedSpectrum.getIntensities(), baselineParams.getLambda(),
-                            baselineParams.getP(), baselineParams.getMaxIterations());
-                    Spectrum processedSpectrum = new Spectrum(
-                            clippedSpectrum.getWavelengths(), baselineCorrected);
+                    Spectrum processedSpectrum = clippedSpectrum;
 
                     // Build composition string from JSON and parse it
                     JSONObject compositionJson = materialEntry.optJSONObject("composition");

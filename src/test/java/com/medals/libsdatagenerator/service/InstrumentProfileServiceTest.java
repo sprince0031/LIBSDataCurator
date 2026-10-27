@@ -220,34 +220,11 @@ public class InstrumentProfileServiceTest {
         assertEquals(0, jsonPlasmaZones.length());
     }
 
-    @Test
-    void testGenerateJupyterReport() throws IOException {
-        // Create a dummy profile
-        double[] wavelengths = { 200.0, 300.0, 400.0 };
-        InstrumentProfile profile = new InstrumentProfile(wavelengths, "dummy.csv", "Fe-100");
-        List<PlasmaZone> zones = new ArrayList<>();
-        zones.add(new PlasmaZone(1.0, 1e16, 1.0, 2.5));
-        String materialFamilyName = "testMaterialFamily";
-        MaterialFamilyProfile mfProfile = new MaterialFamilyProfile(materialFamilyName);
-        mfProfile.setPlasmaZones(zones);
-        profile.addMaterialFamilyProfile(mfProfile);
-        profile.setInstrumentName("Test Spectrometer");
-
-        Path reportPath = tempDir.resolve("calibration_report.ipynb");
-        Path dummyPath = tempDir.resolve("dummy.csv");
-        Files.writeString(dummyPath, "Wavelength,Intensity\n200,100");
-
-        service.generateJupyterReport(profile, reportPath, dummyPath, dummyPath, materialFamilyName);
-
-        assertTrue(Files.exists(reportPath));
-        String content = Files.readString(reportPath);
-        assertTrue(content.contains("\"cells\""));
-        assertTrue(content.contains("metadata"));
-        assertTrue(content.contains("nbformat"));
-        // Check for plotting code presence
-        assertTrue(content.contains("import matplotlib.pyplot as plt"));
-        assertTrue(content.contains("plt.plot"));
-    }
+//    @Test
+//    @Deprecated
+//    void testGenerateJupyterReport() throws IOException {
+//        // Legacy template notebook reporting removed in Phase 5
+//    }
 
     @Test
     void testBuildCompositionStringFromJson() {
