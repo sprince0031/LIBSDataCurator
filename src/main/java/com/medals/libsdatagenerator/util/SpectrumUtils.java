@@ -2,6 +2,7 @@ package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
+import com.medals.libsdatagenerator.model.VoigtProfile;
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
@@ -82,11 +83,125 @@ public class SpectrumUtils {
     }
 
     public List<Double> normaliseAndScaleSpectrum(double[] spectrum, double scaleFactor) {
+        return normaliseAndScaleSpectrum(spectrum, scaleFactor, (double[]) null);
+    }
+
+    public List<Double> normaliseAndScaleSpectrum(double[] spectrum, double scaleFactor, double[] spectralResponse) {
+        double[] responseCorrected = applySpectralResponse(spectrum, spectralResponse);
         List<Double> scaledSpectrum = new ArrayList<>();
-        for (double val : normaliseSpectrum(spectrum)) {
+        for (double val : normaliseSpectrum(responseCorrected)) {
             scaledSpectrum.add(val * scaleFactor);
         }
         return scaledSpectrum;
+    }
+
+    public List<Double> normaliseAndScaleSpectrum(double[] spectrum, double scaleFactor, List<Double> spectralResponse) {
+        double[] respArray = (spectralResponse != null) ? spectralResponse.stream().mapToDouble(Double::doubleValue).toArray() : null;
+        return normaliseAndScaleSpectrum(spectrum, scaleFactor, respArray);
+    }
+
+    /**
+     * Multiplies the spectrum point-by-point by the instrument spectral response r(lambda).
+     */
+    public double[] applySpectralResponse(double[] spectrum, double[] spectralResponse) {
+        if (spectrum == null) {
+            return null;
+        }
+        if (spectralResponse == null || spectralResponse.length == 0) {
+            return Arrays.copyOf(spectrum, spectrum.length);
+        }
+        if (spectralResponse.length != spectrum.length) {
+            throw new IllegalArgumentException(String.format(
+                    "Spectral response size (%d) does not match spectrum length (%d)",
+                    spectralResponse.length, spectrum.length));
+        }
+        double[] result = new double[spectrum.length];
+        for (int i = 0; i < spectrum.length; i++) {
+            result[i] = spectrum[i] * spectralResponse[i];
+        }
+        return result;
+    }
+
+    public double[] applySpectralResponse(double[] spectrum, List<Double> spectralResponse) {
+        double[] respArray = (spectralResponse != null) ? spectralResponse.stream().mapToDouble(Double::doubleValue).toArray() : null;
+        return applySpectralResponse(spectrum, respArray);
+    }
+
+    /**
+     * Applies differential Voigt line broadening to synthetic spectra to match instrument resolution.
+     */
+    public double[] applyVoigtBroadening(double[] wavelengths, double[] intensities, VoigtProfile profile) {
+        if (intensities == null) {
+            return null;
+        }
+        if (profile == null || profile.getFwhmGaussianNm() == null || profile.getFwhmGaussianNm().isEmpty() ||
+                profile.getFwhmLorentzianNm() == null || profile.getFwhmLorentzianNm().isEmpty() ||
+                wavelengths == null || wavelengths.length != intensities.length) {
+            return Arrays.copyOf(intensities, intensities.length);
+        }
+
+        int n = intensities.length;
+        double[] broadened = new double[n];
+        List<Double> fwhmGList = profile.getFwhmGaussianNm();
+        List<Double> fwhmLList = profile.getFwhmLorentzianNm();
+
+        for (int j = 0; j < n; j++) {
+            if (intensities[j] <= 0.0) {
+                continue;
+            }
+            double lamJ = wavelengths[j];
+            double fg = (j < fwhmGList.size()) ? fwhmGList.get(j) : fwhmGList.get(0);
+            double fl = (j < fwhmLList.size()) ? fwhmLList.get(j) : fwhmLList.get(0);
+
+            if (fg <= 1e-6 && fl <= 1e-6) {
+                broadened[j] += intensities[j];
+                continue;
+            }
+
+            // Pseudo-Voigt total width f and mixing factor eta
+            double fg5 = Math.pow(fg, 5);
+            double fl5 = Math.pow(fl, 5);
+            double f = Math.pow(fg5 + 2.69269 * Math.pow(fg, 4) * fl + 2.42843 * Math.pow(fg, 3) * fl * fl
+                    + 4.47163 * fg * fg * Math.pow(fl, 3) + 0.07842 * fg * Math.pow(fl, 4) + fl5, 0.2);
+            double ratio = fl / f;
+            double eta = Math.max(0.0, Math.min(1.0, 1.36603 * ratio - 0.47719 * ratio * ratio + 0.11116 * Math.pow(ratio, 3)));
+
+            // Convolve over local window |wavelengths[i] - lamJ| <= 3.5 * f
+            double winHalf = 3.5 * f;
+            double cG = 4.0 * Math.log(2.0);
+            double normG = (2.0 * Math.sqrt(Math.log(2.0))) / (Math.sqrt(Math.PI) * fg);
+            double normL = 2.0 / (Math.PI * fl);
+
+            int iStart = j;
+            while (iStart > 0 && (lamJ - wavelengths[iStart - 1]) <= winHalf) {
+                iStart--;
+            }
+            int iEnd = j;
+            while (iEnd < n - 1 && (wavelengths[iEnd + 1] - lamJ) <= winHalf) {
+                iEnd++;
+            }
+
+            double weightSum = 0.0;
+            double[] weights = new double[iEnd - iStart + 1];
+            for (int i = iStart; i <= iEnd; i++) {
+                double dLam = Math.abs(wavelengths[i] - lamJ);
+                double gVal = (fg > 1e-6) ? normG * Math.exp(-cG * Math.pow(dLam / fg, 2)) : (dLam < 1e-6 ? 1.0 : 0.0);
+                double lVal = (fl > 1e-6) ? normL / (1.0 + 4.0 * Math.pow(dLam / fl, 2)) : (dLam < 1e-6 ? 1.0 : 0.0);
+                double vVal = eta * lVal + (1.0 - eta) * gVal;
+                weights[i - iStart] = vVal;
+                weightSum += vVal;
+            }
+
+            if (weightSum > 0.0) {
+                for (int i = iStart; i <= iEnd; i++) {
+                    broadened[i] += intensities[j] * (weights[i - iStart] / weightSum);
+                }
+            } else {
+                broadened[j] += intensities[j];
+            }
+        }
+
+        return broadened;
     }
 
     /**

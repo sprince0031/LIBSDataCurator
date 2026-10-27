@@ -355,7 +355,15 @@ public class LIBSDataService {
                         fetchedZoneSpectra.add(normalisedSpectrum);
                     }
                     double[] combinedSpectrum = spectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
-                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(combinedSpectrum, scaleFactor);
+                    if (instrumentProfile != null && instrumentProfile.getVoigtProfile() != null) {
+                        combinedSpectrum = spectrumUtils.applyVoigtBroadening(
+                                instrumentProfile.getWavelengthGrid(), combinedSpectrum, instrumentProfile.getVoigtProfile());
+                    }
+                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(
+                            combinedSpectrum,
+                            scaleFactor,
+                            instrumentProfile != null ? instrumentProfile.getSpectralResponse() : null
+                    );
 
                     compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, scaledSpectrum);
 
