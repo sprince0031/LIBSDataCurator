@@ -25,21 +25,21 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Model & CLI Argument Refactoring' (Protocol in workflow.md)
 
 ### Phase 3: Incremental Manifest & Selenium 48-State NIST Grid Caching
-- [~] Task: Multi-CSV directory scanning and holdout partitioning
-    - [ ] Write unit tests in `InstrumentProfileServiceTest` verifying scanning of `-i` directory (5 CSVs) and 4-calibration / 1-holdout partitioning
-    - [ ] Implement directory scanning and CSV partitioning logic in `InstrumentProfileService.java`
-- [ ] Task: Selenium 48-state (Te, Ne) NIST anchor grid caching
-    - [ ] Implement systematic 48-state discrete anchor grid caching in `LIBSDataService.java` and `InstrumentProfileService.java`
-    - [ ] Ensure cached NIST files are saved under `cache/nist/<materialName>_Te<Te>_Ne<Ne>.csv`
-- [ ] Task: Incremental manifest staging & Python execution bridge
-    - [ ] Write tests verifying creation and upserting of `temp/calibration_manifest.json` under `materialFamilies.<materialType>`
-    - [ ] Implement `temp/calibration_manifest.json` generation in `InstrumentProfileService.java`
-    - [ ] Add `PythonUtils.runGpuCalibrationEngine(Path scriptPath, Path manifestPath)` using `ProcessBuilder`
-    - [ ] Verify Phase 3 tests pass
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Incremental Manifest & Selenium 48-State NIST Grid Caching' (Protocol in workflow.md)
+- [x] Task: Multi-CSV directory scanning and holdout partitioning (7ab5606)
+    - [x] Write unit tests in `InstrumentProfileServiceTest` verifying scanning of `-i` directory (5 CSVs) and 4-calibration / 1-holdout partitioning
+    - [x] Implement directory scanning and CSV partitioning logic in `InstrumentProfileService.java`
+- [x] Task: Selenium 48-state (Te, Ne) NIST anchor grid caching (7ab5606)
+    - [x] Implement systematic 48-state discrete anchor grid caching in `LIBSDataService.java` and `InstrumentProfileService.java`
+    - [x] Ensure cached NIST files are saved under `cache/nist/<materialName>_Te<Te>_Ne<Ne>.csv`
+- [x] Task: Incremental manifest staging & Python execution bridge (7ab5606)
+    - [x] Write tests verifying creation and upserting of `temp/calibration_manifest.json` under `materialFamilies.<materialType>`
+    - [x] Implement `temp/calibration_manifest.json` generation in `InstrumentProfileService.java`
+    - [x] Add `PythonUtils.runGpuCalibrationEngine(Path scriptPath, Path manifestPath)` using `ProcessBuilder`
+    - [x] Verify Phase 3 tests pass
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Incremental Manifest & Selenium 48-State NIST Grid Caching' (Protocol in workflow.md)
 
 ### Phase 4: PyTorch CUDA Calibration Engine & Non-Destructive Profile Upsert
-- [ ] Task: Raw shot ingestion, saturation masking & morphological opening
+- [~] Task: Raw shot ingestion, saturation masking & morphological opening
     - [ ] Create `scripts/gpu_calibration_engine.py` skeleton with CUDA/CPU device resolution and manifest loading
     - [ ] Implement per-shot saturation masking ($< 0.9 \times y_{\text{FS}}$) and averaging across non-saturated shots
     - [ ] Implement 1D Morphological Grey Opening baseline subtraction (`scipy.ndimage.grey_opening`, structuring element size = 25)
