@@ -1,18 +1,22 @@
 package com.medals.libsdatagenerator.controller;
 
 import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
+import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.model.InstrumentProfile;
 import com.medals.libsdatagenerator.model.MaterialFamilyProfile;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.service.InstrumentProfileService;
 import com.medals.libsdatagenerator.util.CSVUtils;
 import com.medals.libsdatagenerator.util.CmdlineParserUtil;
+import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.apache.commons.cli.CommandLine;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -38,6 +42,47 @@ import java.util.logging.Logger;
 public class InstrumentProfileController {
 
     private static final Logger logger = Logger.getLogger(InstrumentProfileController.class.getName());
+    private final InstrumentProfileService profileService;
+    private final InputCompositionProcessor compositionProcessor;
+
+    public InstrumentProfileController() {
+        this(InstrumentProfileService.getInstance(), InputCompositionProcessor.getInstance());
+    }
+
+    public InstrumentProfileController(
+            InstrumentProfileService profileService,
+            InputCompositionProcessor compositionProcessor) {
+        this.profileService = profileService;
+        this.compositionProcessor = compositionProcessor;
+    }
+
+    public InstrumentProfile runCalibration(
+            Path inputPath,
+            String compositionStr,
+            String materialType,
+            String materialGrade,
+            String instrumentName,
+            int numZones,
+            int holdoutCsvCount,
+            Path outputProfilePath) throws Exception {
+
+        List<Element> elements = compositionProcessor.parseCompositionString(compositionStr);
+
+        logger.info(() -> String.format(
+                "Starting calibration for Material Grade '%s' (Family: '%s') with %d zones...",
+                materialGrade, materialType, numZones));
+
+        return profileService.stageMaterialAndRunGpuCalibration(
+                inputPath,
+                elements,
+                materialType,
+                materialGrade,
+                instrumentName,
+                numZones,
+                holdoutCsvCount,
+                outputProfilePath
+        );
+    }
 
     public static void main(String[] args) {
         logger.info("Starting LIBS Instrument Profile Calibration...");
@@ -85,7 +130,47 @@ public class InstrumentProfileController {
             InstrumentProfile profile;
             Path outputFilePath = Paths.get(outputPath);
 
-            if (inputFile.isDirectory()) {
+            String materialType = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT);
+            if (materialType == null || materialType.isBlank()) {
+                materialType = materialFamilyName;
+            }
+            String materialGrade = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT);
+            if (materialGrade == null || materialGrade.isBlank()) {
+                materialGrade = inputFile.isDirectory() ? inputFile.getName() : inputFile.getName().replaceFirst("[.][^.]+$", "");
+            }
+            int holdoutCsvs = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_HOLDOUT_CSVS_SHORT, "1"));
+
+            boolean isCompositionString = compositionOrRefPath != null &&
+                    !compositionOrRefPath.toLowerCase().endsWith(".json") &&
+                    !Files.exists(Paths.get(compositionOrRefPath));
+
+            InstrumentProfileController controller = new InstrumentProfileController(profileService, InputCompositionProcessor.getInstance());
+
+            if (cmd.hasOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_TYPE_SHORT) ||
+                    cmd.hasOption(LIBSDataGenConstants.CMD_OPT_MATERIAL_GRADE_NAME_SHORT) ||
+                    (isCompositionString && inputFile.isDirectory())) {
+
+                System.out.println("=== Multi-Family GPU LIBS Instrument Profile Calibration ===");
+                System.out.println("Input Path: " + inputPath);
+                System.out.println("Material Grade: " + materialGrade);
+                System.out.println("Material Family: " + materialType);
+                System.out.println("Composition: " + compositionOrRefPath);
+                System.out.println("Plasma Zones: " + plasmaZones);
+                System.out.println("Holdout CSVs: " + holdoutCsvs);
+                System.out.println();
+
+                profile = controller.runCalibration(
+                        inputFile.toPath(),
+                        compositionOrRefPath,
+                        materialType,
+                        materialGrade,
+                        instrumentName,
+                        plasmaZones,
+                        holdoutCsvs,
+                        outputFilePath
+                );
+
+            } else if (inputFile.isDirectory()) {
                 // ---- Directory mode ----------------------------------------
                 Path dirPath = inputFile.toPath();
 

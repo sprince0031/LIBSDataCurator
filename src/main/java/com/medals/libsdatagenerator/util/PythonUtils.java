@@ -144,4 +144,28 @@ public class PythonUtils {
 
         return null;
     }
+
+    /**
+     * Executes the PyTorch CUDA GPU calibration engine with the generated manifest.
+     *
+     * @param scriptPath Path to scripts/gpu_calibration_engine.py
+     * @param manifestPath Path to temp/calibration_manifest.json
+     * @throws Exception if engine execution fails
+     */
+    public void runGpuCalibrationEngine(Path scriptPath, Path manifestPath) throws Exception {
+        String pythonCmd = checkCommand("python3", "--version") ? "python3" : "python";
+        List<String> command = List.of(
+                pythonCmd,
+                scriptPath.toAbsolutePath().toString(),
+                manifestPath.toAbsolutePath().toString()
+        );
+        logger.info("Executing GPU Calibration Engine: " + String.join(" ", command));
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.inheritIO();
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException("GPU Calibration Engine exited with non-zero exit code: " + exitCode);
+        }
+    }
 }

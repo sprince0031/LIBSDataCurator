@@ -17,6 +17,10 @@ import com.medals.libsdatagenerator.util.SeleniumUtils;
 import com.medals.libsdatagenerator.util.SpectrumUtils;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.medals.libsdatagenerator.model.Element;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.json.JSONArray;
@@ -35,8 +39,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
@@ -53,11 +59,156 @@ public class InstrumentProfileService {
     private static final Logger logger = Logger.getLogger(InstrumentProfileService.class.getName());
     private static InstrumentProfileService instance = null;
 
+    public static final double[] TE_ANCHOR_GRID_EV = {
+            0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0
+    };
+    public static final double[] NE_ANCHOR_GRID_CM3 = {
+            1.0e16, 5.0e16, 1.0e17, 5.0e17
+    };
+    public static final double NIST_RESOLVING_POWER = 5000.0;
+    public static final int DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25;
+
+    private LIBSDataService libsDataService;
+    private PythonUtils pythonUtils;
+    private ObjectMapper objectMapper;
+
+    public InstrumentProfileService() {
+        this.libsDataService = LIBSDataService.getInstance();
+        this.pythonUtils = PythonUtils.getInstance();
+        this.objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    }
+
+    public InstrumentProfileService(LIBSDataService libsDataService, PythonUtils pythonUtils) {
+        this.libsDataService = libsDataService;
+        this.pythonUtils = pythonUtils;
+        this.objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    }
+
     public static InstrumentProfileService getInstance() {
         if (instance == null) {
             instance = new InstrumentProfileService();
         }
         return instance;
+    }
+
+    public List<Path> resolveInputCsvFiles(Path inputPath) throws IOException {
+        if (Files.isDirectory(inputPath)) {
+            try (Stream<Path> stream = Files.list(inputPath)) {
+                List<Path> csvs = stream
+                        .filter(p -> p.toString().toLowerCase().endsWith(".csv"))
+                        .sorted()
+                        .collect(Collectors.toList());
+                if (csvs.isEmpty()) {
+                    throw new IOException("No CSV files found in directory: " + inputPath);
+                }
+                return csvs;
+            }
+        } else if (Files.isRegularFile(inputPath)) {
+            return Collections.singletonList(inputPath);
+        }
+        throw new IOException("Calibration input path does not exist: " + inputPath);
+    }
+
+    public Map<String, Object> loadOrInitializeManifest(
+            Path manifestPath, String instrumentName, int numZones, Path outputProfilePath) throws IOException {
+        if (Files.exists(manifestPath)) {
+            return objectMapper.readValue(manifestPath.toFile(), new TypeReference<LinkedHashMap<String, Object>>() {});
+        }
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("instrumentName", instrumentName);
+        root.put("nistResolvingPower", NIST_RESOLVING_POWER);
+        root.put("detectorFullScale", 65535.0);
+        root.put("saturationThresholdFactor", 0.9);
+        root.put("numZones", numZones);
+        root.put("splineKnots", 14);
+        root.put("splinePenaltyMuR", 100.0);
+        root.put("outputProfilePath", outputProfilePath.toAbsolutePath().toString());
+        root.put("baselineCorrectionParams",
+                new BaselineCorrectionParams("morphological_opening", DEFAULT_MORPHOLOGICAL_STRUCT_SIZE));
+        root.put("teAnchorGridEv", TE_ANCHOR_GRID_EV);
+        root.put("neAnchorGridCm3", NE_ANCHOR_GRID_CM3);
+        root.put("materialFamilies", new LinkedHashMap<String, List<Map<String, Object>>>());
+        return root;
+    }
+
+    @SuppressWarnings("unchecked")
+    public InstrumentProfile stageMaterialAndRunGpuCalibration(
+            Path inputPath,
+            List<Element> elements,
+            String materialType,
+            String materialGrade,
+            String instrumentName,
+            int numZones,
+            int holdoutCsvCount,
+            Path outputProfilePath) throws Exception {
+
+        // 1. Resolve CSV files from directory or single file
+        List<Path> allCsvs = resolveInputCsvFiles(inputPath);
+        int splitIdx = (allCsvs.size() > holdoutCsvCount && holdoutCsvCount > 0)
+                ? allCsvs.size() - holdoutCsvCount
+                : allCsvs.size();
+
+        List<String> trainCsvs = allCsvs.subList(0, splitIdx).stream()
+                .map(p -> p.toAbsolutePath().toString())
+                .collect(Collectors.toList());
+        List<String> holdoutCsvs = allCsvs.subList(splitIdx, allCsvs.size()).stream()
+                .map(p -> p.toAbsolutePath().toString())
+                .collect(Collectors.toList());
+
+        // 2. Fetch or verify 48-state NIST grid in cache/nist/ via Selenium recalculation
+        Map<String, String> nistGridCsvPaths = libsDataService.fetchAndCacheNistAnchorGrid(
+                materialGrade, elements, TE_ANCHOR_GRID_EV, NE_ANCHOR_GRID_CM3, NIST_RESOLVING_POWER
+        );
+
+        // 3. Load or initialize temp/calibration_manifest.json
+        Path manifestPath = Path.of("temp", "calibration_manifest.json");
+        Files.createDirectories(manifestPath.getParent());
+        Map<String, Object> manifest = loadOrInitializeManifest(
+                manifestPath, instrumentName, numZones, outputProfilePath);
+
+        manifest.put("targetMaterialFamily", materialType);
+        manifest.put("numZones", numZones);
+        manifest.put("outputProfilePath", outputProfilePath.toAbsolutePath().toString());
+
+        // 4. Upsert material entry inside manifest.materialFamilies.<materialType>
+        Map<String, List<Map<String, Object>>> familiesMap =
+                (Map<String, List<Map<String, Object>>>) manifest.computeIfAbsent(
+                        "materialFamilies", k -> new LinkedHashMap<>());
+
+        List<Map<String, Object>> familyMatList =
+                familiesMap.computeIfAbsent(materialType, k -> new ArrayList<>());
+
+        Map<String, Double> compMap = new LinkedHashMap<>();
+        StringBuilder normCompBuilder = new StringBuilder();
+        for (Element el : elements) {
+            if (el.getPercentageComposition() > 0.0) {
+                compMap.put(el.getSymbol(), el.getPercentageComposition());
+                if (normCompBuilder.length() > 0) normCompBuilder.append(",");
+                normCompBuilder.append(el.getSymbol()).append("-").append(el.getPercentageComposition());
+            }
+        }
+
+        Map<String, Object> materialEntry = new LinkedHashMap<>();
+        materialEntry.put("materialName", materialGrade);
+        materialEntry.put("referenceComposition", normCompBuilder.toString());
+        materialEntry.put("compositionMap", compMap);
+        materialEntry.put("measuredCsvPaths", trainCsvs);
+        materialEntry.put("holdoutCsvPaths", holdoutCsvs);
+        materialEntry.put("nistGridCsvPaths", nistGridCsvPaths);
+
+        // Replace existing entry for materialGrade if present, otherwise append
+        familyMatList.removeIf(entry -> materialGrade.equals(String.valueOf(entry.get("materialName"))));
+        familyMatList.add(materialEntry);
+
+        objectMapper.writeValue(manifestPath.toFile(), manifest);
+
+        // 5. Execute GPU Calibration Engine (Morphological Opening + Voigt + NNLS + GPU MC RTE)
+        pythonUtils.runGpuCalibrationEngine(
+                Path.of("scripts", "gpu_calibration_engine.py"),
+                manifestPath
+        );
+
+        return objectMapper.readValue(outputProfilePath.toFile(), InstrumentProfile.class);
     }
 
     /**

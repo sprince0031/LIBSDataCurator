@@ -20,8 +20,8 @@ public class UserInputConfig {
     // --- Input Modes ---
     public String compositionInput;
     public String overviewGuid;
-    public final boolean isCompositionMode;
-    public final boolean isSeriesMode;
+    public boolean isCompositionMode;
+    public boolean isSeriesMode;
 
     // --- Variation Parameters ---
     public final boolean performVariations;

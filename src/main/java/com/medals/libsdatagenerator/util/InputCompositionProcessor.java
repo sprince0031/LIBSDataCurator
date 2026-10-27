@@ -346,6 +346,15 @@ public class InputCompositionProcessor {
         return null;
     }
 
+    public List<Element> parseCompositionString(String compositionStr) throws IOException {
+        if (compositionStr == null || compositionStr.isBlank()) {
+            throw new IOException("Composition string is null or empty");
+        }
+        List<String> parts = Arrays.asList(compositionStr.split(","));
+        Map<String, Object> meta = generateElementsList(parts);
+        return (List<Element>) meta.get(LIBSDataGenConstants.ELEMENTS_LIST);
+    }
+
     public Map<String, Object> generateElementsList(List<String> composition) throws IOException {
         List<Element> elementsList = new ArrayList<>();
         double totalPercentage = 0.0;

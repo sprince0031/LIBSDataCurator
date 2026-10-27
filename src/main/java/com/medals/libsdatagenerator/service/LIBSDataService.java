@@ -34,7 +34,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -244,6 +246,57 @@ public class LIBSDataService {
             logger.log(Level.SEVERE, "Failed to fetch calibration spectrum", e);
             return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
         }
+    }
+
+    /**
+     * Fetches and caches the 48-state (Te, Ne) discrete anchor grid for a given material composition.
+     * Caches files locally in cache/nist/<materialGrade>_Te<Te>_Ne<Ne>.csv.
+     */
+    public Map<String, String> fetchAndCacheNistAnchorGrid(
+            String materialGrade,
+            List<Element> composition,
+            double[] teGrid,
+            double[] neGrid,
+            double resolution) throws Exception {
+
+        Map<String, String> nistGridCsvPaths = new LinkedHashMap<>();
+        Path cacheDir = Path.of("cache", "nist");
+        Files.createDirectories(cacheDir);
+
+        UserInputConfig config = new UserInputConfig();
+        config.resolution = String.valueOf((long) resolution);
+        config.isCompositionMode = true;
+
+        int remainderIdx = 0;
+        for (int i = 0; i < composition.size(); i++) {
+            if (composition.get(i).getPercentageComposition() > composition.get(remainderIdx).getPercentageComposition()) {
+                remainderIdx = i;
+            }
+        }
+
+        for (double te : teGrid) {
+            for (double ne : neGrid) {
+                String key = String.format(Locale.US, "%.1f_%.1E", te, ne);
+                String fileName = String.format(Locale.US, "%s_Te%.1f_Ne%.1E.csv", materialGrade, te, ne);
+                Path cacheFile = cacheDir.resolve(fileName);
+
+                if (Files.exists(cacheFile) && Files.size(cacheFile) > 0) {
+                    logger.info("Using cached NIST grid file: " + cacheFile);
+                    nistGridCsvPaths.put(key, cacheFile.toString());
+                } else {
+                    logger.info("Fetching NIST spectrum for " + materialGrade + " (Te=" + te + ", Ne=" + ne + ") -> " + cacheFile);
+                    String csvData = fetchPlasmaZoneSpectrum(composition, config, te, ne, remainderIdx);
+                    if (csvData != null && !csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+                        Files.writeString(cacheFile, csvData);
+                        nistGridCsvPaths.put(key, cacheFile.toString());
+                    } else {
+                        logger.warning("Failed to fetch NIST spectrum for Te=" + te + ", Ne=" + ne);
+                    }
+                }
+            }
+        }
+
+        return nistGridCsvPaths;
     }
 
     private void fetchAndProcessSpectra(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions,
