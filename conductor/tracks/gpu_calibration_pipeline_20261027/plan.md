@@ -39,27 +39,27 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Incremental Manifest & Selenium 48-State NIST Grid Caching' (Protocol in workflow.md)
 
 ### Phase 4: PyTorch CUDA Calibration Engine & Non-Destructive Profile Upsert
-- [~] Task: Raw shot ingestion, saturation masking & morphological opening
-    - [ ] Create `scripts/gpu_calibration_engine.py` skeleton with CUDA/CPU device resolution and manifest loading
-    - [ ] Implement per-shot saturation masking ($< 0.9 \times y_{\text{FS}}$) and averaging across non-saturated shots
-    - [ ] Implement 1D Morphological Grey Opening baseline subtraction (`scipy.ndimage.grey_opening`, structuring element size = 25)
-- [ ] Task: Differential Voigt Transfer Matrix Ψ construction
-    - [ ] Implement pseudo-Voigt peak fitting on isolated thin lines to determine $\text{FWHM}_G(\lambda)$ and $\text{FWHM}_L(\lambda)$ (cross-referencing ASD line data in `/home/puser/Work/PhD/Code/Medals_classifier/data/reference/nist_lines`)
-    - [ ] Build GPU sparse/dense convolution matrix $\boldsymbol{\Psi} \in \mathbb{R}^{P \times P_{\text{NIST}}}$
-- [ ] Task: Stage 1 Global NNLS & B-Spline instrument response solver
-    - [ ] Implement Stage 1 global NNLS solver with 14-knot cubic B-spline basis and second-derivative curvature penalty
-    - [ ] Normalize recovered response $\mathbf{r}(\lambda)$ to geometric mean = 1.0
-- [ ] Task: Stage 2 GPU 2D Bilinear Interpolation & Contracting Hypercube Monte Carlo RTE
-    - [ ] Implement GPU 2D Bilinear Interpolation (`torch.nn.functional.grid_sample`) on the 48-state anchor grid tensor
-    - [ ] Implement Contracting Hypercube Monte Carlo search over $T_e, N_e, V_{\text{frac}}, \kappa_{\text{abs}}$ per zone minimizing weighted line correlation cost
-- [ ] Task: Stage 3 spatial bootstrap & non-destructive JSON profile upsert
-    - [ ] Implement spatial point bootstrap across calibration CSVs to calculate `teStdDev`, `neLogStdDev`, and Finotello noise $\beta$
-    - [ ] Implement non-destructive upsert into `conf/instrument_profile.json` preserving existing material family entries
-    - [ ] Write unit/integration tests verifying GPU engine execution and upsert behavior
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: PyTorch CUDA Calibration Engine & Non-Destructive Profile Upsert' (Protocol in workflow.md)
+- [x] Task: Raw shot ingestion, saturation masking & morphological opening (3663570)
+    - [x] Create `scripts/gpu_calibration_engine.py` skeleton with CUDA/CPU device resolution and manifest loading
+    - [x] Implement per-shot saturation masking ($< 0.9 \times y_{\text{FS}}$) and averaging across non-saturated shots
+    - [x] Implement 1D Morphological Grey Opening baseline subtraction (`scipy.ndimage.grey_opening`, structuring element size = 25)
+- [x] Task: Differential Voigt Transfer Matrix Ψ construction (3663570)
+    - [x] Implement pseudo-Voigt peak fitting on isolated thin lines to determine $\text{FWHM}_G(\lambda)$ and $\text{FWHM}_L(\lambda)$ (cross-referencing ASD line data in `/home/puser/Work/PhD/Code/Medals_classifier/data/reference/nist_lines`)
+    - [x] Build GPU sparse/dense convolution matrix $\boldsymbol{\Psi} \in \mathbb{R}^{P \times P_{\text{NIST}}}$
+- [x] Task: Stage 1 Global NNLS & B-Spline instrument response solver (3663570)
+    - [x] Implement Stage 1 global NNLS solver with 14-knot cubic B-spline basis and second-derivative curvature penalty
+    - [x] Normalize recovered response $\mathbf{r}(\lambda)$ to geometric mean = 1.0
+- [x] Task: Stage 2 GPU 2D Bilinear Interpolation & Contracting Hypercube Monte Carlo RTE (3663570)
+    - [x] Implement GPU 2D Bilinear Interpolation (`torch.nn.functional.grid_sample`) on the 48-state anchor grid tensor
+    - [x] Implement Contracting Hypercube Monte Carlo search over $T_e, N_e, V_{\text{frac}}, \kappa_{\text{abs}}$ per zone minimizing weighted line correlation cost
+- [x] Task: Stage 3 spatial bootstrap & non-destructive JSON profile upsert (3663570)
+    - [x] Implement spatial point bootstrap across calibration CSVs to calculate `teStdDev`, `neLogStdDev`, and Finotello noise $\beta$
+    - [x] Implement non-destructive upsert into `conf/instrument_profile.json` preserving existing material family entries
+    - [x] Write unit/integration tests verifying GPU engine execution and upsert behavior
+- [x] Task: Conductor - User Manual Verification 'Phase 4: PyTorch CUDA Calibration Engine & Non-Destructive Profile Upsert' (Protocol in workflow.md)
 
 ### Phase 5: Forward Synthetic Pipeline Integration, Batch Runner & Legacy Hard-Deletion
-- [ ] Task: Optional residuals injection for tramp elements using Bernoulli trials
+- [~] Task: Optional residuals injection for tramp elements using Bernoulli trials
     - [ ] Add CLI flag `--inject-residuals` / `-ir` (and optional `--residuals-prob`) to `LIBSDataGenConstants.java`, `CmdlineParserUtil.java`, and `UserInputConfig.java`
     - [ ] Write unit tests for Bernoulli trial occurrence sampling, tramp concentration injection, and CLI flag gating
     - [ ] Implement `ResidualsInjector` to inject tramp elements (e.g., Cu, Sn, Pb, As, Sb, Cr, Ni) via independent Bernoulli trials with scrap contamination ranges and matrix (Fe) rebalancing only when `--inject-residuals` is active
