@@ -387,12 +387,7 @@ public class LIBSDataService {
                     compositions = CompositionalVariations.getInstance().generateCompositionalVariations(materialGrade, config);
 
                     if (compositions != null && !compositions.isEmpty()) {
-                        // Apply coating to all variations of material if this is a coated series
-                        if (materialGrade.getParentSeries().isCoated()) {
-                            SeriesInput series = materialGrade.getParentSeries();
-                            compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
-                                    series.getCoatingElement(), config.scaleCoating);
-                        }
+                        logger.warning("Compositional variations successfully generated for input: " + materialGrade);
                     } else {
                         logger.warning("No compositions generated for input: " + materialGrade);
                     }
@@ -401,6 +396,13 @@ public class LIBSDataService {
                 if (config.variationMode == NistUrlOptions.VariationMode.PLASMATEMP) {
                     plasmaZones.addAll(PlasmaTempSampler.getInstance().sample(familyProfile.getPlasmaZones(),
                             config.numSamples, config.relativeStdDeviation, config.seed));
+                }
+
+                // Apply coating to all variations of material if this is a coated series
+                if (materialGrade.getParentSeries().isCoated()) {
+                    SeriesInput series = materialGrade.getParentSeries();
+                    compositions = InputCompositionProcessor.getInstance().applyCoating(compositions,
+                            series.getCoatingElement(), config.scaleCoating);
                 }
             }
 
