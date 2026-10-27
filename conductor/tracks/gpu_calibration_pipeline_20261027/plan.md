@@ -3,10 +3,10 @@
 ## Track ID: `gpu_calibration_pipeline_20261027`
 
 ### Phase 1: Cleanup & Deprecation of Legacy Reporting & ALS Baseline
-- [ ] Task: Deprecate legacy baseline and reporting methods
-    - [ ] Add `@Deprecated` annotations to `BaselineCorrectionService.java` and remove Java ALS calls from calibration execution path
-    - [ ] Add `@Deprecated` annotations to Papermill, Pandoc, and notebook execution methods in `PythonUtils.java`
-- [ ] Task: Refactor BaselineCorrectionParams to Morphological Opening
+- [x] Task: Deprecate legacy baseline and reporting methods (facf096)
+    - [x] Add `@Deprecated` annotations to `BaselineCorrectionService.java` and remove Java ALS calls from calibration execution path
+    - [x] Add `@Deprecated` annotations to Papermill, Pandoc, and notebook execution methods in `PythonUtils.java`
+- [~] Task: Refactor BaselineCorrectionParams to Morphological Opening
     - [ ] Write unit tests for `BaselineCorrectionParams` deserialization with legacy ALS fields ignored and morphological opening defaulted
     - [ ] Update `src/main/java/com/medals/libsdatagenerator/model/BaselineCorrectionParams.java` with `@JsonIgnoreProperties(ignoreUnknown = true)`, defaulting to `method = "morphological_opening"` and `structuringElementSize = 25`
     - [ ] Verify tests pass (`mvn test -Dtest=BaselineCorrectionParamsTest`)
