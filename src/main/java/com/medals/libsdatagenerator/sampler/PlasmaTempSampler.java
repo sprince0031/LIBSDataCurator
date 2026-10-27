@@ -39,6 +39,12 @@ public class PlasmaTempSampler implements PlasmaSampler {
     public List<List<PlasmaZone>> sample(List<PlasmaZone> baseZones, int numSamples, double relativeStdDev, Long seed) {
 
         Set<String> plasmaKeySet = new HashSet<>();
+        // Adding base zone key to key set
+        String basePlasmaKey = "";
+        for (PlasmaZone base : baseZones) {
+            basePlasmaKey += String.format("_%.3f_%.3e", base.getTe(), base.getNe());
+        }
+        plasmaKeySet.add(basePlasmaKey);
         List<List<PlasmaZone>> shotZoneProfiles = new ArrayList<>(numSamples);
         UniformRandomProvider rng = seed != null ?
                 RandomSource.XO_RO_SHI_RO_128_PP.create(seed) :
@@ -81,7 +87,7 @@ public class PlasmaTempSampler implements PlasmaSampler {
         double newTempK = baseTempK * (1.0 + shotDeltaFactor);
 
         // Clamp within analytical window bounds [7,500 K, 12,000 K]
-        newTempK = Math.clamp(newTempK, 7500.0, 12000.0);
+        newTempK = Math.clamp(newTempK, 5802.26, 13925.43); // 0.5eV to 1.2eV
         double tempElectronVolts = Math.round((newTempK/K_TO_EV_CONVERSION_FACTOR) * 1000.0) / 1000.0;
 
         perturbed.setTe(tempElectronVolts);
