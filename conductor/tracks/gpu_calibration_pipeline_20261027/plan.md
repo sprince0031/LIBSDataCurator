@@ -10,10 +10,10 @@
     - [x] Write unit tests for `BaselineCorrectionParams` deserialization with legacy ALS fields ignored and morphological opening defaulted
     - [x] Update `src/main/java/com/medals/libsdatagenerator/model/BaselineCorrectionParams.java` with `@JsonIgnoreProperties(ignoreUnknown = true)`, defaulting to `method = "morphological_opening"` and `structuringElementSize = 25`
     - [x] Verify tests pass (`mvn test -Dtest=BaselineCorrectionParamsTest`)
-- [~] Task: Conductor - User Manual Verification 'Phase 1: Cleanup & Deprecation of Legacy Reporting & ALS Baseline' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Cleanup & Deprecation of Legacy Reporting & ALS Baseline' (Protocol in workflow.md)
 
 ### Phase 2: Model & CLI Argument Refactoring
-- [ ] Task: Update domain models for profile and plasma zones
+- [~] Task: Update domain models for profile and plasma zones
     - [ ] Write unit tests for updated `PlasmaZone`, `MaterialFamilyProfile`, and `InstrumentProfile` JSON serialization and deserialization
     - [ ] Update `src/main/java/com/medals/libsdatagenerator/model/PlasmaZone.java` to support `teStdDev`, `neLogStdDev`, `volumeFraction`, and `kAbsorption`
     - [ ] Update `MaterialFamilyProfile.java` and `InstrumentProfile.java` to support `spectralResponse`, `voigtProfile`, `finotelloNoiseBeta`, and `validationHoldoutCsvs`
