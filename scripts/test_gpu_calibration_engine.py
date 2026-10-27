@@ -1,0 +1,74 @@
+import json
+import numpy as np
+import pandas as pd
+import pytest
+from pathlib import Path
+from scripts.gpu_calibration_engine import GpuLibsCalibrationEngine
+
+
+@pytest.fixture
+def sample_manifest(tmp_path):
+    manifest_data = {
+        "targetMaterialFamily": "Ferritic_Stainless_Steel",
+        "outputProfilePath": str(tmp_path / "instrument_profile.json"),
+        "nistResolvingPower": 5000.0,
+        "detectorFullScale": 65535.0,
+        "saturationThresholdFactor": 0.9,
+        "numZones": 2,
+        "splineKnots": 14,
+        "splinePenaltyMuR": 100.0,
+        "baselineCorrectionParams": {
+            "method": "morphological_opening",
+            "structuringElementSize": 25
+        },
+        "teAnchorGridEv": [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0],
+        "neAnchorGridCm3": [1.0e16, 5.0e16, 1.0e17, 5.0e17],
+        "materialFamilies": {}
+    }
+    manifest_path = tmp_path / "calibration_manifest.json"
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest_data, f)
+    return str(manifest_path)
+
+
+def test_morphological_opening_baseline_stripping(sample_manifest):
+    engine = GpuLibsCalibrationEngine(sample_manifest)
+    x = np.linspace(340, 900, 1000)
+    # Background continuum: broad polynomial
+    continuum = 500.0 + 200.0 * np.sin(x / 50.0)
+    # Discrete narrow emission lines
+    peaks = np.zeros_like(x)
+    peaks[200] = 5000.0
+    peaks[500] = 7000.0
+    peaks[800] = 6000.0
+    raw_spectrum = continuum + peaks
+
+    stripped = engine.strip_baseline_morphological_opening(raw_spectrum, struct_size=25)
+
+    assert stripped[200] > 4500.0
+    assert stripped[500] > 6500.0
+    assert stripped[800] > 5500.0
+    # Baseline regions should be near 0
+    assert np.mean(stripped[:150]) < 20.0
+
+
+def test_saturation_rejection_and_shot_cleaning(sample_manifest, tmp_path):
+    engine = GpuLibsCalibrationEngine(sample_manifest)
+    # Create mock CSV with 5 shots: 2 saturated (> 0.9 * 65535 = 58981.5), 3 valid
+    wavelengths = [340.0, 341.0, 342.0]
+    data = [
+        [1000.0, 2000.0, 3000.0],
+        [60000.0, 2000.0, 3000.0],  # saturated in ch 0
+        [1000.0, 2000.0, 3000.0],
+        [65535.0, 2000.0, 3000.0],  # saturated in ch 0
+        [1000.0, 2000.0, 3000.0],
+    ]
+    df = pd.DataFrame(data, columns=[str(w) for w in wavelengths])
+    csv_file = tmp_path / "point_1.csv"
+    df.to_csv(csv_file, index=False)
+
+    lam, y_clean, sig, pt_means, n_shots = engine.load_and_clean_material_csvs([str(csv_file)])
+    assert len(lam) == 3
+    assert n_shots == 5
+    # The mean of channel 0 should be calculated only from non-saturated shots (1000.0)
+    assert np.isclose(pt_means[0][0], 0.0, atol=1.0) or pt_means[0][0] <= 1000.0

@@ -153,7 +153,7 @@ public class PythonUtils {
      * @throws Exception if engine execution fails
      */
     public void runGpuCalibrationEngine(Path scriptPath, Path manifestPath) throws Exception {
-        String pythonCmd = checkCommand("python3", "--version") ? "python3" : "python";
+        String pythonCmd = resolvePythonCommand();
         List<String> command = List.of(
                 pythonCmd,
                 scriptPath.toAbsolutePath().toString(),
@@ -167,5 +167,24 @@ public class PythonUtils {
         if (exitCode != 0) {
             throw new RuntimeException("GPU Calibration Engine exited with non-zero exit code: " + exitCode);
         }
+    }
+
+    public String resolvePythonCommand() {
+        String envPython = System.getenv("PYTHON_EXEC");
+        if (envPython != null && Files.exists(Path.of(envPython))) {
+            return envPython;
+        }
+        String venv = System.getenv("VIRTUAL_ENV");
+        if (venv != null) {
+            Path p = Path.of(venv, "bin", "python3");
+            if (Files.exists(p)) return p.toString();
+            p = Path.of(venv, "bin", "python");
+            if (Files.exists(p)) return p.toString();
+        }
+        Path phdEnv = Path.of(System.getProperty("user.home"), "Work", "PhD", "phd_code_env", "bin", "python3");
+        if (Files.exists(phdEnv)) {
+            return phdEnv.toString();
+        }
+        return checkCommand("python3", "--version") ? "python3" : "python";
     }
 }
