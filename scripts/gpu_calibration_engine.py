@@ -6,6 +6,8 @@ Baseline Correction: 1D Morphological Grey Opening (Default Structure Size = 25)
 """
 
 import json
+import logging
+import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -20,6 +22,7 @@ from scipy.optimize import curve_fit, nnls
 
 
 DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25
+logger = logging.getLogger("gpu_calibration_engine")
 
 
 class GpuLibsCalibrationEngine:
@@ -28,9 +31,28 @@ class GpuLibsCalibrationEngine:
         with open(self.manifest_path, "r", encoding="utf-8") as f:
             self.manifest = json.load(f)
 
+        # Configure logging directory and log file
+        logs_dir_str = self.manifest.get("logsDir")
+        if logs_dir_str:
+            self.logs_dir = Path(logs_dir_str)
+        else:
+            candidate1 = self.manifest_path.resolve().parent.parent / "logs"
+            candidate2 = Path.cwd() / "logs"
+            if candidate1.exists():
+                self.logs_dir = candidate1
+            elif candidate2.exists():
+                self.logs_dir = candidate2
+            else:
+                self.logs_dir = candidate1
+        self.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.log_file = (self.logs_dir / "gpu_calibration_engine.log").resolve()
+        self._init_logger()
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
-        print(f"[GPU Engine] Active Device: {self.device} ({dev_name})")
+        logger.info(f"[GPU Engine] Active Device: {self.device} ({dev_name})")
+        logger.info(f"[GPU Engine] Manifest: {self.manifest_path.resolve()}")
+        logger.info(f"[GPU Engine] Log file: {self.log_file}")
 
         bc_params = self.manifest.get("baselineCorrectionParams", {})
         self.struct_size = int(bc_params.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_STRUCT_SIZE))
@@ -41,6 +63,23 @@ class GpuLibsCalibrationEngine:
         self.n_te = len(self.te_grid)
         self.n_ne = len(self.ne_grid)
         self.j_states = self.n_te * self.n_ne
+
+    def _init_logger(self):
+        logger.setLevel(logging.DEBUG)
+        if not logger.handlers:
+            fmt = logging.Formatter(
+                "[%(asctime)s]|[%(name)s]|[%(levelname)s]: %(message)s",
+                datefmt="%d-%m-%Y %H:%M:%S"
+            )
+            fh = logging.FileHandler(self.log_file, mode="a", encoding="utf-8")
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(fmt)
+            logger.addHandler(fh)
+
+            ch = logging.StreamHandler(sys.stdout)
+            ch.setLevel(logging.INFO)
+            ch.setFormatter(fmt)
+            logger.addHandler(ch)
 
     # -------------------------------------------------------------------------
     # STEP 1: Multi-CSV Shot Ingestion, Saturation Rejection & Morphological Opening
@@ -72,10 +111,25 @@ class GpuLibsCalibrationEngine:
         lam_meas = None
 
         for path in csv_paths:
-            df = pd.read_csv(path)
+            delim = self.manifest.get("csvDelimiter")
+            if not delim:
+                with open(path, "r", encoding="utf-8") as f:
+                    first_line = f.readline()
+                if ";" in first_line:
+                    delim = ";"
+                elif "\t" in first_line:
+                    delim = "\t"
+                else:
+                    delim = ","
+            df = pd.read_csv(path, sep=delim)
             # Detect whether columns 0..1 are metadata (ShotID, Timestamp) or wavelengths
             first_col_val = self._try_parse_float(df.columns[0])
             start_col = 0 if first_col_val is not None and first_col_val > 150.0 else 2
+
+            if len(df.columns) <= start_col:
+                raise ValueError(
+                    f"CSV file '{path}' has insufficient columns ({len(df.columns)}) with delimiter '{delim}'."
+                )
 
             if lam_meas is None:
                 lam_meas = np.array([float(c) for c in df.columns[start_col:]], dtype=np.float64)
@@ -205,7 +259,14 @@ class GpuLibsCalibrationEngine:
                 key_sci = f"{te}_{ne:.1E}"
                 key_raw = f"{te}_{ne}"
                 csv_path = nist_paths_map.get(key_sci) or nist_paths_map.get(key_raw)
-                df = pd.read_csv(csv_path)
+                if csv_path is None:
+                    raise KeyError(f"Missing NIST grid path for Te={te}, Ne={ne} in dictionary")
+                p = Path(csv_path)
+                if not p.is_absolute() and not p.exists():
+                    candidate = self.manifest_path.resolve().parent.parent / p
+                    if candidate.exists():
+                        p = candidate
+                df = pd.read_csv(p)
                 if lam_nist is None:
                     lam_nist = df.iloc[:, 0].to_numpy(dtype=np.float64)
                 s_cols.append(df.iloc[:, 1].to_numpy(dtype=np.float32))
@@ -435,17 +496,25 @@ class GpuLibsCalibrationEngine:
         ref_y = np.mean(y_all, axis=0)
         fwhm_g_meas, fwhm_l_meas = self.estimate_measured_voigt_fwhm(lam_meas, ref_y)
 
-        dummy_nist_map = mat_meta[0][2]
-        lam_nist, _ = self.load_nist_dictionary_for_material(dummy_nist_map, psi_gpu=None)
-        psi_gpu = self.build_gpu_voigt_transfer_matrix(lam_meas, lam_nist, fwhm_g_meas, fwhm_l_meas)
-
         d_all_list = []
         d_all_gpu_list = []
-        for _, _, nist_paths, _ in mat_meta:
-            _, d_mat_gpu = self.load_nist_dictionary_for_material(nist_paths, psi_gpu=psi_gpu)
+        psi_cache = {}
+        for _, mat_name, nist_paths, _ in mat_meta:
+            lam_mat_nist, s_mat_gpu = self.load_nist_dictionary_for_material(nist_paths, psi_gpu=None)
+            nist_len = len(lam_mat_nist)
+            if nist_len not in psi_cache:
+                logger.info(
+                    f"[GPU Engine] Building Voigt transfer matrix for material '{mat_name}' "
+                    f"(Meas: {len(lam_meas)}, NIST: {nist_len})..."
+                )
+                psi_cache[nist_len] = self.build_gpu_voigt_transfer_matrix(
+                    lam_meas, lam_mat_nist, fwhm_g_meas, fwhm_l_meas
+                )
+            d_mat_gpu = torch.matmul(psi_cache[nist_len], s_mat_gpu)
             d_all_gpu_list.append(d_mat_gpu)
             d_all_list.append(d_mat_gpu.cpu().numpy())
         d_all = np.stack(d_all_list, axis=0)
+        logger.info(f"[GPU Engine] Transformed NIST dictionary to measurement grid: d_all shape {d_all.shape}")
 
         res_mask = np.ones_like(lam_meas)
         for win in self.manifest.get("resonanceMaskWindowsNm", []):
@@ -555,8 +624,8 @@ class GpuLibsCalibrationEngine:
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(profile_json, f, indent=4)
 
-        print(f"[GPU Engine] Upserted family '{target_family}' into {out_path} "
-              f"(Total families in profile: {len(existing_families)})")
+        logger.info(f"[GPU Engine] Upserted family '{target_family}' into {out_path} "
+                    f"(Total families in profile: {len(existing_families)})")
 
 
 if __name__ == "__main__":
@@ -566,5 +635,9 @@ if __name__ == "__main__":
     manifest_arg = sys.argv[1]
     if manifest_arg == "--manifest" and len(sys.argv) > 2:
         manifest_arg = sys.argv[2]
-    engine = GpuLibsCalibrationEngine(manifest_arg)
-    engine.run()
+    try:
+        engine = GpuLibsCalibrationEngine(manifest_arg)
+        engine.run()
+    except Exception as e:
+        logger.exception(f"Fatal error executing GPU Calibration Engine: {e}")
+        sys.exit(1)

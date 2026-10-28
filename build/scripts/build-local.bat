@@ -127,7 +127,7 @@ xcopy /s /e /i build\jre-custom build\release-package\jre-custom
 
 REM Copy configuration files if they exist
 if exist "conf" (
-    xcopy /s /e conf\* build\release-package\conf\ 2>nul
+    xcopy /s /e conf\*.properties build\release-package\conf\ 2>nul
 )
 
 REM Copy docs if they exist
@@ -137,7 +137,7 @@ if exist "docs" (
 
 REM Copy scripts if they exist
 if exist "scripts" (
-    xcopy /s /e scripts\* build\release-package\scripts\ 2>nul
+    xcopy /s /e scripts\gpu_calibration_engine.py build\release-package\scripts\ 2>nul
 )
 
 REM Create run script

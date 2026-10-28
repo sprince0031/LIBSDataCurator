@@ -141,6 +141,23 @@ public class InstrumentProfileService {
             int numZones,
             int holdoutCsvCount,
             Path outputProfilePath) throws Exception {
+        return stageMaterialAndRunGpuCalibration(
+                inputPath, elements, materialType, materialGrade, instrumentName,
+                ";", numZones, holdoutCsvCount, outputProfilePath
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    public InstrumentProfile stageMaterialAndRunGpuCalibration(
+            Path inputPath,
+            List<Element> elements,
+            String materialType,
+            String materialGrade,
+            String instrumentName,
+            String delimiter,
+            int numZones,
+            int holdoutCsvCount,
+            Path outputProfilePath) throws Exception {
 
         // 1. Resolve CSV files from directory or single file
         List<Path> allCsvs = resolveInputCsvFiles(inputPath);
@@ -169,6 +186,8 @@ public class InstrumentProfileService {
         manifest.put("targetMaterialFamily", materialType);
         manifest.put("numZones", numZones);
         manifest.put("outputProfilePath", outputProfilePath.toAbsolutePath().toString());
+        manifest.put("csvDelimiter", delimiter);
+        manifest.put("logsDir", Path.of("logs").toAbsolutePath().toString());
 
         // 4. Upsert material entry inside manifest.materialFamilies.<materialType>
         Map<String, List<Map<String, Object>>> familiesMap =
@@ -203,10 +222,7 @@ public class InstrumentProfileService {
         objectMapper.writeValue(manifestPath.toFile(), manifest);
 
         // 5. Execute GPU Calibration Engine (Morphological Opening + Voigt + NNLS + GPU MC RTE)
-        pythonUtils.runGpuCalibrationEngine(
-                pythonUtils.resolveGpuEngineScriptPath(),
-                manifestPath
-        );
+        pythonUtils.runGpuCalibrationEngine(pythonUtils.resolveGpuEngineScriptPath(), manifestPath);
 
         return objectMapper.readValue(outputProfilePath.toFile(), InstrumentProfile.class);
     }

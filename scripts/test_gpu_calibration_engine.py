@@ -72,3 +72,26 @@ def test_saturation_rejection_and_shot_cleaning(sample_manifest, tmp_path):
     assert n_shots == 5
     # The mean of channel 0 should be calculated only from non-saturated shots (1000.0)
     assert np.isclose(pt_means[0][0], 0.0, atol=1.0) or pt_means[0][0] <= 1000.0
+
+
+def test_logging_initialization(sample_manifest):
+    engine = GpuLibsCalibrationEngine(sample_manifest)
+    assert engine.log_file.name == "gpu_calibration_engine.log"
+    assert engine.log_file.parent.exists()
+    assert engine.log_file.exists()
+    content = engine.log_file.read_text(encoding="utf-8")
+    assert "[GPU Engine]" in content
+
+
+def test_semicolon_delimited_csv_loading(sample_manifest, tmp_path):
+    engine = GpuLibsCalibrationEngine(sample_manifest)
+    # Mock semicolon delimited CSV with metadata headers (MeasCtr, TimeStamp)
+    content = "MeasCtr;TimeStamp;341.0;342.0;343.0\n1;2026-01-01;1200;1300;1400\n2;2026-01-01;1250;1350;1450\n"
+    csv_file = tmp_path / "semicolon_test.csv"
+    csv_file.write_text(content, encoding="utf-8")
+
+    lam, y_clean, sig, pt_means, n_shots = engine.load_and_clean_material_csvs([str(csv_file)])
+    assert len(lam) == 3
+    assert np.allclose(lam, [341.0, 342.0, 343.0])
+    assert n_shots == 2
+    assert len(pt_means) == 1

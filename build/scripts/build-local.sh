@@ -79,7 +79,7 @@ cp -r build/jre-custom build/release-package/
 
 # Copy configuration files if they exist
 if [ -d "conf" ]; then
-    cp -r conf/* build/release-package/conf/ 2>/dev/null || true
+    cp -r conf/*.properties build/release-package/conf/ 2>/dev/null || true
 fi
 
 # Copy docs if they exist
@@ -89,7 +89,7 @@ fi
 
 # Copy scripts if they exist
 if [ -d "scripts" ]; then
-    cp -r scripts/* build/release-package/scripts/ 2>/dev/null || true
+    cp scripts/gpu_calibration_engine.py build/release-package/scripts/ 2>/dev/null || true
     chmod +x build/release-package/scripts/*.py 2>/dev/null || true
 fi
 

@@ -1,10 +1,7 @@
 package com.medals.libsdatagenerator.util;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -159,23 +156,8 @@ public class PythonUtils {
      * @throws FileNotFoundException if the script cannot be located
      */
     public Path resolveGpuEngineScriptPath() throws FileNotFoundException {
-        // 1. Env variable
-        String envPath = System.getenv("GPU_CALIBRATION_ENGINE_SCRIPT");
-        if (envPath != null && !envPath.isBlank()) {
-            Path p = Path.of(envPath);
-            if (Files.exists(p)) {
-                return p.toAbsolutePath().normalize();
-            }
-        }
-
-        // 2. Relative to current directory
-        Path localPath = Path.of("scripts", "gpu_calibration_engine.py");
-        if (Files.exists(localPath)) {
-            return localPath.toAbsolutePath().normalize();
-        }
-
         // 3. Relative to user.dir
-        String userDir = System.getProperty("user.dir");
+        String userDir = CommonUtils.HOME_PATH;
         if (userDir != null && !userDir.isBlank()) {
             Path p = Path.of(userDir, "scripts", "gpu_calibration_engine.py");
             if (Files.exists(p)) {
@@ -183,58 +165,18 @@ public class PythonUtils {
             }
         }
 
-        // 4. Relative to code source (JAR location)
-        try {
-            var codeSource = PythonUtils.class.getProtectionDomain().getCodeSource();
-            if (codeSource != null && codeSource.getLocation() != null) {
-                Path jarPath = Path.of(codeSource.getLocation().toURI());
-                Path baseDir = Files.isDirectory(jarPath) ? jarPath : jarPath.getParent();
-                if (baseDir != null) {
-                    // Inside release package: lib/LIBSDataCurator.jar -> baseDir is lib/ -> check ../scripts/
-                    Path candidate1 = baseDir.getParent() != null ? baseDir.getParent().resolve("scripts").resolve("gpu_calibration_engine.py") : null;
-                    if (candidate1 != null && Files.exists(candidate1)) {
-                        return candidate1.toAbsolutePath().normalize();
-                    }
-                    Path candidate2 = baseDir.resolve("scripts").resolve("gpu_calibration_engine.py");
-                    if (Files.exists(candidate2)) {
-                        return candidate2.toAbsolutePath().normalize();
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        // 5. Parent directory search upwards (e.g., if launched from build/release-package)
-        Path current = Path.of("").toAbsolutePath();
-        for (int i = 0; i < 4 && current != null; i++) {
-            Path candidate = current.resolve("scripts").resolve("gpu_calibration_engine.py");
-            if (Files.exists(candidate)) {
-                return candidate.toAbsolutePath().normalize();
-            }
-            current = current.getParent();
-        }
-
-        throw new FileNotFoundException("Could not find gpu_calibration_engine.py. Checked: " +
-                "GPU_CALIBRATION_ENGINE_SCRIPT, ./scripts/gpu_calibration_engine.py, " +
-                (userDir != null ? userDir + "/scripts/gpu_calibration_engine.py, " : "") +
-                "JAR directory, and parent directory hierarchies.");
+        throw new FileNotFoundException("Could not find gpu_calibration_engine.py in " +
+                (userDir != null ? userDir: ".") + "/scripts/gpu_calibration_engine.py, ");
     }
 
     /**
      * Executes the PyTorch CUDA GPU calibration engine with the generated manifest.
      *
-     * @param scriptPath Path to scripts/gpu_calibration_engine.py (if null or non-existent, resolved automatically)
+     * @param resolvedScript Path to scripts/gpu_calibration_engine.py
      * @param manifestPath Path to temp/calibration_manifest.json
      * @throws Exception if engine execution fails
      */
-    public void runGpuCalibrationEngine(Path scriptPath, Path manifestPath) throws Exception {
-        Path resolvedScript = (scriptPath != null && Files.exists(scriptPath))
-                ? scriptPath.toAbsolutePath().normalize()
-                : resolveGpuEngineScriptPath();
-
-        if (!Files.exists(resolvedScript)) {
-            throw new FileNotFoundException("GPU calibration engine script not found at: " + resolvedScript);
-        }
+    public void runGpuCalibrationEngine(Path resolvedScript, Path manifestPath) throws Exception {
 
         if (manifestPath == null || !Files.exists(manifestPath)) {
             throw new FileNotFoundException("Calibration manifest not found at: " + manifestPath);

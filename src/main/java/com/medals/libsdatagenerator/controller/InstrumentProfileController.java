@@ -65,6 +65,22 @@ public class InstrumentProfileController {
             int numZones,
             int holdoutCsvCount,
             Path outputProfilePath) throws Exception {
+        return runCalibration(
+                inputPath, compositionStr, materialType, materialGrade, instrumentName,
+                ";", numZones, holdoutCsvCount, outputProfilePath
+        );
+    }
+
+    public InstrumentProfile runCalibration(
+            Path inputPath,
+            String compositionStr,
+            String materialType,
+            String materialGrade,
+            String instrumentName,
+            String delimiter,
+            int numZones,
+            int holdoutCsvCount,
+            Path outputProfilePath) throws Exception {
 
         List<Element> elements = compositionProcessor.parseCompositionString(compositionStr);
 
@@ -78,6 +94,7 @@ public class InstrumentProfileController {
                 materialType,
                 materialGrade,
                 instrumentName,
+                delimiter,
                 numZones,
                 holdoutCsvCount,
                 outputProfilePath
@@ -165,6 +182,7 @@ public class InstrumentProfileController {
                         materialType,
                         materialGrade,
                         instrumentName,
+                        delimiter,
                         plasmaZones,
                         holdoutCsvs,
                         outputFilePath
