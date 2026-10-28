@@ -224,27 +224,27 @@ public class LIBSDataService {
         try {
             // Ensure session is active (initial fetch should have been done)
             if (!seleniumUtils.isDriverOnline() || newVariation) {
-                logger.info("Starting new session for calibration fetch");
+                logger.info("Performing initial NIST server query for material: Te=" + te + " eV, Ne=" + ne + " cm^-3");
                 // Do a full initial fetch to set up the page state
                 config.plasmaTemp = String.valueOf(te);
                 config.electronDensity = String.valueOf(ne);
-                // Reset first composition flag to ensure proper setup
-//                firstComposition = true;
+                firstComposition = true;
                 newVariation = false;
-                boolean quitDriver = config.isCompositionMode && !config.performVariations && !config.twoZone;
-                return fetchLIBSData(composition, config, quitDriver, remainderElementIdx);
+                // Keep browser session alive for subsequent client-side recalculations
+                return fetchLIBSData(composition, config, false, remainderElementIdx);
             }
             
             NISTUtils nistUtils = new NISTUtils(seleniumUtils);
             
-            // Use client-side update for Te/Ne
+            // Use client-side update for Te/Ne via recalculate form
             nistUtils.updatePlasmaParameters(te, ne);
             
-            // Download results
+            // Download results from browser memory
             return nistUtils.downloadCsvData();
             
         } catch (Exception e) {
             logger.log(Level.SEVERE, "Failed to fetch calibration spectrum", e);
+            newVariation = true; // Recover with fresh session on next attempt if error occurs
             return String.valueOf(HttpURLConnection.HTTP_NOT_FOUND);
         }
     }
@@ -275,25 +275,39 @@ public class LIBSDataService {
             }
         }
 
-        for (double te : teGrid) {
-            for (double ne : neGrid) {
-                String key = String.format(Locale.US, "%.1f_%.1E", te, ne);
-                String fileName = String.format(Locale.US, "%s_Te%.1f_Ne%.1E.csv", materialGrade, te, ne);
-                Path cacheFile = cacheDir.resolve(fileName);
+        SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
+        try {
+            // Reset state flags: only the very first uncached query queries NIST server directly
+            newVariation = true;
+            firstComposition = true;
 
-                if (Files.exists(cacheFile) && Files.size(cacheFile) > 0) {
-                    logger.info("Using cached NIST grid file: " + cacheFile);
-                    nistGridCsvPaths.put(key, cacheFile.toString());
-                } else {
-                    logger.info("Fetching NIST spectrum for " + materialGrade + " (Te=" + te + ", Ne=" + ne + ") -> " + cacheFile);
-                    String csvData = fetchPlasmaZoneSpectrum(composition, config, te, ne, remainderIdx);
-                    if (csvData != null && !csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
-                        Files.writeString(cacheFile, csvData);
+            for (double te : teGrid) {
+                for (double ne : neGrid) {
+                    String key = String.format(Locale.US, "%.1f_%.1E", te, ne);
+                    String fileName = String.format(Locale.US, "%s_Te%.1f_Ne%.1E.csv", materialGrade, te, ne);
+                    Path cacheFile = cacheDir.resolve(fileName);
+
+                    if (Files.exists(cacheFile) && Files.size(cacheFile) > 0) {
+                        logger.info("Using cached NIST grid file: " + cacheFile);
                         nistGridCsvPaths.put(key, cacheFile.toString());
                     } else {
-                        logger.warning("Failed to fetch NIST spectrum for Te=" + te + ", Ne=" + ne);
+                        logger.info("Fetching NIST spectrum for " + materialGrade + " (Te=" + te + ", Ne=" + ne + ") -> " + cacheFile);
+                        String csvData = fetchPlasmaZoneSpectrum(composition, config, te, ne, remainderIdx);
+                        if (csvData != null && !csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
+                            Files.writeString(cacheFile, csvData);
+                            nistGridCsvPaths.put(key, cacheFile.toString());
+                        } else {
+                            logger.warning("Failed to fetch NIST spectrum for Te=" + te + ", Ne=" + ne);
+                        }
                     }
                 }
+            }
+        } finally {
+            if (seleniumUtils.isDriverOnline()) {
+                seleniumUtils.quitSelenium();
+                newVariation = true;
+                firstComposition = true;
+                logger.info("Closed Selenium session after completing NIST grid for " + materialGrade);
             }
         }
 

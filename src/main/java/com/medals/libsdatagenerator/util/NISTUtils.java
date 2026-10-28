@@ -8,7 +8,10 @@ import org.apache.commons.csv.CSVRecord;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -117,7 +120,17 @@ public class NISTUtils {
         );
         recalcButton.click();
         LOGGER.info("Clicked Recalculate button after updating plasma parameters");
-        
+
+        try {
+            WebDriverWait wait = seleniumUtils.getWait(1);
+            wait.until(ExpectedConditions.alertIsPresent());
+            Alert alert = seleniumUtils.getDriver().switchTo().alert();
+            LOGGER.warning("Alert detected during plasma recalculation: " + alert.getText());
+            alert.accept();
+        } catch (TimeoutException ignored) {
+            // Expected normal path when no alert is shown
+        }
+
         // Wait for results (check for CSV button)
         seleniumUtils.waitForElementPresent(By.name(LIBSDataGenConstants.NIST_LIBS_GET_CSV_BUTTON_HTML_TEXT));
     }
