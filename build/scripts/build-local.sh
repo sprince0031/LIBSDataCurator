@@ -69,7 +69,7 @@ PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 echo "Preparing release package (version: $VERSION, platform: $PLATFORM)..."
 
 # Create directory structure
-mkdir -p build/release-package/{lib,bin,conf,data,logs,docs}
+mkdir -p build/release-package/{lib,bin,conf,data,logs,docs,scripts}
 
 # Copy JAR
 cp build/target/LIBSDataCurator.jar build/release-package/lib/
@@ -85,6 +85,12 @@ fi
 # Copy docs if they exist
 if [ -d "docs" ]; then
     cp -r docs/{CHANGELOG.md,README.md} build/release-package/docs/ 2>/dev/null || true
+fi
+
+# Copy scripts if they exist
+if [ -d "scripts" ]; then
+    cp -r scripts/* build/release-package/scripts/ 2>/dev/null || true
+    chmod +x build/release-package/scripts/*.py 2>/dev/null || true
 fi
 
 # Create run script

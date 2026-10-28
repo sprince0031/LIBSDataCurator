@@ -30,4 +30,12 @@ class PythonUtilsTest {
         // Refactoring PythonUtils to be more testable would be better, but for now:
         assertNotNull(PythonUtils.getInstance());
     }
+
+    @Test
+    void testResolveGpuEngineScriptPath() throws Exception {
+        Path scriptPath = PythonUtils.getInstance().resolveGpuEngineScriptPath();
+        assertNotNull(scriptPath);
+        assertTrue(Files.exists(scriptPath));
+        assertTrue(scriptPath.toString().endsWith("gpu_calibration_engine.py"));
+    }
 }

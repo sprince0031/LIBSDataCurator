@@ -61,6 +61,7 @@ public class UserInputConfig {
     public boolean twoZone;
     public boolean injectResiduals;
     public double residualsProbability;
+    public String instrumentName;
 
     /**
      * Default constructor for manual configuration.
@@ -103,6 +104,7 @@ public class UserInputConfig {
         this.materialType = null;
         this.injectResiduals = false;
         this.residualsProbability = 0.30;
+        this.instrumentName = LIBSDataGenConstants.SYNTH_GEN_FLOW;
     }
 
     /**

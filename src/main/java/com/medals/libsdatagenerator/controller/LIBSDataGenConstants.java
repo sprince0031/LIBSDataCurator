@@ -199,8 +199,8 @@ public class LIBSDataGenConstants {
     public static final String CMD_OPT_OUTPUT_SHORT = "o";
     public static final String CMD_OPT_OUTPUT_LONG = "output";
     public static final String CMD_OPT_OUTPUT_DESC = "Output path for the instrument profile JSON file (default: conf/instrument_profile.json)";
-    public static final String CMD_OPT_NAME_SHORT = "n";
-    public static final String CMD_OPT_NAME_LONG = "name";
+    public static final String CMD_OPT_NAME_SHORT = "in";
+    public static final String CMD_OPT_NAME_LONG = "instrument-name";
     public static final String CMD_OPT_NAME_DESC = "Name or identifier for the instrument";
     public static final String CMD_OPT_PLASMA_ZONES_SHORT = "z";
     public static final String CMD_OPT_PLASMA_ZONES_LONG = "plasma-zones";
@@ -320,6 +320,7 @@ public class LIBSDataGenConstants {
     public static final String SPECTRAL_DATA_MAP_KEY_WAVELENGTHS = "wavelengths";
     public static final String MATERIALS_CATALOGUE_FILE_NAME = "materials_catalogue.properties";
     public static final String DATASET_STATISTICS_FILE_NAME = "dataset_stats.json";
+    public static final String SYNTH_GEN_FLOW = "synth-gen-flow";
 
     public static final String[] STD_ELEMENT_LIST = {
             "C", "Si", "Mn", "P", "S", "Cr", "Mo", "Ni", "Fe", "Cu", "Al", "V",

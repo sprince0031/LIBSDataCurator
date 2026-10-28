@@ -92,6 +92,7 @@ jobs:
           mkdir -p build/release-package/data
           mkdir -p build/release-package/logs
           mkdir -p build/release-package/docs
+          mkdir -p build/release-package/scripts
           
           # Copy JAR
           cp build/target/LIBSDataCurator.jar build/release-package/lib/
@@ -107,6 +108,12 @@ jobs:
           # Copy docs if they exist
           if [ -d "docs" ]; then
             cp -r docs/{CHANGELOG.md,README.md} build/release-package/docs/ 2>/dev/null || true
+          fi
+          
+          # Copy scripts if they exist
+          if [ -d "scripts" ]; then
+            cp -r scripts/* build/release-package/scripts/ 2>/dev/null || true
+            chmod +x build/release-package/scripts/*.py 2>/dev/null || true
           fi
           
           # Create run script
@@ -238,6 +245,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path build/release-package/data
           New-Item -ItemType Directory -Force -Path build/release-package/logs
           New-Item -ItemType Directory -Force -Path build/release-package/docs
+          New-Item -ItemType Directory -Force -Path build/release-package/scripts
           
           # Copy JAR
           Copy-Item build/target/LIBSDataCurator.jar build/release-package/lib/
@@ -254,6 +262,11 @@ jobs:
           if (Test-Path "docs") {
             Copy-Item docs/CHANGELOG.md build/release-package/docs/ -ErrorAction SilentlyContinue
             Copy-Item docs/TOOL_DESCRIPTION.md build/release-package/docs/ -ErrorAction SilentlyContinue
+          }
+
+          # Copy scripts if they exist
+          if (Test-Path "scripts") {
+            Copy-Item -Recurse scripts/* build/release-package/scripts/ -ErrorAction SilentlyContinue
           }
           
           # Create run script

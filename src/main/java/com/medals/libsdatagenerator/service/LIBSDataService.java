@@ -230,8 +230,9 @@ public class LIBSDataService {
                 config.electronDensity = String.valueOf(ne);
                 firstComposition = true;
                 newVariation = false;
-                // Keep browser session alive for subsequent client-side recalculations
-                return fetchLIBSData(composition, config, false, remainderElementIdx);
+                boolean quitDriver = config.isCompositionMode && !config.performVariations && !config.twoZone &&
+                        config.instrumentName.equals(LIBSDataGenConstants.SYNTH_GEN_FLOW);
+                return fetchLIBSData(composition, config, quitDriver, remainderElementIdx);
             }
             
             NISTUtils nistUtils = new NISTUtils(seleniumUtils);

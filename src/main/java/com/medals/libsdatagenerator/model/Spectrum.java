@@ -33,6 +33,14 @@ public class Spectrum {
         this.resolution = 1000;
     }
 
+    public double getMaxWavelength() {
+        return wavelengths[wavelengths.length - 1];
+    }
+
+    public double getMinWavelength() {
+        return wavelengths[0];
+    }
+
     public double[] getIntensities() {
         return intensities;
     }

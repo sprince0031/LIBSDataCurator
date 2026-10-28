@@ -204,7 +204,7 @@ public class InstrumentProfileService {
 
         // 5. Execute GPU Calibration Engine (Morphological Opening + Voigt + NNLS + GPU MC RTE)
         pythonUtils.runGpuCalibrationEngine(
-                Path.of("scripts", "gpu_calibration_engine.py"),
+                pythonUtils.resolveGpuEngineScriptPath(),
                 manifestPath
         );
 
@@ -260,6 +260,7 @@ public class InstrumentProfileService {
         } else {
             processedMeasuredSpectrum = new Spectrum(wavelengthGrid, avgMeasuredSpectrum);
         }
+        processedMeasuredSpectrum.setResolution(nistResolution);
 
         // 4. Parse composition
         UserInputConfig userInputs =new UserInputConfig();
@@ -284,8 +285,15 @@ public class InstrumentProfileService {
         Files.createDirectories(calibrationDir);
         Path targetCsv = calibrationDir.resolve("target_processed.csv");
         Path zonesCsv = calibrationDir.resolve("best_zones.csv");
+        // Configuration for fetching
+        UserInputConfig config = new UserInputConfig();
+        config.minWavelength = String.valueOf(processedMeasuredSpectrum.getMinWavelength());
+        config.maxWavelength = String.valueOf(processedMeasuredSpectrum.getMaxWavelength());
+        config.resolution = String.valueOf(processedMeasuredSpectrum.getResolution());
+        config.instrumentName = instrumentName;
+        UserInputConfig.setDebugMode(debugMode);
         optimizePlasmaParameters(materialFamilyProfile, processedMeasuredSpectrum, materialGrade, noPlasmaZones,
-                debugMode, targetCsv, zonesCsv, nistResolution);
+                config, targetCsv, zonesCsv);
         profile.addMaterialFamilyProfile(materialFamilyProfile);
         logger.info("Added material family profile: " + materialFamilyProfile.toJson().toString(4));
         CommonUtils.getInstance().saveModelToFile(outputPath, profile);
@@ -636,27 +644,19 @@ public class InstrumentProfileService {
      * @param processedMeasuredSpectrum Average measured spectrum
      * @param composition               Material composition
      * @param plasmaZones               Number of plasma zones to combine
-     * @param debugMode                 Setting to true ensures Selenium doesn't run in headless mode and the browser window is visible
+     * @param config                    User input config object having info like min/max wavelength, debug mode, etc.
      * @param targetCsvPath             Path to save target measured spectrum
      * @param zonesCsvPath              Path to save spectra corresponding to optimised plasma zone parameters
-     * @param nistResolution
      */
     private void optimizePlasmaParameters(MaterialFamilyProfile profile, Spectrum processedMeasuredSpectrum,
-                                          MaterialGrade composition, int plasmaZones, boolean debugMode,
-                                          Path targetCsvPath, Path zonesCsvPath, long nistResolution) {
+                                          MaterialGrade composition, int plasmaZones, UserInputConfig config,
+                                          Path targetCsvPath, Path zonesCsvPath) {
 
         double[] wavelengthGrid = processedMeasuredSpectrum.getWavelengths();
         double[] measuredIntensities = processedMeasuredSpectrum.getIntensities();
         SpectrumUtils spectrumUtils = new SpectrumUtils();
 
         logger.info("Starting Grid Search optimization for " + plasmaZones + " plasma zones...");
-
-        // Configuration for fetching
-        UserInputConfig config = new UserInputConfig();
-        config.minWavelength = String.valueOf(wavelengthGrid[0]);
-        config.maxWavelength = String.valueOf(wavelengthGrid[wavelengthGrid.length - 1]);
-        config.resolution = String.valueOf(nistResolution);
-        UserInputConfig.setDebugMode(debugMode);
 
         // Define Grid Search Space
         double[] teValues = { 0.5, 0.8, 1.0, 1.2, 1.5, 1.7, 2.0 };
@@ -712,7 +712,7 @@ public class InstrumentProfileService {
             profile.setRmse(bestResult.rmse);
             profile.setRSquaredValue(bestResult.rSquared);
             profile.setScaleFactor(maxMeasuredIntensity);
-            profile.setResolution(nistResolution);
+            profile.setResolution(processedMeasuredSpectrum.getResolution());
 
             logger.info("Optimization complete. Best RMSE: " + bestResult.rmse + ", R^2: " + bestResult.rSquared);
 
@@ -889,8 +889,8 @@ public class InstrumentProfileService {
                     double[] avgSpectrum = spectrumUtils.calculateAverageSpectrum(allSpectra);
 
                     // Clip spectrum to valid LIBS range
-                    Spectrum clippedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgSpectrum);
-                    Spectrum processedSpectrum = clippedSpectrum;
+                    Spectrum processedSpectrum = spectrumUtils.clipSpectrum(wavelengthGrid, avgSpectrum);
+                    processedSpectrum.setResolution(nistResolution);
 
                     // Build composition string from JSON and parse it
                     JSONObject compositionJson = materialEntry.optJSONObject("composition");
@@ -915,8 +915,15 @@ public class InstrumentProfileService {
 
                     // Run grid-search optimisation; save per-material zones CSV
                     Path matZonesCsvPath = calibDir.resolve(materialName + "_best_zones.csv");
+                    // Configuration for fetching
+                    UserInputConfig config = new UserInputConfig();
+                    config.minWavelength = String.valueOf(processedSpectrum.getMinWavelength());
+                    config.maxWavelength = String.valueOf(processedSpectrum.getMaxWavelength());
+                    config.resolution = String.valueOf(processedSpectrum.getResolution());
+                    config.instrumentName = instrumentName;
+                    UserInputConfig.setDebugMode(debugMode);
                     optimizePlasmaParameters(materialFamilyProfile, processedSpectrum, materialGrade, numPlasmaZones,
-                            debugMode, targetPath, matZonesCsvPath, nistResolution);
+                            config, targetPath, matZonesCsvPath);
 
                     // Accumulate zones per zone index (never mix zones from different indices)
                     for (int zoneIdx = 0; zoneIdx < materialFamilyProfile.getPlasmaZones().size(); zoneIdx++) {
