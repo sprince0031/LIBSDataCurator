@@ -65,7 +65,7 @@ public class InstrumentProfileService {
     public static final double[] NE_ANCHOR_GRID_CM3 = {
             1.0e16, 5.0e16, 1.0e17, 5.0e17
     };
-    public static final double NIST_RESOLVING_POWER = 5000.0;
+    public static final double NIST_RESOLVING_POWER = 4000.0;
     public static final int DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25;
 
     private LIBSDataService libsDataService;
@@ -110,13 +110,15 @@ public class InstrumentProfileService {
     }
 
     public Map<String, Object> loadOrInitializeManifest(
-            Path manifestPath, String instrumentName, int numZones, Path outputProfilePath) throws IOException {
+            Path manifestPath, String instrumentName, int numZones, Path outputProfilePath, double resolvingPower) throws IOException {
         if (Files.exists(manifestPath)) {
-            return objectMapper.readValue(manifestPath.toFile(), new TypeReference<LinkedHashMap<String, Object>>() {});
+            Map<String, Object> existing = objectMapper.readValue(manifestPath.toFile(), new TypeReference<LinkedHashMap<String, Object>>() {});
+            populateDefaultManifestWindows(existing);
+            return existing;
         }
         Map<String, Object> root = new LinkedHashMap<>();
         root.put("instrumentName", instrumentName);
-        root.put("nistResolvingPower", NIST_RESOLVING_POWER);
+        root.put("nistResolvingPower", resolvingPower > 0 ? resolvingPower : NIST_RESOLVING_POWER);
         root.put("detectorFullScale", 65535.0);
         root.put("saturationThresholdFactor", 0.9);
         root.put("numZones", numZones);
@@ -128,7 +130,35 @@ public class InstrumentProfileService {
         root.put("teAnchorGridEv", TE_ANCHOR_GRID_EV);
         root.put("neAnchorGridCm3", NE_ANCHOR_GRID_CM3);
         root.put("materialFamilies", new LinkedHashMap<String, List<Map<String, Object>>>());
+        populateDefaultManifestWindows(root);
         return root;
+    }
+
+    public Map<String, Object> loadOrInitializeManifest(
+            Path manifestPath, String instrumentName, int numZones, Path outputProfilePath) throws IOException {
+        return loadOrInitializeManifest(manifestPath, instrumentName, numZones, outputProfilePath, NIST_RESOLVING_POWER);
+    }
+
+    private void populateDefaultManifestWindows(Map<String, Object> manifest) {
+        if (!manifest.containsKey("trampWindowsNm")) {
+            List<Map<String, Object>> trampWindows = List.of(
+                    Map.of("element", "Cu", "minNm", 324.5, "maxNm", 327.8, "weight", 5.0),
+                    Map.of("element", "Sn", "minNm", 283.5, "maxNm", 286.8, "weight", 5.0),
+                    Map.of("element", "Cr", "minNm", 425.0, "maxNm", 429.5, "weight", 3.0),
+                    Map.of("element", "Ni", "minNm", 341.0, "maxNm", 353.0, "weight", 3.0),
+                    Map.of("element", "Pb", "minNm", 405.2, "maxNm", 406.2, "weight", 5.0)
+            );
+            manifest.put("trampWindowsNm", trampWindows);
+        }
+        if (!manifest.containsKey("resonanceMaskWindowsNm")) {
+            List<Map<String, Object>> resonanceWindows = List.of(
+                    Map.of("species", "H_alpha", "minNm", 654.0, "maxNm", 658.5),
+                    Map.of("species", "Fe_I_res", "minNm", 371.5, "maxNm", 375.5),
+                    Map.of("species", "Cu_I_res", "minNm", 324.5, "maxNm", 327.6),
+                    Map.of("species", "Al_I_res", "minNm", 394.0, "maxNm", 396.5)
+            );
+            manifest.put("resonanceMaskWindowsNm", resonanceWindows);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -143,7 +173,7 @@ public class InstrumentProfileService {
             Path outputProfilePath) throws Exception {
         return stageMaterialAndRunGpuCalibration(
                 inputPath, elements, materialType, materialGrade, instrumentName,
-                ";", numZones, holdoutCsvCount, outputProfilePath
+                ";", numZones, NIST_RESOLVING_POWER, holdoutCsvCount, outputProfilePath
         );
     }
 
@@ -156,6 +186,24 @@ public class InstrumentProfileService {
             String instrumentName,
             String delimiter,
             int numZones,
+            int holdoutCsvCount,
+            Path outputProfilePath) throws Exception {
+        return stageMaterialAndRunGpuCalibration(
+                inputPath, elements, materialType, materialGrade, instrumentName,
+                delimiter, numZones, NIST_RESOLVING_POWER, holdoutCsvCount, outputProfilePath
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    public InstrumentProfile stageMaterialAndRunGpuCalibration(
+            Path inputPath,
+            List<Element> elements,
+            String materialType,
+            String materialGrade,
+            String instrumentName,
+            String delimiter,
+            int numZones,
+            double resolvingPower,
             int holdoutCsvCount,
             Path outputProfilePath) throws Exception {
 
@@ -173,18 +221,20 @@ public class InstrumentProfileService {
                 .collect(Collectors.toList());
 
         // 2. Fetch or verify 48-state NIST grid in cache/nist/ via Selenium recalculation
+        double rNist = resolvingPower > 0 ? resolvingPower : NIST_RESOLVING_POWER;
         Map<String, String> nistGridCsvPaths = libsDataService.fetchAndCacheNistAnchorGrid(
-                materialGrade, elements, TE_ANCHOR_GRID_EV, NE_ANCHOR_GRID_CM3, NIST_RESOLVING_POWER
+                materialGrade, elements, TE_ANCHOR_GRID_EV, NE_ANCHOR_GRID_CM3, rNist
         );
 
         // 3. Load or initialize temp/calibration_manifest.json
         Path manifestPath = Path.of("temp", "calibration_manifest.json");
         Files.createDirectories(manifestPath.getParent());
         Map<String, Object> manifest = loadOrInitializeManifest(
-                manifestPath, instrumentName, numZones, outputProfilePath);
+                manifestPath, instrumentName, numZones, outputProfilePath, rNist);
 
         manifest.put("targetMaterialFamily", materialType);
         manifest.put("numZones", numZones);
+        manifest.put("nistResolvingPower", rNist);
         manifest.put("outputProfilePath", outputProfilePath.toAbsolutePath().toString());
         manifest.put("csvDelimiter", delimiter);
         manifest.put("logsDir", Path.of("logs").toAbsolutePath().toString());

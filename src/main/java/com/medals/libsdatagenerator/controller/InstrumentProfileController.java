@@ -67,7 +67,7 @@ public class InstrumentProfileController {
             Path outputProfilePath) throws Exception {
         return runCalibration(
                 inputPath, compositionStr, materialType, materialGrade, instrumentName,
-                ";", numZones, holdoutCsvCount, outputProfilePath
+                ";", numZones, 3000.0, holdoutCsvCount, outputProfilePath
         );
     }
 
@@ -81,12 +81,29 @@ public class InstrumentProfileController {
             int numZones,
             int holdoutCsvCount,
             Path outputProfilePath) throws Exception {
+        return runCalibration(
+                inputPath, compositionStr, materialType, materialGrade, instrumentName,
+                delimiter, numZones, 3000.0, holdoutCsvCount, outputProfilePath
+        );
+    }
+
+    public InstrumentProfile runCalibration(
+            Path inputPath,
+            String compositionStr,
+            String materialType,
+            String materialGrade,
+            String instrumentName,
+            String delimiter,
+            int numZones,
+            double resolvingPower,
+            int holdoutCsvCount,
+            Path outputProfilePath) throws Exception {
 
         List<Element> elements = compositionProcessor.parseCompositionString(compositionStr);
 
         logger.info(() -> String.format(
-                "Starting calibration for Material Grade '%s' (Family: '%s') with %d zones...",
-                materialGrade, materialType, numZones));
+                "Starting calibration for Material Grade '%s' (Family: '%s') with %d zones (Resolving Power: %.1f)...",
+                materialGrade, materialType, numZones, resolvingPower));
 
         return profileService.stageMaterialAndRunGpuCalibration(
                 inputPath,
@@ -96,6 +113,7 @@ public class InstrumentProfileController {
                 instrumentName,
                 delimiter,
                 numZones,
+                resolvingPower,
                 holdoutCsvCount,
                 outputProfilePath
         );
@@ -123,7 +141,7 @@ public class InstrumentProfileController {
             String compositionOrRefPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT);
             String instrumentName = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_NAME_SHORT, "Unknown");
             String outputPath = cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_OUTPUT_SHORT, InstrumentProfile.INSTRUMENT_PROFILE_PATH);
-            long nistResolution = Long.parseLong(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "1000"));
+            double nistResolution = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_RESOLUTION_SHORT, "3000.0"));
             int plasmaZones = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_PLASMA_ZONES_SHORT, "2"));
             double lambda = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_LAMBDA_SHORT, "10000"));
             double p = Double.parseDouble(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_BASELINE_P_SHORT,"0.001"));
@@ -184,6 +202,7 @@ public class InstrumentProfileController {
                         instrumentName,
                         delimiter,
                         plasmaZones,
+                        nistResolution,
                         holdoutCsvs,
                         outputFilePath
                 );
@@ -211,7 +230,7 @@ public class InstrumentProfileController {
 
                 profile = profileService.generateProfileFromDirectory(
                         dirPath, refCompositionsPath, delimiter,
-                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode, outputFilePath, nistResolution);
+                        instrumentName, baselineCorrectionParams, plasmaZones, debugMode, outputFilePath, (long) nistResolution);
 
             } else if (inputFile.isFile()) {
                 // ---- Single-file mode (backward compatible) -----------------
@@ -234,7 +253,7 @@ public class InstrumentProfileController {
 
                 profile = profileService.generateProfile(inputFilePath, delimiter, compositionOrRefPath, instrumentName,
                         baselineCorrectionParams, plasmaZones, debugMode, materialFamilyName, outputFilePath,
-                        blCorrectionEnabled, nistResolution);
+                        blCorrectionEnabled, (long) nistResolution);
 
             } else {
                 logger.severe("Input path is neither a file nor a directory: " + inputPath);

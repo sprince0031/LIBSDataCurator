@@ -96,7 +96,7 @@ public class SpectrumUtilsTest {
         intensities[25] = 100.0; // Sharp central line at 302.5 nm
 
         VoigtProfile profile = new VoigtProfile();
-        profile.setNistResolvingPower(5000.0);
+        profile.setNistResolvingPower(4000.0);
         List<Double> fwhmG = new ArrayList<>();
         List<Double> fwhmL = new ArrayList<>();
         for (int i = 0; i < n; i++) {

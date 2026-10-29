@@ -143,11 +143,14 @@ class GpuLibsCalibrationEngine:
 
         shots_all = np.vstack(all_shots_list)
         v_mask = (shots_all < y_sat).astype(np.float64)
-        nv = np.maximum(v_mask.sum(axis=0), 1.0)
+        nv = v_mask.sum(axis=0)
 
-        raw_mean = (v_mask * shots_all).sum(axis=0) / nv
+        raw_mean = np.where(nv > 0, (v_mask * shots_all).sum(axis=0) / np.maximum(nv, 1.0), y_sat)
         var_shot = (v_mask * (shots_all - raw_mean[None, :]) ** 2).sum(axis=0) / np.maximum(nv - 1.0, 1.0)
-        sigma_mean = np.sqrt(var_shot / nv) + 1e-6
+        # Saturated channels (nv < 5) get large uncertainty (1000.0) so they do not dominate fitting
+        sigma_mean = np.where(nv >= 5, np.sqrt(var_shot / np.maximum(nv, 1.0)), 1000.0)
+        # Apply physical detector readout noise floor (at least 1.0 ADC digitizer count)
+        sigma_mean = np.maximum(sigma_mean, 1.0)
 
         y_clean = self.strip_baseline_morphological_opening(raw_mean)
         return lam_meas, y_clean, sigma_mean, np.array(point_means_list, dtype=np.float64), shots_all.shape[0]
@@ -267,9 +270,17 @@ class GpuLibsCalibrationEngine:
                     if candidate.exists():
                         p = candidate
                 df = pd.read_csv(p)
+                l_cur = df.iloc[:, 0].to_numpy(dtype=np.float64)
+                s_cur = df.iloc[:, 1].to_numpy(dtype=np.float32)
                 if lam_nist is None:
-                    lam_nist = df.iloc[:, 0].to_numpy(dtype=np.float64)
-                s_cols.append(df.iloc[:, 1].to_numpy(dtype=np.float32))
+                    lam_nist = l_cur
+                    s_cols.append(s_cur)
+                else:
+                    if len(s_cur) == len(lam_nist) and np.allclose(l_cur, lam_nist, atol=1e-5):
+                        s_cols.append(s_cur)
+                    else:
+                        s_interp = np.interp(lam_nist, l_cur, s_cur, left=0.0, right=0.0).astype(np.float32)
+                        s_cols.append(s_interp)
 
         s_nist_gpu = torch.tensor(np.column_stack(s_cols), dtype=torch.float32, device=self.device)
         if psi_gpu is not None:
@@ -307,7 +318,8 @@ class GpuLibsCalibrationEngine:
             den = np.zeros(p_count, dtype=np.float64)
             for m in range(m_count):
                 a_max = max(np.max(a_mat[m]), 1e-12)
-                usable = (a_mat[m] > 1e-3 * a_max) & (y_all[m] > 0) & (res_mask > 0.5)
+                # Channel is usable if non-zero prediction, measured > 0, not resonance, and not saturated (sig < 500)
+                usable = (a_mat[m] > 1e-3 * a_max) & (y_all[m] > 0) & (res_mask > 0.5) & (sig_all[m] < 500.0)
                 vv = np.where(usable, (y_all[m] / sig_all[m]) ** 2, 0.0)
                 rho = np.where(usable, np.log(np.maximum(y_all[m], 1e-12) / np.maximum(a_mat[m], 1e-12)), 0.0)
                 num += vv * rho
@@ -319,7 +331,10 @@ class GpuLibsCalibrationEngine:
             log_r = b_mat @ beta
             log_r -= np.mean(log_r)
             r_new = np.exp(log_r)
-            if np.max(np.abs(np.log(r_new / r_vec))) < 1e-4:
+            # Bound r_new to realistic dynamic range [0.001, 100.0] with geometric mean = 1.0 to prevent runaway
+            r_new = np.clip(r_new, 0.001, 100.0)
+            r_new = r_new / np.exp(np.mean(np.log(r_new)))
+            if np.max(np.abs(np.log(r_new / r_vec))) < 1e-3:
                 r_vec = r_new
                 break
             r_vec = r_new
@@ -367,7 +382,7 @@ class GpuLibsCalibrationEngine:
         best_r2 = 0.0
         best_rmse = 0.0
 
-        weights_p = (tramp_w_gpu / sig_family_gpu) ** 2
+        weights_p = tramp_w_gpu[None, :]
         y_mean_fam = (weights_p * y_family_gpu).sum(dim=1, keepdim=True) / weights_p.sum(dim=1, keepdim=True)
         y_centered = y_family_gpu - y_mean_fam
         y_norm = torch.sqrt((weights_p * (y_centered ** 2)).sum(dim=1, keepdim=True) + 1e-12)
@@ -395,26 +410,32 @@ class GpuLibsCalibrationEngine:
             for start in range(0, n_mc_per_iter, chunk_size):
                 end = min(start + chunk_size, n_mc_per_iter)
                 s_z0 = self.interpolate_dictionary_bilinear_gpu(d_grid_gpu, te_cand[start:end, 0], lne_cand[start:end, 0])
-                i_rad = v_cand[start:end, 0][:, None, None] * s_z0
+                s_z0_max = torch.clamp(s_z0.amax(dim=2, keepdim=True), min=1e-12)
+                s_z0_norm = s_z0 / s_z0_max
+                i_rad = v_cand[start:end, 0][:, None, None] * s_z0_norm
 
                 for z in range(1, n_zones):
                     s_z = self.interpolate_dictionary_bilinear_gpu(d_grid_gpu, te_cand[start:end, z], lne_cand[start:end, z])
                     s_z_max = torch.clamp(s_z.amax(dim=2, keepdim=True), min=1e-12)
+                    s_z_norm = s_z / s_z_max
                     k_z = k_cand[start:end, z][:, None, None]
                     v_z = v_cand[start:end, z][:, None, None]
-                    i_rad = i_rad * torch.exp(-k_z * (s_z / s_z_max)) + v_z * s_z
+                    i_rad = i_rad * torch.exp(-k_z * s_z_norm) + v_z * s_z_norm
 
                 i_pred = i_rad * r_gpu[None, None, :]
-                num_scale = (weights_p[None, :, :] * y_family_gpu[None, :, :] * i_pred).sum(dim=(1, 2))
-                den_scale = torch.clamp((weights_p[None, :, :] * (i_pred ** 2)).sum(dim=(1, 2)), min=1e-12)
+                i_pred_max = torch.clamp(i_pred.amax(dim=2, keepdim=True), min=1e-12)
+                i_pred_norm = i_pred / i_pred_max
+
+                num_scale = (y_family_gpu[None, :, :] * i_pred_norm).sum(dim=(1, 2))
+                den_scale = torch.clamp((i_pred_norm ** 2).sum(dim=(1, 2)), min=1e-12)
                 alpha_scale = num_scale / den_scale
 
-                i_mean = (weights_p[None, :, :] * i_pred).sum(dim=2, keepdim=True) / weights_p.sum(dim=1, keepdim=True)[None, :, :]
+                i_mean = (weights_p * i_pred).sum(dim=2, keepdim=True) / weights_p.sum(dim=1, keepdim=True)
                 i_centered = i_pred - i_mean
-                i_norm = torch.sqrt((weights_p[None, :, :] * (i_centered ** 2)).sum(dim=2, keepdim=True) + 1e-12)
+                i_norm = torch.sqrt((weights_p * (i_centered ** 2)).sum(dim=2, keepdim=True) + 1e-12)
 
-                corr = (weights_p[None, :, :] * y_centered[None, :, :] * i_centered).sum(dim=2, keepdim=True) / (y_norm[None, :, :] * i_norm)
-                f_cw = (1.0 - corr.squeeze(-1)).mean(dim=1)
+                corr = (weights_p * y_centered[None, :, :] * i_centered).sum(dim=2, keepdim=True) / (y_norm[None, :, :] * i_norm)
+                f_cw = (1.0 - torch.clamp(corr.squeeze(-1), min=-1.0, max=1.0)).mean(dim=1)
 
                 costs_all[start:end] = f_cw
                 scales_all[start:end] = alpha_scale
@@ -425,7 +446,19 @@ class GpuLibsCalibrationEngine:
                 win_i = top_idx[0]
                 best_scale = float(scales_all[win_i])
                 best_r2 = max(0.0, 1.0 - best_cost)
-                best_rmse = float(torch.sqrt(torch.mean((y_family_gpu / torch.amax(y_family_gpu, dim=1, keepdim=True)) ** 2) * best_cost))
+
+                s_best_z0 = self.interpolate_dictionary_bilinear_gpu(d_grid_gpu, te_cand[win_i:win_i+1, 0], lne_cand[win_i:win_i+1, 0])
+                s_best_z0_norm = s_best_z0 / torch.clamp(s_best_z0.amax(dim=2, keepdim=True), min=1e-12)
+                i_best_rad = v_cand[win_i:win_i+1, 0][:, None, None] * s_best_z0_norm
+                for z in range(1, n_zones):
+                    s_best_z = self.interpolate_dictionary_bilinear_gpu(d_grid_gpu, te_cand[win_i:win_i+1, z], lne_cand[win_i:win_i+1, z])
+                    s_best_z_norm = s_best_z / torch.clamp(s_best_z.amax(dim=2, keepdim=True), min=1e-12)
+                    i_best_rad = i_best_rad * torch.exp(-k_cand[win_i:win_i+1, z][:, None, None] * s_best_z_norm) + v_cand[win_i:win_i+1, z][:, None, None] * s_best_z_norm
+                i_best_pred = (i_best_rad * r_gpu[None, None, :]).squeeze(0)
+                i_best_norm = i_best_pred / torch.clamp(i_best_pred.amax(dim=1, keepdim=True), min=1e-12)
+                diff = y_family_gpu - best_scale * i_best_norm
+                best_rmse = float(torch.sqrt(torch.mean((diff / torch.amax(y_family_gpu, dim=1, keepdim=True)) ** 2)))
+
                 best_params = {
                     "Te": te_cand[win_i].cpu().numpy(),
                     "Ne": (10.0 ** lne_cand[win_i]).cpu().numpy(),
@@ -598,7 +631,7 @@ class GpuLibsCalibrationEngine:
                     "calibratedMaterials": cal_mat_names
                 },
                 "plasmaZones": zones_json,
-                "scaleFactor": round(float(opt_res["scaleFactor"]), 4),
+                "scaleFactor": round(float(opt_res["scaleFactor"]), 2),
                 "resolution": r_nist_int,
                 "materialFamily": family_name,
                 "validationHoldoutCsvs": holdout_map

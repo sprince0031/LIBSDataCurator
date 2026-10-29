@@ -43,12 +43,12 @@ public class ModelRefactoringTest {
     void testVoigtProfile() throws Exception {
         List<Double> g = Arrays.asList(0.28, 0.29);
         List<Double> l = Arrays.asList(0.05, 0.06);
-        VoigtProfile vp = new VoigtProfile(5000.0, g, l);
+        VoigtProfile vp = new VoigtProfile(4000.0, g, l);
 
         String jsonStr = objectMapper.writeValueAsString(vp);
         VoigtProfile readVp = objectMapper.readValue(jsonStr, VoigtProfile.class);
 
-        assertEquals(5000.0, readVp.getNistResolvingPower());
+        assertEquals(4000.0, readVp.getNistResolvingPower());
         assertEquals(2, readVp.getFwhmGaussianNm().size());
         assertEquals(0.28, readVp.getFwhmGaussianNm().get(0));
     }
@@ -61,7 +61,7 @@ public class ModelRefactoringTest {
         profile.setSpectralResponse(new double[]{1.0, 1.1, 0.95});
         profile.setFinotelloNoiseBeta(0.095);
 
-        VoigtProfile vp = new VoigtProfile(5000.0, List.of(0.28), List.of(0.06));
+        VoigtProfile vp = new VoigtProfile(4000.0, List.of(0.28), List.of(0.06));
         profile.setVoigtProfile(vp);
 
         MaterialFamilyProfile familyProfile = new MaterialFamilyProfile("Ferritic");

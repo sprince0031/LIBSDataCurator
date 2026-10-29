@@ -12,7 +12,7 @@ import java.util.List;
 public class VoigtProfile {
 
     @JsonProperty("nistResolvingPower")
-    private double nistResolvingPower = 5000.0;
+    private double nistResolvingPower = 4000.0;
 
     @JsonProperty("fwhmGaussianNm")
     private List<Double> fwhmGaussianNm = new ArrayList<>();
@@ -77,7 +77,7 @@ public class VoigtProfile {
             return null;
         }
         VoigtProfile vp = new VoigtProfile();
-        vp.setNistResolvingPower(json.optDouble("nistResolvingPower", 5000.0));
+        vp.setNistResolvingPower(json.optDouble("nistResolvingPower", 4000.0));
         JSONArray gArr = json.optJSONArray("fwhmGaussianNm");
         if (gArr != null) {
             List<Double> gList = new ArrayList<>();

@@ -82,8 +82,8 @@ public class UserInputConfig {
         this.numDecimalPlaces = 3;
         
         // Default NIST params
-        this.minWavelength = "200";
-        this.maxWavelength = "800";
+        this.minWavelength = "340";
+        this.maxWavelength = "900";
         this.resolution = "1000";
         this.plasmaTemp = "1";
         this.electronDensity = "1e17";
