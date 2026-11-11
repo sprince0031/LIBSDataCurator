@@ -113,7 +113,9 @@ public class InstrumentProfileService {
             Path manifestPath, String instrumentName, int numZones, Path outputProfilePath, double resolvingPower) throws IOException {
         if (Files.exists(manifestPath)) {
             Map<String, Object> existing = objectMapper.readValue(manifestPath.toFile(), new TypeReference<LinkedHashMap<String, Object>>() {});
-            populateDefaultManifestWindows(existing);
+            existing.remove("trampWindowsNm");
+            existing.remove("resonanceMaskWindowsNm");
+            existing.put("nistLinesDir", "data/nist_lines");
             return existing;
         }
         Map<String, Object> root = new LinkedHashMap<>();
@@ -130,35 +132,13 @@ public class InstrumentProfileService {
         root.put("teAnchorGridEv", TE_ANCHOR_GRID_EV);
         root.put("neAnchorGridCm3", NE_ANCHOR_GRID_CM3);
         root.put("materialFamilies", new LinkedHashMap<String, List<Map<String, Object>>>());
-        populateDefaultManifestWindows(root);
+        root.put("nistLinesDir", "data/nist_lines");
         return root;
     }
 
     public Map<String, Object> loadOrInitializeManifest(
             Path manifestPath, String instrumentName, int numZones, Path outputProfilePath) throws IOException {
         return loadOrInitializeManifest(manifestPath, instrumentName, numZones, outputProfilePath, NIST_RESOLVING_POWER);
-    }
-
-    private void populateDefaultManifestWindows(Map<String, Object> manifest) {
-        if (!manifest.containsKey("trampWindowsNm")) {
-            List<Map<String, Object>> trampWindows = List.of(
-                    Map.of("element", "Cu", "minNm", 324.5, "maxNm", 327.8, "weight", 5.0),
-                    Map.of("element", "Sn", "minNm", 283.5, "maxNm", 286.8, "weight", 5.0),
-                    Map.of("element", "Cr", "minNm", 425.0, "maxNm", 429.5, "weight", 3.0),
-                    Map.of("element", "Ni", "minNm", 341.0, "maxNm", 353.0, "weight", 3.0),
-                    Map.of("element", "Pb", "minNm", 405.2, "maxNm", 406.2, "weight", 5.0)
-            );
-            manifest.put("trampWindowsNm", trampWindows);
-        }
-        if (!manifest.containsKey("resonanceMaskWindowsNm")) {
-            List<Map<String, Object>> resonanceWindows = List.of(
-                    Map.of("species", "H_alpha", "minNm", 654.0, "maxNm", 658.5),
-                    Map.of("species", "Fe_I_res", "minNm", 371.5, "maxNm", 375.5),
-                    Map.of("species", "Cu_I_res", "minNm", 324.5, "maxNm", 327.6),
-                    Map.of("species", "Al_I_res", "minNm", 394.0, "maxNm", 396.5)
-            );
-            manifest.put("resonanceMaskWindowsNm", resonanceWindows);
-        }
     }
 
     @SuppressWarnings("unchecked")
@@ -257,13 +237,20 @@ public class InstrumentProfileService {
             }
         }
 
+        // Cache NIST ASD line Parquet files for all active elements
+        List<String> elementSymbols = new ArrayList<>(compMap.keySet());
+        pythonUtils.ensureNistLinesCached(elementSymbols, Path.of("data", "nist_lines"), 340.0, 900.0);
+
         Map<String, Object> materialEntry = new LinkedHashMap<>();
         materialEntry.put("materialName", materialGrade);
         materialEntry.put("referenceComposition", normCompBuilder.toString());
+        materialEntry.put("composition", compMap);
         materialEntry.put("compositionMap", compMap);
         materialEntry.put("measuredCsvPaths", trainCsvs);
         materialEntry.put("holdoutCsvPaths", holdoutCsvs);
         materialEntry.put("nistGridCsvPaths", nistGridCsvPaths);
+
+        manifest.put("nistLinesDir", "data/nist_lines");
 
         // Replace existing entry for materialGrade if present, otherwise append
         familyMatList.removeIf(entry -> materialGrade.equals(String.valueOf(entry.get("materialName"))));

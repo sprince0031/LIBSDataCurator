@@ -409,4 +409,35 @@ public class InstrumentProfileServiceTest {
 //        assertTrue(content.contains("\"cells\""),          "Valid notebook JSON structure required");
 //        assertTrue(content.contains("import matplotlib.pyplot as plt"), "Plotting import required");
 //    }
+
+    @Test
+    void testLoadOrInitializeManifestStripsLegacyWindowsAndSetsNistLinesDir() throws IOException {
+        Path manifestPath = tempDir.resolve("manifest_with_legacy.json");
+        String legacyJson = "{\n" +
+                "  \"instrumentName\": \"OldInst\",\n" +
+                "  \"trampWindowsNm\": [{\"element\": \"Cu\", \"minNm\": 324.5, \"maxNm\": 327.8, \"weight\": 5.0}],\n" +
+                "  \"resonanceMaskWindowsNm\": [{\"species\": \"H_alpha\", \"minNm\": 654.0, \"maxNm\": 658.5}]\n" +
+                "}";
+        Files.writeString(manifestPath, legacyJson);
+
+        var manifest = service.loadOrInitializeManifest(
+                manifestPath, "NewInst", 2, tempDir.resolve("profile.json"), 3000.0);
+
+        assertNotNull(manifest);
+        assertEquals("data/nist_lines", manifest.get("nistLinesDir"));
+        assertFalse(manifest.containsKey("trampWindowsNm"), "trampWindowsNm must be stripped");
+        assertFalse(manifest.containsKey("resonanceMaskWindowsNm"), "resonanceMaskWindowsNm must be stripped");
+    }
+
+    @Test
+    void testLoadOrInitializeManifestFreshCreationHasNoHardcodedWindows() throws IOException {
+        Path manifestPath = tempDir.resolve("fresh_manifest.json");
+        var manifest = service.loadOrInitializeManifest(
+                manifestPath, "FreshInst", 2, tempDir.resolve("profile.json"), 3000.0);
+
+        assertNotNull(manifest);
+        assertEquals("data/nist_lines", manifest.get("nistLinesDir"));
+        assertFalse(manifest.containsKey("trampWindowsNm"), "fresh manifest must not have hardcoded trampWindowsNm");
+        assertFalse(manifest.containsKey("resonanceMaskWindowsNm"), "fresh manifest must not have hardcoded resonanceMaskWindowsNm");
+    }
 }
