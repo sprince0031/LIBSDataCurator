@@ -92,7 +92,7 @@
   - [x] Update `stageMaterialAndRunGpuCalibration(...)` in `InstrumentProfileService.java` to invoke `pythonUtils.ensureNistLinesCached(elementSymbols, Path.of("data", "nist_lines"), 340.0, 900.0)`
   - [x] Write both `"composition"` and `"compositionMap"` to each material manifest entry and `"nistLinesDir": "data/nist_lines"` at the root of `temp/calibration_manifest.json`
   - [x] Update `InstrumentProfileServiceTest` to verify `ensureNistLinesCached` is called and no hard-coded `trampWindowsNm` or `resonanceMaskWindowsNm` exist in the manifest
-- [ ] Task: Conductor - User Manual Verification 'Phase 6: NIST ASD Line Acquisition, CLI Integration & Hard-Coded Window Removal' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 6: NIST ASD Line Acquisition, CLI Integration & Hard-Coded Window Removal' (Protocol in workflow.md)
 
 ### Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas
 - [ ] Task: Delete `VoigtProfile.java` and remove `voigtProfile` field/methods from `InstrumentProfile.java`
