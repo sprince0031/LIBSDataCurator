@@ -84,9 +84,9 @@
   - [x] Implement `parse_elements_from_composition(comp_str)` in `scripts/nist_lines.py` supporting both `-` and `:` key-value delimiters (e.g., `'C-0.279,Si-6.5:7.5,Fe-#'` and `'C:0.279,Fe:87.8'`) via `re.split(r"[-:]", token.strip(), maxsplit=1)`
   - [x] Update `build_cache(...)` to accept `elements: list[str] | None = None` and `include_common: bool = True`
   - [x] Add `--elements` and `-c` / `--composition` CLI flags to `scripts/nist_lines.py`
-- [ ] Task: Add `PythonUtils.ensureNistLinesCached` and unit tests in `PythonUtilsTest`
-  - [ ] Write unit tests in `PythonUtilsTest` validating CLI command construction for `scripts/nist_lines.py`
-  - [ ] Implement `ensureNistLinesCached(List<String> elementSymbols, Path cacheDir, double minWlNm, double maxWlNm)` in `src/main/java/com/medals/libsdatagenerator/util/PythonUtils.java`
+- [x] Task: Add `PythonUtils.ensureNistLinesCached` and unit tests in `PythonUtilsTest` (d841bb9)
+  - [x] Write unit tests in `PythonUtilsTest` validating CLI command construction for `scripts/nist_lines.py`
+  - [x] Implement `ensureNistLinesCached(List<String> elementSymbols, Path cacheDir, double minWlNm, double maxWlNm)` in `src/main/java/com/medals/libsdatagenerator/util/PythonUtils.java`
 - [ ] Task: Refactor `InstrumentProfileService.java` to trigger ASD line caching and remove hard-coded out-of-range manifest windows
   - [ ] Delete `populateDefaultManifestWindows(...)` from `InstrumentProfileService.java` and strip any legacy `"trampWindowsNm"` or `"resonanceMaskWindowsNm"` keys when loading/saving `temp/calibration_manifest.json`
   - [ ] Update `stageMaterialAndRunGpuCalibration(...)` in `InstrumentProfileService.java` to invoke `pythonUtils.ensureNistLinesCached(elementSymbols, Path.of("data", "nist_lines"), 340.0, 900.0)`
