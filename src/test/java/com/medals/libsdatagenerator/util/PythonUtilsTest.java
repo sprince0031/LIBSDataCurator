@@ -38,4 +38,21 @@ class PythonUtilsTest {
         assertTrue(Files.exists(scriptPath));
         assertTrue(scriptPath.toString().endsWith("gpu_calibration_engine.py"));
     }
+
+    @Test
+    void testResolveNistLinesScriptPath() throws Exception {
+        Path scriptPath = PythonUtils.getInstance().resolveNistLinesScriptPath();
+        assertNotNull(scriptPath);
+        assertTrue(Files.exists(scriptPath));
+        assertTrue(scriptPath.toString().endsWith("nist_lines.py"));
+    }
+
+    @Test
+    void testEnsureNistLinesCachedValidation(@TempDir Path tempDir) throws Exception {
+        // Calling ensureNistLinesCached with empty list should execute successfully or do nothing
+        PythonUtils.getInstance().ensureNistLinesCached(
+                java.util.Collections.emptyList(), tempDir, 340.0, 900.0
+        );
+        assertTrue(Files.exists(tempDir));
+    }
 }

@@ -170,6 +170,73 @@ public class PythonUtils {
     }
 
     /**
+     * Resolves the path to the nist_lines.py script.
+     *
+     * @return Normalized Path to nist_lines.py
+     * @throws FileNotFoundException if the script cannot be located
+     */
+    public Path resolveNistLinesScriptPath() throws FileNotFoundException {
+        String envScript = System.getenv("NIST_LINES_SCRIPT");
+        if (envScript != null && !envScript.isBlank()) {
+            Path p = Path.of(envScript);
+            if (Files.exists(p)) {
+                return p.toAbsolutePath().normalize();
+            }
+        }
+        String userDir = CommonUtils.HOME_PATH;
+        if (userDir != null && !userDir.isBlank()) {
+            Path p = Path.of(userDir, "scripts", "nist_lines.py");
+            if (Files.exists(p)) {
+                return p.toAbsolutePath().normalize();
+            }
+        }
+        Path direct = Path.of("scripts", "nist_lines.py");
+        if (Files.exists(direct)) {
+            return direct.toAbsolutePath().normalize();
+        }
+        throw new FileNotFoundException("Could not find nist_lines.py in " +
+                (userDir != null ? userDir : ".") + "/scripts/nist_lines.py");
+    }
+
+    /**
+     * Invokes scripts/nist_lines.py to ensure all ASD line transitions for the given elements
+     * are downloaded and cached in cacheDir.
+     *
+     * @param elementSymbols Chemical elements to fetch (e.g. Fe, Cr, Ni)
+     * @param cacheDir Path to data/nist_lines
+     * @param minWlNm Minimum wavelength in nm
+     * @param maxWlNm Maximum wavelength in nm
+     * @throws IOException on I/O error
+     * @throws InterruptedException if interrupted while waiting for process
+     */
+    public void ensureNistLinesCached(List<String> elementSymbols, Path cacheDir, double minWlNm, double maxWlNm)
+            throws IOException, InterruptedException {
+        if (elementSymbols == null || elementSymbols.isEmpty()) {
+            return;
+        }
+        Path scriptPath = resolveNistLinesScriptPath();
+        List<String> command = new ArrayList<>();
+        command.add(resolvePythonCommand());
+        command.add(scriptPath.toAbsolutePath().toString());
+        command.add("--elements");
+        command.addAll(elementSymbols);
+        command.add("--range");
+        command.add(String.valueOf(minWlNm));
+        command.add(String.valueOf(maxWlNm));
+        command.add("--cache-dir");
+        command.add(cacheDir.toAbsolutePath().toString());
+
+        logger.info("Ensuring NIST ASD lines cached: " + String.join(" ", command));
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.inheritIO();
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException("nist_lines.py failed with exit code: " + exitCode);
+        }
+    }
+
+    /**
      * Executes the PyTorch CUDA GPU calibration engine with the generated manifest.
      *
      * @param resolvedScript Path to scripts/gpu_calibration_engine.py
