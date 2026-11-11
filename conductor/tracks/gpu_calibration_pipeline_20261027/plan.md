@@ -87,11 +87,11 @@
 - [x] Task: Add `PythonUtils.ensureNistLinesCached` and unit tests in `PythonUtilsTest` (d841bb9)
   - [x] Write unit tests in `PythonUtilsTest` validating CLI command construction for `scripts/nist_lines.py`
   - [x] Implement `ensureNistLinesCached(List<String> elementSymbols, Path cacheDir, double minWlNm, double maxWlNm)` in `src/main/java/com/medals/libsdatagenerator/util/PythonUtils.java`
-- [ ] Task: Refactor `InstrumentProfileService.java` to trigger ASD line caching and remove hard-coded out-of-range manifest windows
-  - [ ] Delete `populateDefaultManifestWindows(...)` from `InstrumentProfileService.java` and strip any legacy `"trampWindowsNm"` or `"resonanceMaskWindowsNm"` keys when loading/saving `temp/calibration_manifest.json`
-  - [ ] Update `stageMaterialAndRunGpuCalibration(...)` in `InstrumentProfileService.java` to invoke `pythonUtils.ensureNistLinesCached(elementSymbols, Path.of("data", "nist_lines"), 340.0, 900.0)`
-  - [ ] Write both `"composition"` and `"compositionMap"` to each material manifest entry and `"nistLinesDir": "data/nist_lines"` at the root of `temp/calibration_manifest.json`
-  - [ ] Update `InstrumentProfileServiceTest` to verify `ensureNistLinesCached` is called and no hard-coded `trampWindowsNm` or `resonanceMaskWindowsNm` exist in the manifest
+- [x] Task: Refactor `InstrumentProfileService.java` to trigger ASD line caching and remove hard-coded out-of-range manifest windows (8ed5db8)
+  - [x] Delete `populateDefaultManifestWindows(...)` from `InstrumentProfileService.java` and strip any legacy `"trampWindowsNm"` or `"resonanceMaskWindowsNm"` keys when loading/saving `temp/calibration_manifest.json`
+  - [x] Update `stageMaterialAndRunGpuCalibration(...)` in `InstrumentProfileService.java` to invoke `pythonUtils.ensureNistLinesCached(elementSymbols, Path.of("data", "nist_lines"), 340.0, 900.0)`
+  - [x] Write both `"composition"` and `"compositionMap"` to each material manifest entry and `"nistLinesDir": "data/nist_lines"` at the root of `temp/calibration_manifest.json`
+  - [x] Update `InstrumentProfileServiceTest` to verify `ensureNistLinesCached` is called and no hard-coded `trampWindowsNm` or `resonanceMaskWindowsNm` exist in the manifest
 - [ ] Task: Conductor - User Manual Verification 'Phase 6: NIST ASD Line Acquisition, CLI Integration & Hard-Coded Window Removal' (Protocol in workflow.md)
 
 ### Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas
