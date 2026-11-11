@@ -77,3 +77,64 @@
     - [x] Remove deprecated ALS baseline classes and obsolete optimization methods in `InstrumentProfileService.java`
     - [x] Run full project test suite (`mvn clean test`) and end-to-end forward synthesis dry run
 - [x] Task: Conductor - User Manual Verification 'Phase 5: Forward Synthetic Pipeline Integration, Batch Runner & Legacy Hard-Deletion' (Protocol in workflow.md)
+
+### Phase 6: NIST ASD Line Acquisition, CLI Integration & Hard-Coded Window Removal
+- [x] Task: Update `scripts/nist_lines.py` with `-` and `:` composition parser, `--elements` / `-c` CLI options, and default cache dir `data/nist_lines` (fb7472d)
+  - [x] Update `DEFAULT_CACHE_DIR` to `Path(__file__).resolve().parent.parent / "data" / "nist_lines"`
+  - [x] Implement `parse_elements_from_composition(comp_str)` in `scripts/nist_lines.py` supporting both `-` and `:` key-value delimiters (e.g., `'C-0.279,Si-6.5:7.5,Fe-#'` and `'C:0.279,Fe:87.8'`) via `re.split(r"[-:]", token.strip(), maxsplit=1)`
+  - [x] Update `build_cache(...)` to accept `elements: list[str] | None = None` and `include_common: bool = True`
+  - [x] Add `--elements` and `-c` / `--composition` CLI flags to `scripts/nist_lines.py`
+- [ ] Task: Add `PythonUtils.ensureNistLinesCached` and unit tests in `PythonUtilsTest`
+  - [ ] Write unit tests in `PythonUtilsTest` validating CLI command construction for `scripts/nist_lines.py`
+  - [ ] Implement `ensureNistLinesCached(List<String> elementSymbols, Path cacheDir, double minWlNm, double maxWlNm)` in `src/main/java/com/medals/libsdatagenerator/util/PythonUtils.java`
+- [ ] Task: Refactor `InstrumentProfileService.java` to trigger ASD line caching and remove hard-coded out-of-range manifest windows
+  - [ ] Delete `populateDefaultManifestWindows(...)` from `InstrumentProfileService.java` and strip any legacy `"trampWindowsNm"` or `"resonanceMaskWindowsNm"` keys when loading/saving `temp/calibration_manifest.json`
+  - [ ] Update `stageMaterialAndRunGpuCalibration(...)` in `InstrumentProfileService.java` to invoke `pythonUtils.ensureNistLinesCached(elementSymbols, Path.of("data", "nist_lines"), 340.0, 900.0)`
+  - [ ] Write both `"composition"` and `"compositionMap"` to each material manifest entry and `"nistLinesDir": "data/nist_lines"` at the root of `temp/calibration_manifest.json`
+  - [ ] Update `InstrumentProfileServiceTest` to verify `ensureNistLinesCached` is called and no hard-coded `trampWindowsNm` or `resonanceMaskWindowsNm` exist in the manifest
+- [ ] Task: Conductor - User Manual Verification 'Phase 6: NIST ASD Line Acquisition, CLI Integration & Hard-Coded Window Removal' (Protocol in workflow.md)
+
+### Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas
+- [ ] Task: Delete `VoigtProfile.java` and remove `voigtProfile` field/methods from `InstrumentProfile.java`
+  - [ ] Update `InstrumentProfileTest` and related model tests to remove all assertions on `VoigtProfile`
+  - [ ] Hard-delete `src/main/java/com/medals/libsdatagenerator/model/VoigtProfile.java` and `SpectralConvolver.java` (if present)
+  - [ ] Remove `voigtProfile` field, getter, setter, and constructor parameters from `InstrumentProfile.java`
+- [ ] Task: Remove Voigt convolution and transfer matrix references from Java services
+  - [ ] Update `LIBSDataService.java` and `InstrumentProfileService.java` so cached NIST spectra are linearly interpolated directly onto `instrumentProfile.getWavelengths()` without Voigt convolution
+  - [ ] Ensure `@JsonIgnoreProperties(ignoreUnknown = true)` is present on `InstrumentProfile`, `MaterialFamilyProfile`, `PlasmaZone`, and `BaselineCorrectionParams`
+- [ ] Task: Verify clean build and model tests (`mvn test -Dtest=InstrumentProfileTest,InstrumentProfileServiceTest`)
+- [ ] Task: Conductor - User Manual Verification 'Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas' (Protocol in workflow.md)
+
+### Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade (65 Channels)
+- [ ] Task: Update `BaselineCorrectionParams.java` and `InstrumentProfileService.java` default structuring element size to 65
+  - [ ] Update `structuringElementSize = 65` in `BaselineCorrectionParams.java` and `DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 65`, `NIST_RESOLVING_POWER = 3000.0` in `InstrumentProfileService.java`
+  - [ ] Update `BaselineCorrectionParamsTest` to assert default `structuringElementSize == 65`
+- [ ] Task: Refactor `SpectrumUtils.java` for 1:1 normalized 5-step RTE parity with Python
+  - [ ] Update `SpectrumUtils.combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones)` to max-normalize Zone 0 (`coreRaw[p] / maxCore`) and every outer shell (`shellRaw[p] / maxShell`) to `[0, 1]` before applying $I_z(\lambda) = I_{z-1}(\lambda)\exp(-k_z \tilde{S}_z(\lambda)) + V_z \tilde{S}_z(\lambda)$
+  - [ ] Update `SpectrumUtils.applyInstrumentResponseAndNoise(...)` to multiply by `spectralResponse`, max-normalize the post-response spectrum to `[0, 1]`, multiply by `scaleFactor`, and apply Finotello multiplicative noise $\max(0.0, 1.0 + \beta \mathcal{N}(0, 1))$
+  - [ ] Write unit tests in `SpectrumUtilsTest` verifying that `max(applyInstrumentResponseAndNoise(..., finotelloBeta=0.0)) == scaleFactor`
+- [ ] Task: Update `LIBSDataService.java` forward synthesis to invoke the updated `SpectrumUtils` pipeline
+- [ ] Task: Conductor - User Manual Verification 'Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade' (Protocol in workflow.md)
+
+### Phase 9: Upgrade PyTorch GPU Calibration Engine (`scripts/gpu_calibration_engine.py`)
+- [ ] Task: Implement `parse_composition_dict` and `AsdLineAdvisor` with purely dynamic in-range (`[lam_meas[0], lam_meas[-1]]`) window lookup
+  - [ ] Support both `"compositionMap"` and `"composition"` keys and both `-` and `:` delimiters (`C-0.279,Si-6.5:7.5,Fe-#`) in `parse_composition_dict`
+  - [ ] Implement `AsdLineAdvisor` importing `build_cache` and `load_lines` from `scripts/nist_lines.py` (`data/nist_lines/`)
+  - [ ] Compute resonance masks (`build_resonance_mask`), family tramp weights (`build_family_tramp_weights`), and non-resonant P-spline anchor windows (`get_asd_anchor_windows`) strictly from `data/nist_lines/` within `[lam_meas[0], lam_meas[-1]]` (`341.952–896.916 nm`), ignoring any legacy manifest window arrays
+- [ ] Task: Replace Voigt transfer matrix with direct 1D NIST resampling and per-state max-normalization
+  - [ ] Remove `estimate_measured_voigt_fwhm` and `build_gpu_voigt_transfer_matrix`
+  - [ ] Interpolate cached NIST CSVs directly onto `lam_meas` via `np.interp` and normalize each state column to unit max (`[0, 1]`)
+- [ ] Task: Implement constrained 2-Zone GPU Contracting Hypercube RTE Optimizer (`optimize_family_rte_gpu`)
+  - [ ] Enforce physical bounds: $T_{e,0} \in [0.60, 1.45]\text{ eV}$, $T_{e,1} \in [0.50, 0.95]\text{ eV}$ with $T_{e,0} - T_{e,1} \ge 0.12\text{ eV}$, $V_0 \in [0.75, 0.95]$, $V_1 = 1.0 - V_0$, $k_0 = 0.0$, $k_1 \in [0.50, 5.00]$
+  - [ ] Remove $1/\sigma_m^2$ inverse-variance weighting; optimize using tramp-weighted MSE + cosine loss (`0.5 * w_mse + 0.5 * cos_loss`) and compute `scaleFactor`, `rSquared`, and `rmse` via unweighted Ordinary Least Squares against the max-normalized post-response spectrum
+- [ ] Task: Implement 2-Pass Alternating RTE + ASD Peak-Envelope 8-Knot P-Spline `spectralResponse` Solver
+  - [ ] Pass 1: Fit initial 2-zone RTE parameters for all staged families using flat response $R^{(0)}(\lambda) = \mathbf{1}$
+  - [ ] Global Response Fit: Solve 8-knot cubic P-spline ($\mu_R = 2500$, ridge prior $0.25$) over ASD anchor peak-envelope log-ratios with Inverse-Family-Size Balanced Weighting ($1 / M_f$), per-material median centering, Huber clipping ($\pm 0.85$), and $[0.25, 2.50]$ bounds
+  - [ ] Pass 2: Re-optimize 2-zone RTE parameters and spatial bootstrap variances (`teStdDev`, `neLogStdDev`) for **all** staged families in `temp/calibration_manifest.json` using the locked $R(\lambda)$, strip any legacy `"voigtProfile"` key, and save `conf/instrument_profile.json`
+- [ ] Task: Write Python unit/integration test verifying `gpu_calibration_engine.py` end-to-end execution
+- [ ] Task: Conductor - User Manual Verification 'Phase 9: Upgrade PyTorch GPU Calibration Engine' (Protocol in workflow.md)
+
+### Phase 10: End-to-End Verification & Test Suite Parity
+- [ ] Task: Run full Maven test suite (`mvn clean test`) and Python tests
+- [ ] Task: Run calibration dry-run and verify `conf/instrument_profile.json` contains no `voigtProfile` and `temp/calibration_manifest.json` contains no out-of-range hard-coded windows
+- [ ] Task: Conductor - User Manual Verification 'Phase 10: End-to-End Verification & Test Suite Parity' (Protocol in workflow.md)
