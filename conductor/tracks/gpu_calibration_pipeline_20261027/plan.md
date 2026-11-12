@@ -137,4 +137,4 @@
 ### Phase 10: End-to-End Verification & Test Suite Parity
 - [x] Task: Run full Maven test suite (`mvn clean test`) and Python tests (63bf236)
 - [x] Task: Run calibration dry-run and verify `conf/instrument_profile.json` contains no `voigtProfile` and `temp/calibration_manifest.json` contains no out-of-range hard-coded windows (63bf236)
-- [ ] Task: Conductor - User Manual Verification 'Phase 10: End-to-End Verification & Test Suite Parity' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 10: End-to-End Verification & Test Suite Parity' (Protocol in workflow.md)
