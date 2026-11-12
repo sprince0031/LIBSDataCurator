@@ -95,3 +95,121 @@ def test_semicolon_delimited_csv_loading(sample_manifest, tmp_path):
     assert np.allclose(lam, [341.0, 342.0, 343.0])
     assert n_shots == 2
     assert len(pt_means) == 1
+
+
+def test_parse_composition_dict():
+    from scripts.gpu_calibration_engine import parse_composition_dict
+
+    # Dict input
+    d = {"Fe": 86.5, "Cr": 11.9, "C": 0.28}
+    res_d = parse_composition_dict(d)
+    assert np.isclose(sum(res_d.values()), 100.0)
+    assert "Fe" in res_d and "Cr" in res_d
+
+    # String with colons
+    comp_colon = "C:0.28,Cr:11.9,Fe:87.82"
+    res_c = parse_composition_dict(comp_colon)
+    assert np.isclose(sum(res_c.values()), 100.0)
+    assert np.isclose(res_c["Cr"], 11.9)
+
+    # String with dashes and remainder
+    comp_dash = "C-0.279,Si-6.5:7.5,Fe-#"
+    res_dash = parse_composition_dict(comp_dash)
+    assert np.isclose(sum(res_dash.values()), 100.0)
+    assert np.isclose(res_dash["Si"], 7.0)
+    assert np.isclose(res_dash["Fe"], 100.0 - (0.279 + 7.0))
+
+
+def test_asd_line_advisor(tmp_path):
+    from scripts.gpu_calibration_engine import AsdLineAdvisor
+
+    cache_dir = Path("data/nist_lines")
+    family_comps = {"Ferritic": {"Fe": 86.5, "Cr": 11.9, "C": 0.28}}
+    advisor = AsdLineAdvisor(cache_dir, family_comps, 340.0, 900.0)
+
+    lam_meas = np.linspace(340.0, 900.0, 1000)
+    res_mask = advisor.build_resonance_mask(lam_meas)
+    assert len(res_mask) == len(lam_meas)
+    assert np.all((res_mask == 0.0) | (res_mask == 1.0))
+
+    tramp_w = advisor.build_family_tramp_weights("Ferritic", lam_meas)
+    assert len(tramp_w) == len(lam_meas)
+    assert np.all(tramp_w >= 1.0)
+
+    windows = advisor.get_asd_anchor_windows("Ferritic", lam_meas, res_mask)
+    assert len(windows) > 0
+
+
+def test_end_to_end_synthetic_manifest(tmp_path):
+    # Create mock NIST grid CSVs (48 states)
+    te_grid = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
+    ne_grid = [1.0e16, 5.0e16, 1.0e17, 5.0e17]
+    nist_dir = tmp_path / "nist_cache"
+    nist_dir.mkdir()
+
+    lam_nist = np.linspace(340.0, 900.0, 200)
+    nist_paths = {}
+    for te in te_grid:
+        for ne in ne_grid:
+            csv_path = nist_dir / f"469_Te{te}_Ne{ne:.1E}.csv"
+            # Synthetic line profile with te/ne dependence
+            intensities = 100.0 + 50.0 * np.sin(lam_nist / 20.0) * (te / 1.0) * (np.log10(ne) / 16.0)
+            df = pd.DataFrame({"wavelength": lam_nist, "intensity": intensities})
+            df.to_csv(csv_path, index=False)
+            nist_paths[f"{te}_{ne:.1E}"] = str(csv_path)
+
+    # Create mock measured CSV (40 shots across 200 channels)
+    meas_dir = tmp_path / "measured"
+    meas_dir.mkdir()
+    meas_csv = meas_dir / "point_1.csv"
+    shots_data = np.tile(100.0 + 50.0 * np.sin(lam_nist / 20.0), (10, 1))
+    meas_df = pd.DataFrame(shots_data, columns=[str(w) for w in lam_nist])
+    meas_df.to_csv(meas_csv, index=False)
+
+    out_profile = tmp_path / "instrument_profile.json"
+    manifest_data = {
+        "targetMaterialFamily": "Ferritic_Stainless_Steel",
+        "outputProfilePath": str(out_profile),
+        "nistResolvingPower": 3000.0,
+        "detectorFullScale": 65535.0,
+        "saturationThresholdFactor": 0.9,
+        "numZones": 2,
+        "logsDir": str(tmp_path / "logs"),
+        "nistLinesDir": "data/nist_lines",
+        "baselineCorrectionParams": {
+            "method": "morphological_opening",
+            "structuringElementSize": 65
+        },
+        "teAnchorGridEv": te_grid,
+        "neAnchorGridCm3": ne_grid,
+        "materialFamilies": {
+            "Ferritic_Stainless_Steel": [
+                {
+                    "materialName": "469",
+                    "composition": {"Fe": 86.5, "Cr": 11.9, "C": 0.28},
+                    "measuredCsvPaths": [str(meas_csv)],
+                    "nistGridCsvPaths": nist_paths
+                }
+            ]
+        }
+    }
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    engine = GpuLibsCalibrationEngine(str(manifest_path))
+    engine.run()
+
+    assert out_profile.exists()
+    profile = json.loads(out_profile.read_text(encoding="utf-8"))
+    assert "voigtProfile" not in profile, "voigtProfile must not be present in output JSON"
+    assert len(profile["spectralResponse"]) == len(lam_nist)
+    assert np.all(np.array(profile["spectralResponse"]) >= 0.25)
+    assert np.all(np.array(profile["spectralResponse"]) <= 2.50)
+    fam_profile = profile["materialFamilyProfiles"]["Ferritic_Stainless_Steel"]
+    assert "plasmaZones" in fam_profile
+    assert len(fam_profile["plasmaZones"]) == 2
+    assert fam_profile["plasmaZones"][0]["Te"] >= fam_profile["plasmaZones"][1]["Te"] + 0.12
+    assert "scaleFactor" in fam_profile
+    assert fam_profile["scaleFactor"] > 0
+
+
