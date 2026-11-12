@@ -23,9 +23,6 @@ public class InstrumentProfile implements JsonModel {
     @JsonProperty("spectralResponse")
     private double[] spectralResponse;
 
-    @JsonProperty("voigtProfile")
-    private VoigtProfile voigtProfile;
-
     @JsonProperty("finotelloNoiseBeta")
     private double finotelloNoiseBeta;
 
@@ -99,14 +96,6 @@ public class InstrumentProfile implements JsonModel {
 
     public void setSpectralResponse(double[] spectralResponse) {
         this.spectralResponse = spectralResponse;
-    }
-
-    public VoigtProfile getVoigtProfile() {
-        return voigtProfile;
-    }
-
-    public void setVoigtProfile(VoigtProfile voigtProfile) {
-        this.voigtProfile = voigtProfile;
     }
 
     public double getFinotelloNoiseBeta() {
@@ -222,10 +211,6 @@ public class InstrumentProfile implements JsonModel {
             json.put("spectralResponse", srArr);
         }
 
-        if (voigtProfile != null) {
-            json.put("voigtProfile", voigtProfile.toJson());
-        }
-
         json.put("finotelloNoiseBeta", finotelloNoiseBeta);
 
         JSONObject materialFamilyProfilesJson = new JSONObject();
@@ -263,10 +248,6 @@ public class InstrumentProfile implements JsonModel {
             for (int i = 0; i < srArray.length(); i++) {
                 this.spectralResponse[i] = srArray.getDouble(i);
             }
-        }
-
-        if (json.has("voigtProfile")) {
-            this.voigtProfile = VoigtProfile.fromJson(json.optJSONObject("voigtProfile"));
         }
 
         this.finotelloNoiseBeta = json.optDouble("finotelloNoiseBeta", 0.0);

@@ -370,10 +370,6 @@ public class LIBSDataService {
                         fetchedZoneSpectra.add(normalisedSpectrum);
                     }
                     double[] combinedSpectrum = spectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
-                    if (instrumentProfile != null && instrumentProfile.getVoigtProfile() != null) {
-                        combinedSpectrum = spectrumUtils.applyVoigtBroadening(
-                                instrumentProfile.getWavelengthGrid(), combinedSpectrum, instrumentProfile.getVoigtProfile());
-                    }
                     List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(
                             combinedSpectrum,
                             scaleFactor,

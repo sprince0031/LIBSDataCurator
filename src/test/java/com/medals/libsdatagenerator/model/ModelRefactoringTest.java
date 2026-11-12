@@ -39,30 +39,31 @@ public class ModelRefactoringTest {
     }
 
     @Test
-    @DisplayName("VoigtProfile serialization and deserialization")
-    void testVoigtProfile() throws Exception {
-        List<Double> g = Arrays.asList(0.28, 0.29);
-        List<Double> l = Arrays.asList(0.05, 0.06);
-        VoigtProfile vp = new VoigtProfile(4000.0, g, l);
+    @DisplayName("Legacy VoigtProfile should be ignored on deserialization")
+    void testLegacyVoigtProfileIgnoredOnDeserialization() throws Exception {
+        String legacyJson = "{\n" +
+                "  \"instrumentName\": \"Legacy_Inst\",\n" +
+                "  \"wavelengths\": [200.0, 300.0],\n" +
+                "  \"voigtProfile\": {\n" +
+                "    \"nistResolvingPower\": 4000.0,\n" +
+                "    \"fwhmGaussianNm\": [0.28],\n" +
+                "    \"fwhmLorentzianNm\": [0.06]\n" +
+                "  }\n" +
+                "}";
 
-        String jsonStr = objectMapper.writeValueAsString(vp);
-        VoigtProfile readVp = objectMapper.readValue(jsonStr, VoigtProfile.class);
-
-        assertEquals(4000.0, readVp.getNistResolvingPower());
-        assertEquals(2, readVp.getFwhmGaussianNm().size());
-        assertEquals(0.28, readVp.getFwhmGaussianNm().get(0));
+        InstrumentProfile profile = objectMapper.readValue(legacyJson, InstrumentProfile.class);
+        assertNotNull(profile);
+        assertEquals("Legacy_Inst", profile.getInstrumentName());
+        assertFalse(profile.toJson().has("voigtProfile"), "Exported JSON must not contain voigtProfile");
     }
 
     @Test
-    @DisplayName("InstrumentProfile should support spectralResponse, voigtProfile, finotelloNoiseBeta and holdout CSVs")
+    @DisplayName("InstrumentProfile should support spectralResponse, finotelloNoiseBeta and holdout CSVs without Voigt")
     void testInstrumentProfileNewFields() throws Exception {
         InstrumentProfile profile = new InstrumentProfile();
         profile.setInstrumentName("Test_Inst");
         profile.setSpectralResponse(new double[]{1.0, 1.1, 0.95});
         profile.setFinotelloNoiseBeta(0.095);
-
-        VoigtProfile vp = new VoigtProfile(4000.0, List.of(0.28), List.of(0.06));
-        profile.setVoigtProfile(vp);
 
         MaterialFamilyProfile familyProfile = new MaterialFamilyProfile("Ferritic");
         Map<String, List<String>> holdouts = new HashMap<>();
@@ -74,6 +75,7 @@ public class ModelRefactoringTest {
         JSONObject json = profile.toJson();
         assertEquals(0.095, json.getDouble("finotelloNoiseBeta"));
         assertEquals(3, json.getJSONArray("spectralResponse").length());
+        assertFalse(json.has("voigtProfile"), "Profile JSON must not have voigtProfile");
 
         InstrumentProfile restored = new InstrumentProfile();
         restored.fromJson(json);

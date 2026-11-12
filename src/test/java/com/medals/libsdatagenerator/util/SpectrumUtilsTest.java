@@ -1,7 +1,6 @@
 package com.medals.libsdatagenerator.util;
 
 import com.medals.libsdatagenerator.model.PlasmaZone;
-import com.medals.libsdatagenerator.model.VoigtProfile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -82,43 +81,5 @@ public class SpectrumUtilsTest {
         assertEquals(2, scaled.size());
         assertEquals(125.0, scaled.get(0), 1e-4);
         assertEquals(1000.0, scaled.get(1), 1e-4);
-    }
-
-    @Test
-    @DisplayName("applyVoigtBroadening broadens a delta peak conserving energy")
-    void testApplyVoigtBroadening() {
-        int n = 51;
-        double[] wavelengths = new double[n];
-        double[] intensities = new double[n];
-        for (int i = 0; i < n; i++) {
-            wavelengths[i] = 300.0 + i * 0.1; // 0.1 nm spacing
-        }
-        intensities[25] = 100.0; // Sharp central line at 302.5 nm
-
-        VoigtProfile profile = new VoigtProfile();
-        profile.setNistResolvingPower(4000.0);
-        List<Double> fwhmG = new ArrayList<>();
-        List<Double> fwhmL = new ArrayList<>();
-        for (int i = 0; i < n; i++) {
-            fwhmG.add(0.3); // 3 channels Gaussian FWHM
-            fwhmL.add(0.1); // 1 channel Lorentzian FWHM
-        }
-        profile.setFwhmGaussianNm(fwhmG);
-        profile.setFwhmLorentzianNm(fwhmL);
-
-        double[] broadened = spectrumUtils.applyVoigtBroadening(wavelengths, intensities, profile);
-        assertNotNull(broadened);
-        assertEquals(n, broadened.length);
-
-        // Peak intensity at center should decrease as energy spreads
-        assertTrue(broadened[25] < 100.0, "Central peak should decrease due to broadening");
-        // Neighbors should now have non-zero intensity
-        assertTrue(broadened[24] > 0.0);
-        assertTrue(broadened[26] > 0.0);
-
-        // Total energy / integral should be conserved approximately
-        double originalSum = Arrays.stream(intensities).sum();
-        double broadenedSum = Arrays.stream(broadened).sum();
-        assertEquals(originalSum, broadenedSum, originalSum * 0.05);
     }
 }
