@@ -138,6 +138,7 @@ if exist "docs" (
 REM Copy scripts if they exist
 if exist "scripts" (
     xcopy /s /e scripts\gpu_calibration_engine.py build\release-package\scripts\ 2>nul
+    xcopy /s /e scripts\nist_lines.py build\release-package\scripts\ 2>nul
 )
 
 REM Create run script

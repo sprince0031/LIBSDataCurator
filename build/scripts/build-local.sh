@@ -89,7 +89,7 @@ fi
 
 # Copy scripts if they exist
 if [ -d "scripts" ]; then
-    cp scripts/gpu_calibration_engine.py build/release-package/scripts/ 2>/dev/null || true
+    cp -r scripts/{gpu_calibration_engine.py,nist_lines.py} build/release-package/scripts/ 2>/dev/null || true
     chmod +x build/release-package/scripts/*.py 2>/dev/null || true
 fi
 
