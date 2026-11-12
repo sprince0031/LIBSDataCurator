@@ -12,11 +12,11 @@ public class BaselineCorrectionParamsTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    @DisplayName("Default constructor should initialize method as morphological_opening and structuringElementSize as 25")
+    @DisplayName("Default constructor should initialize method as morphological_opening and structuringElementSize as 65")
     void testDefaultValues() {
         BaselineCorrectionParams params = new BaselineCorrectionParams();
         assertEquals("morphological_opening", params.getMethod());
-        assertEquals(25, params.getStructuringElementSize());
+        assertEquals(65, params.getStructuringElementSize());
     }
 
     @Test
@@ -40,7 +40,7 @@ public class BaselineCorrectionParamsTest {
 
         assertNotNull(params);
         assertEquals("morphological_opening", params.getMethod());
-        assertEquals(25, params.getStructuringElementSize());
+        assertEquals(65, params.getStructuringElementSize());
     }
 
     @Test

@@ -65,8 +65,8 @@ public class InstrumentProfileService {
     public static final double[] NE_ANCHOR_GRID_CM3 = {
             1.0e16, 5.0e16, 1.0e17, 5.0e17
     };
-    public static final double NIST_RESOLVING_POWER = 4000.0;
-    public static final int DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25;
+    public static final double NIST_RESOLVING_POWER = 3000.0;
+    public static final int DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 65;
 
     private LIBSDataService libsDataService;
     private PythonUtils pythonUtils;
