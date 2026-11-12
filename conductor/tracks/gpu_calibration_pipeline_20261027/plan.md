@@ -95,14 +95,14 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 6: NIST ASD Line Acquisition, CLI Integration & Hard-Coded Window Removal' (Protocol in workflow.md)
 
 ### Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas
-- [ ] Task: Delete `VoigtProfile.java` and remove `voigtProfile` field/methods from `InstrumentProfile.java`
-  - [ ] Update `InstrumentProfileTest` and related model tests to remove all assertions on `VoigtProfile`
-  - [ ] Hard-delete `src/main/java/com/medals/libsdatagenerator/model/VoigtProfile.java` and `SpectralConvolver.java` (if present)
-  - [ ] Remove `voigtProfile` field, getter, setter, and constructor parameters from `InstrumentProfile.java`
-- [ ] Task: Remove Voigt convolution and transfer matrix references from Java services
-  - [ ] Update `LIBSDataService.java` and `InstrumentProfileService.java` so cached NIST spectra are linearly interpolated directly onto `instrumentProfile.getWavelengths()` without Voigt convolution
-  - [ ] Ensure `@JsonIgnoreProperties(ignoreUnknown = true)` is present on `InstrumentProfile`, `MaterialFamilyProfile`, `PlasmaZone`, and `BaselineCorrectionParams`
-- [ ] Task: Verify clean build and model tests (`mvn test -Dtest=InstrumentProfileTest,InstrumentProfileServiceTest`)
+- [x] Task: Delete `VoigtProfile.java` and remove `voigtProfile` field/methods from `InstrumentProfile.java` (5c2f18c)
+  - [x] Update `InstrumentProfileTest` and related model tests to remove all assertions on `VoigtProfile`
+  - [x] Hard-delete `src/main/java/com/medals/libsdatagenerator/model/VoigtProfile.java` and `SpectralConvolver.java` (if present)
+  - [x] Remove `voigtProfile` field, getter, setter, and constructor parameters from `InstrumentProfile.java`
+- [x] Task: Remove Voigt convolution and transfer matrix references from Java services (5c2f18c)
+  - [x] Update `LIBSDataService.java` and `InstrumentProfileService.java` so cached NIST spectra are linearly interpolated directly onto `instrumentProfile.getWavelengths()` without Voigt convolution
+  - [x] Ensure `@JsonIgnoreProperties(ignoreUnknown = true)` is present on `InstrumentProfile`, `MaterialFamilyProfile`, `PlasmaZone`, and `BaselineCorrectionParams`
+- [x] Task: Verify clean build and model tests (`mvn test -Dtest=InstrumentProfileTest,InstrumentProfileServiceTest`) (5c2f18c)
 - [ ] Task: Conductor - User Manual Verification 'Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas' (Protocol in workflow.md)
 
 ### Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade (65 Channels)
