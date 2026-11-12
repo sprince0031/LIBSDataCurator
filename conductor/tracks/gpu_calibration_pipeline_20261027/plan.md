@@ -117,21 +117,21 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade' (Protocol in workflow.md)
 
 ### Phase 9: Upgrade PyTorch GPU Calibration Engine (`scripts/gpu_calibration_engine.py`)
-- [ ] Task: Implement `parse_composition_dict` and `AsdLineAdvisor` with purely dynamic in-range (`[lam_meas[0], lam_meas[-1]]`) window lookup
-  - [ ] Support both `"compositionMap"` and `"composition"` keys and both `-` and `:` delimiters (`C-0.279,Si-6.5:7.5,Fe-#`) in `parse_composition_dict`
-  - [ ] Implement `AsdLineAdvisor` importing `build_cache` and `load_lines` from `scripts/nist_lines.py` (`data/nist_lines/`)
-  - [ ] Compute resonance masks (`build_resonance_mask`), family tramp weights (`build_family_tramp_weights`), and non-resonant P-spline anchor windows (`get_asd_anchor_windows`) strictly from `data/nist_lines/` within `[lam_meas[0], lam_meas[-1]]` (`341.952–896.916 nm`), ignoring any legacy manifest window arrays
-- [ ] Task: Replace Voigt transfer matrix with direct 1D NIST resampling and per-state max-normalization
-  - [ ] Remove `estimate_measured_voigt_fwhm` and `build_gpu_voigt_transfer_matrix`
-  - [ ] Interpolate cached NIST CSVs directly onto `lam_meas` via `np.interp` and normalize each state column to unit max (`[0, 1]`)
-- [ ] Task: Implement constrained 2-Zone GPU Contracting Hypercube RTE Optimizer (`optimize_family_rte_gpu`)
-  - [ ] Enforce physical bounds: $T_{e,0} \in [0.60, 1.45]\text{ eV}$, $T_{e,1} \in [0.50, 0.95]\text{ eV}$ with $T_{e,0} - T_{e,1} \ge 0.12\text{ eV}$, $V_0 \in [0.75, 0.95]$, $V_1 = 1.0 - V_0$, $k_0 = 0.0$, $k_1 \in [0.50, 5.00]$
-  - [ ] Remove $1/\sigma_m^2$ inverse-variance weighting; optimize using tramp-weighted MSE + cosine loss (`0.5 * w_mse + 0.5 * cos_loss`) and compute `scaleFactor`, `rSquared`, and `rmse` via unweighted Ordinary Least Squares against the max-normalized post-response spectrum
-- [ ] Task: Implement 2-Pass Alternating RTE + ASD Peak-Envelope 8-Knot P-Spline `spectralResponse` Solver
-  - [ ] Pass 1: Fit initial 2-zone RTE parameters for all staged families using flat response $R^{(0)}(\lambda) = \mathbf{1}$
-  - [ ] Global Response Fit: Solve 8-knot cubic P-spline ($\mu_R = 2500$, ridge prior $0.25$) over ASD anchor peak-envelope log-ratios with Inverse-Family-Size Balanced Weighting ($1 / M_f$), per-material median centering, Huber clipping ($\pm 0.85$), and $[0.25, 2.50]$ bounds
-  - [ ] Pass 2: Re-optimize 2-zone RTE parameters and spatial bootstrap variances (`teStdDev`, `neLogStdDev`) for **all** staged families in `temp/calibration_manifest.json` using the locked $R(\lambda)$, strip any legacy `"voigtProfile"` key, and save `conf/instrument_profile.json`
-- [ ] Task: Write Python unit/integration test verifying `gpu_calibration_engine.py` end-to-end execution
+- [x] Task: Implement `parse_composition_dict` and `AsdLineAdvisor` with purely dynamic in-range (`[lam_meas[0], lam_meas[-1]]`) window lookup (219aabc)
+  - [x] Support both `"compositionMap"` and `"composition"` keys and both `-` and `:` delimiters (`C-0.279,Si-6.5:7.5,Fe-#`) in `parse_composition_dict`
+  - [x] Implement `AsdLineAdvisor` importing `build_cache` and `load_lines` from `scripts/nist_lines.py` (`data/nist_lines/`)
+  - [x] Compute resonance masks (`build_resonance_mask`), family tramp weights (`build_family_tramp_weights`), and non-resonant P-spline anchor windows (`get_asd_anchor_windows`) strictly from `data/nist_lines/` within `[lam_meas[0], lam_meas[-1]]` (`341.952–896.916 nm`), ignoring any legacy manifest window arrays
+- [x] Task: Replace Voigt transfer matrix with direct 1D NIST resampling and per-state max-normalization (219aabc)
+  - [x] Remove `estimate_measured_voigt_fwhm` and `build_gpu_voigt_transfer_matrix`
+  - [x] Interpolate cached NIST CSVs directly onto `lam_meas` via `np.interp` and normalize each state column to unit max (`[0, 1]`)
+- [x] Task: Implement constrained 2-Zone GPU Contracting Hypercube RTE Optimizer (`optimize_family_rte_gpu`) (219aabc)
+  - [x] Enforce physical bounds: $T_{e,0} \in [0.60, 1.45]\text{ eV}$, $T_{e,1} \in [0.50, 0.95]\text{ eV}$ with $T_{e,0} - T_{e,1} \ge 0.12\text{ eV}$, $V_0 \in [0.75, 0.95]$, $V_1 = 1.0 - V_0$, $k_0 = 0.0$, $k_1 \in [0.50, 5.00]$
+  - [x] Remove $1/\sigma_m^2$ inverse-variance weighting; optimize using tramp-weighted MSE + cosine loss (`0.5 * w_mse + 0.5 * cos_loss`) and compute `scaleFactor`, `rSquared`, and `rmse` via unweighted Ordinary Least Squares against the max-normalized post-response spectrum
+- [x] Task: Implement 2-Pass Alternating RTE + ASD Peak-Envelope 8-Knot P-Spline `spectralResponse` Solver (219aabc)
+  - [x] Pass 1: Fit initial 2-zone RTE parameters for all staged families using flat response $R^{(0)}(\lambda) = \mathbf{1}$
+  - [x] Global Response Fit: Solve 8-knot cubic P-spline ($\mu_R = 2500$, ridge prior $0.25$) over ASD anchor peak-envelope log-ratios with Inverse-Family-Size Balanced Weighting ($1 / M_f$), per-material median centering, Huber clipping ($\pm 0.85$), and $[0.25, 2.50]$ bounds
+  - [x] Pass 2: Re-optimize 2-zone RTE parameters and spatial bootstrap variances (`teStdDev`, `neLogStdDev`) for **all** staged families in `temp/calibration_manifest.json` using the locked $R(\lambda)$, strip any legacy `"voigtProfile"` key, and save `conf/instrument_profile.json`
+- [x] Task: Write Python unit/integration test verifying `gpu_calibration_engine.py` end-to-end execution (219aabc)
 - [ ] Task: Conductor - User Manual Verification 'Phase 9: Upgrade PyTorch GPU Calibration Engine' (Protocol in workflow.md)
 
 ### Phase 10: End-to-End Verification & Test Suite Parity
