@@ -16,7 +16,7 @@ To generate synthetic data that is statistically representative of real-world me
 - **Realistic Simulation:** Generation of synthetic compositional variations to mimic real-world scrap variability and detector noise.
 - **Material Standardization:** Integration with MatWeb to fetch and standardize material grade specifications.
 - **Flexible Labeling:** Support for various ML target labels including Grade Name, Material Type, and Elemental Composition.
-- **Instrument Profiling & Multi-Family GPU Calibration:** A calibration feature that generates an `instrument_profile.json` from real reference measurements using PyTorch CUDA acceleration. Captures instrument spectral response, differential Voigt line broadening, coupled plasma temperatures and electron densities, and multi-zone radiative transfer self-absorption parameters.
+- **Instrument Profiling & Multi-Family GPU Calibration:** A calibration feature that generates an `instrument_profile.json` from real reference measurements using PyTorch acceleration. Dynamically queries and caches NIST ASD atomic lines, performs 1:1 forward radiative transfer equation (RTE) synthesis without artificial Voigt broadening, solves for instrument spectral response using ASD-anchored 8-knot P-splines with Huber loss, and enforces coupled 2-zone plasma physical constraints.
 - **Tramp Element Residuals Injection:** Physics-informed injection of tramp residual elements (Cu, Sn, Pb, As, Sb, Cr, Ni, Zn) via independent Bernoulli trials with automatic Fe matrix rebalancing to mimic scrap contamination.
 
 ## Success Metrics

@@ -17,7 +17,8 @@
 - **Calibration Engine (Python/GPU):**
     - PyTorch 2.5+ with CUDA support
     - SciPy (ndimage, optimize, interpolate)
-    - NumPy, Pandas
+    - NumPy, Pandas, PyArrow (NIST ASD Parquet caching)
+    - Requests, Beautiful Soup 4 (NIST ASD scraping)
 - **Network & I/O:**
     - Apache HTTP Client 4.5.13
     - Apache Commons IO 2.14.0
