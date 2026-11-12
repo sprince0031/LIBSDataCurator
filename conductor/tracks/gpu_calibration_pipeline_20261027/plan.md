@@ -114,7 +114,7 @@
   - [x] Update `SpectrumUtils.applyInstrumentResponseAndNoise(...)` to multiply by `spectralResponse`, max-normalize the post-response spectrum to `[0, 1]`, multiply by `scaleFactor`, and apply Finotello multiplicative noise $\max(0.0, 1.0 + \beta \mathcal{N}(0, 1))$
   - [x] Write unit tests in `SpectrumUtilsTest` verifying that `max(applyInstrumentResponseAndNoise(..., finotelloBeta=0.0)) == scaleFactor`
 - [x] Task: Update `LIBSDataService.java` forward synthesis to invoke the updated `SpectrumUtils` pipeline (cb85c5d)
-- [ ] Task: Conductor - User Manual Verification 'Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade' (Protocol in workflow.md)
 
 ### Phase 9: Upgrade PyTorch GPU Calibration Engine (`scripts/gpu_calibration_engine.py`)
 - [ ] Task: Implement `parse_composition_dict` and `AsdLineAdvisor` with purely dynamic in-range (`[lam_meas[0], lam_meas[-1]]`) window lookup
