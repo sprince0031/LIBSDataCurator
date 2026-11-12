@@ -103,7 +103,7 @@
   - [x] Update `LIBSDataService.java` and `InstrumentProfileService.java` so cached NIST spectra are linearly interpolated directly onto `instrumentProfile.getWavelengths()` without Voigt convolution
   - [x] Ensure `@JsonIgnoreProperties(ignoreUnknown = true)` is present on `InstrumentProfile`, `MaterialFamilyProfile`, `PlasmaZone`, and `BaselineCorrectionParams`
 - [x] Task: Verify clean build and model tests (`mvn test -Dtest=InstrumentProfileTest,InstrumentProfileServiceTest`) (5c2f18c)
-- [ ] Task: Conductor - User Manual Verification 'Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 7: Complete Voigt Profile Removal across Java and JSON Schemas' (Protocol in workflow.md)
 
 ### Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade (65 Channels)
 - [ ] Task: Update `BaselineCorrectionParams.java` and `InstrumentProfileService.java` default structuring element size to 65
