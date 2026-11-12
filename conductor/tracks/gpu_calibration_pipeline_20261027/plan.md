@@ -132,7 +132,7 @@
   - [x] Global Response Fit: Solve 8-knot cubic P-spline ($\mu_R = 2500$, ridge prior $0.25$) over ASD anchor peak-envelope log-ratios with Inverse-Family-Size Balanced Weighting ($1 / M_f$), per-material median centering, Huber clipping ($\pm 0.85$), and $[0.25, 2.50]$ bounds
   - [x] Pass 2: Re-optimize 2-zone RTE parameters and spatial bootstrap variances (`teStdDev`, `neLogStdDev`) for **all** staged families in `temp/calibration_manifest.json` using the locked $R(\lambda)$, strip any legacy `"voigtProfile"` key, and save `conf/instrument_profile.json`
 - [x] Task: Write Python unit/integration test verifying `gpu_calibration_engine.py` end-to-end execution (219aabc)
-- [ ] Task: Conductor - User Manual Verification 'Phase 9: Upgrade PyTorch GPU Calibration Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 9: Upgrade PyTorch GPU Calibration Engine' (Protocol in workflow.md)
 
 ### Phase 10: End-to-End Verification & Test Suite Parity
 - [ ] Task: Run full Maven test suite (`mvn clean test`) and Python tests
