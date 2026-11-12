@@ -9,5 +9,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Multi-Family GPU Instrument Calibration & Physics-Informed Synthetic LIBS Pipeline**
+- [x] **Track: Multi-Family GPU Instrument Calibration & Physics-Informed Synthetic LIBS Pipeline**
 *Link: [./tracks/gpu_calibration_pipeline_20261027/](./tracks/gpu_calibration_pipeline_20261027/)*
