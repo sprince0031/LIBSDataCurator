@@ -39,6 +39,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -366,15 +367,21 @@ public class LIBSDataService {
                             continue;
                         }
                         double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-                        double[] normalisedSpectrum = spectrumUtils.normaliseSpectrum(interpolatedSpectrum);
-                        fetchedZoneSpectra.add(normalisedSpectrum);
+                        fetchedZoneSpectra.add(interpolatedSpectrum);
                     }
-                    double[] combinedSpectrum = spectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
-                    List<Double> scaledSpectrum = spectrumUtils.normaliseAndScaleSpectrum(
+                    double[] combinedSpectrum = SpectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
+                    double finotelloBeta = instrumentProfile != null ? instrumentProfile.getFinotelloNoiseBeta() : 0.0;
+                    double[] finalCounts = SpectrumUtils.applyInstrumentResponseAndNoise(
                             combinedSpectrum,
+                            instrumentProfile != null ? instrumentProfile.getSpectralResponse() : null,
                             scaleFactor,
-                            instrumentProfile != null ? instrumentProfile.getSpectralResponse() : null
+                            finotelloBeta,
+                            new Random()
                     );
+                    List<Double> scaledSpectrum = new ArrayList<>();
+                    for (double val : finalCounts) {
+                        scaledSpectrum.add(val);
+                    }
 
                     compWaveIntensityMap.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_SPECTRA, scaledSpectrum);
 

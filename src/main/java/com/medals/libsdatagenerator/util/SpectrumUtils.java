@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.logging.Logger;
 
 public class SpectrumUtils {
@@ -127,39 +128,82 @@ public class SpectrumUtils {
     }
 
     /**
-     * Combines N simulated spectra applying the N-Zone Radiative Transfer (Beer-Lambert) law.
-     * Zone 0 is assumed to be the Core. Zone N-1 is the outermost periphery.
+     * Step 1 & Step 2: Max-normalizes each zone spectrum to [0, 1] and combines N zones
+     * using the recursive Radiative Transfer Equation:
+     *   I_0(λ) = V_0 * S_0_norm(λ)
+     *   I_z(λ) = I_{z-1}(λ) * exp(-k_z * S_z_norm(λ)) + V_z * S_z_norm(λ)
      */
-    public double[] combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones) {
-        if (zoneSpectra == null || zones == null || zoneSpectra.size() != zones.size()) {
+    public static double[] combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones) {
+        if (zoneSpectra == null || zones == null || zoneSpectra.isEmpty() || zoneSpectra.size() != zones.size()) {
             throw new IllegalArgumentException("Mismatch between spectra data and zone definitions.");
         }
 
-        int numPoints = zoneSpectra.getFirst().length;
-        int numZones = zones.size();
-        double[] combined = new double[numPoints];
+        int numChannels = zoneSpectra.get(0).length;
+        double[] combined = new double[numChannels];
 
-        for (int i = 0; i < numZones; i++) {
-            if (i == 0) {
-                // Zone 0: Hot Core (No self-absorption penalty)
-                for (int j = 0; j < combined.length; j++) {
-                    combined[j] = zoneSpectra.get(i)[j] * zones.get(i).getVFraction();
-                }
-            } else {
-                // Zone 1..n: Cooler Periphery Layers (Radiative Transfer Equation)
-                for (int j = 0; j < combined.length; j++) {
-                    // Clamp to 0.0 to prevent baseline correction artifacts
-                    double iOuter = Math.max(zoneSpectra.get(i)[j], 0.0);
+        double[] coreRaw = zoneSpectra.get(0);
+        double maxCore = Arrays.stream(coreRaw).max().orElse(1.0);
+        if (maxCore <= 1e-12) maxCore = 1.0;
+        double vCore = zones.get(0).getVolumeFraction();
 
-                    double transmissionFactor = Math.exp(-zones.get(i).getKAbsorption() * iOuter);
-
-                    // I_total = (I_inner * transmission) + (V_outer * I_outer)
-                    combined[j] = (combined[j] * transmissionFactor) + (zones.get(i).getVFraction() * iOuter);
-                }
-            }
+        for (int p = 0; p < numChannels; p++) {
+            combined[p] = vCore * (coreRaw[p] / maxCore);
         }
 
+        for (int z = 1; z < zones.size(); z++) {
+            double[] shellRaw = zoneSpectra.get(z);
+            PlasmaZone shellZone = zones.get(z);
+            double vShell = shellZone.getVolumeFraction();
+            double kAbs = shellZone.getKAbsorption();
+
+            double maxShell = Arrays.stream(shellRaw).max().orElse(1.0);
+            if (maxShell <= 1e-12) maxShell = 1.0;
+
+            for (int p = 0; p < numChannels; p++) {
+                double sNorm = shellRaw[p] / maxShell;
+                combined[p] = combined[p] * Math.exp(-kAbs * sNorm) + (vShell * sNorm);
+            }
+        }
         return combined;
+    }
+
+    /**
+     * Step 3, Step 4 & Step 5: Applies spectralResponse R(λ), max-normalizes to [0, 1],
+     * multiplies by family scaleFactor, and injects Finotello multiplicative shot noise N(1, β).
+     */
+    public static double[] applyInstrumentResponseAndNoise(
+            double[] combinedRteSpectrum,
+            double[] spectralResponse,
+            double scaleFactor,
+            double finotelloBeta,
+            Random rng) {
+
+        if (combinedRteSpectrum == null) {
+            return null;
+        }
+        int n = combinedRteSpectrum.length;
+        double[] respWeighted = new double[n];
+        double maxResp = 0.0;
+
+        for (int p = 0; p < n; p++) {
+            double r = (spectralResponse != null && p < spectralResponse.length) ? spectralResponse[p] : 1.0;
+            respWeighted[p] = combinedRteSpectrum[p] * r;
+            if (respWeighted[p] > maxResp) {
+                maxResp = respWeighted[p];
+            }
+        }
+        if (maxResp <= 1e-12) {
+            maxResp = 1.0;
+        }
+
+        double[] finalCounts = new double[n];
+        for (int p = 0; p < n; p++) {
+            double noiseMultiplier = (rng != null && finotelloBeta > 0.0)
+                    ? Math.max(0.0, 1.0 + finotelloBeta * rng.nextGaussian())
+                    : 1.0;
+            finalCounts[p] = (respWeighted[p] / maxResp) * scaleFactor * noiseMultiplier;
+        }
+        return finalCounts;
     }
 
     /**

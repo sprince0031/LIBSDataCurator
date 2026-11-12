@@ -39,19 +39,17 @@ public class SpectrumUtilsTest {
         assertEquals(2, combined.length);
 
         // Channel 0:
-        // I_inner = 10.0 * 0.8 = 8.0
-        // transmission = exp(-0.5 * 2.0) = exp(-1.0) ~= 0.367879
-        // I_outer = 0.2 * 2.0 = 0.4
-        // Expected = 8.0 * 0.367879 + 0.4 = 2.94303 + 0.4 = 3.34303
-        double expected0 = (10.0 * 0.8) * Math.exp(-0.5 * 2.0) + (0.2 * 2.0);
+        // S_0_norm = 10.0 / 20.0 = 0.5, I_0 = 0.8 * 0.5 = 0.4
+        // S_1_norm = 2.0 / 4.0 = 0.5, transmission = exp(-0.5 * 0.5) = exp(-0.25) ~= 0.77880
+        // Expected = 0.4 * exp(-0.25) + (0.2 * 0.5) = 0.31152 + 0.1 = 0.41152
+        double expected0 = (0.8 * 0.5) * Math.exp(-0.5 * 0.5) + (0.2 * 0.5);
         assertEquals(expected0, combined[0], 1e-4);
 
         // Channel 1:
-        // I_inner = 20.0 * 0.8 = 16.0
-        // transmission = exp(-0.5 * 4.0) = exp(-2.0) ~= 0.135335
-        // I_outer = 0.2 * 4.0 = 0.8
-        // Expected = 16.0 * 0.135335 + 0.8 = 2.16536 + 0.8 = 2.96536
-        double expected1 = (20.0 * 0.8) * Math.exp(-0.5 * 4.0) + (0.2 * 4.0);
+        // S_0_norm = 20.0 / 20.0 = 1.0, I_0 = 0.8 * 1.0 = 0.8
+        // S_1_norm = 4.0 / 4.0 = 1.0, transmission = exp(-0.5 * 1.0) = exp(-0.5) ~= 0.60653
+        // Expected = 0.8 * exp(-0.5) + (0.2 * 1.0) = 0.485225 + 0.2 = 0.685225
+        double expected1 = (0.8 * 1.0) * Math.exp(-0.5 * 1.0) + (0.2 * 1.0);
         assertEquals(expected1, combined[1], 1e-4);
     }
 
@@ -81,5 +79,64 @@ public class SpectrumUtilsTest {
         assertEquals(2, scaled.size());
         assertEquals(125.0, scaled.get(0), 1e-4);
         assertEquals(1000.0, scaled.get(1), 1e-4);
+    }
+
+    @Test
+    @DisplayName("combineNZones performs per-zone max-normalization before recursive RTE")
+    void testCombineNZonesPerZoneMaxNormalization() {
+        double[] core = { 1000.0, 500.0 };
+        double[] shell = { 250.0, 500.0 };
+
+        PlasmaZone z0 = new PlasmaZone(1.0, 1e17, 0.8, 0.0);
+        PlasmaZone z1 = new PlasmaZone(0.7, 1e16, 0.2, 1.0);
+
+        double[] combined = SpectrumUtils.combineNZones(List.of(core, shell), List.of(z0, z1));
+        assertNotNull(combined);
+        assertEquals(2, combined.length);
+
+        // Channel 0: Core norm = 1.0 (v=0.8 -> 0.8). Shell norm = 0.5 (k=1.0, v=0.2).
+        // combined[0] = 0.8 * exp(-1.0 * 0.5) + 0.2 * 0.5 = 0.8 * exp(-0.5) + 0.1
+        double expectedCh0 = 0.8 * Math.exp(-0.5) + 0.1;
+        assertEquals(expectedCh0, combined[0], 1e-4);
+
+        // Channel 1: Core norm = 0.5 (v=0.8 -> 0.4). Shell norm = 1.0 (k=1.0, v=0.2).
+        // combined[1] = 0.4 * exp(-1.0 * 1.0) + 0.2 * 1.0 = 0.4 * exp(-1.0) + 0.2
+        double expectedCh1 = 0.4 * Math.exp(-1.0) + 0.2;
+        assertEquals(expectedCh1, combined[1], 1e-4);
+    }
+
+    @Test
+    @DisplayName("applyInstrumentResponseAndNoise normalizes to unit max and scales to scaleFactor without noise")
+    void testApplyInstrumentResponseAndNoiseNoNoise() {
+        double[] rteSpectrum = { 0.5, 1.0, 0.2 };
+        double[] response = { 1.0, 1.5, 0.8 };
+        double scaleFactor = 45000.0;
+
+        double[] result = SpectrumUtils.applyInstrumentResponseAndNoise(
+                rteSpectrum, response, scaleFactor, 0.0, null
+        );
+
+        assertNotNull(result);
+        assertEquals(3, result.length);
+        double maxVal = Arrays.stream(result).max().orElse(0.0);
+        assertEquals(scaleFactor, maxVal, 1e-4);
+    }
+
+    @Test
+    @DisplayName("applyInstrumentResponseAndNoise injects non-negative Finotello multiplicative noise")
+    void testApplyInstrumentResponseAndNoiseWithNoise() {
+        double[] rteSpectrum = { 0.5, 1.0, 0.2 };
+        double[] response = { 1.0, 1.0, 1.0 };
+        double scaleFactor = 50000.0;
+        java.util.Random rng = new java.util.Random(42);
+
+        double[] result = SpectrumUtils.applyInstrumentResponseAndNoise(
+                rteSpectrum, response, scaleFactor, 0.095, rng
+        );
+
+        assertNotNull(result);
+        for (double val : result) {
+            assertTrue(val >= 0.0, "Noise-injected counts must be non-negative");
+        }
     }
 }
