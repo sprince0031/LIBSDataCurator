@@ -293,6 +293,9 @@ public class CommonUtils {
     }
 
     public void saveModelToFile(Path path, JsonModel model) throws IOException {
+        if (path.getParent() != null) {
+            Files.createDirectories(path.getParent());
+        }
         try (FileWriter writer = new FileWriter(path.toFile())) {
             writer.write(model.toJson().toString(4));
         }
