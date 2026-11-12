@@ -109,11 +109,11 @@
 - [x] Task: Update `BaselineCorrectionParams.java` and `InstrumentProfileService.java` default structuring element size to 65 (6a69ea5)
   - [x] Update `structuringElementSize = 65` in `BaselineCorrectionParams.java` and `DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 65`, `NIST_RESOLVING_POWER = 3000.0` in `InstrumentProfileService.java`
   - [x] Update `BaselineCorrectionParamsTest` to assert default `structuringElementSize == 65`
-- [ ] Task: Refactor `SpectrumUtils.java` for 1:1 normalized 5-step RTE parity with Python
-  - [ ] Update `SpectrumUtils.combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones)` to max-normalize Zone 0 (`coreRaw[p] / maxCore`) and every outer shell (`shellRaw[p] / maxShell`) to `[0, 1]` before applying $I_z(\lambda) = I_{z-1}(\lambda)\exp(-k_z \tilde{S}_z(\lambda)) + V_z \tilde{S}_z(\lambda)$
-  - [ ] Update `SpectrumUtils.applyInstrumentResponseAndNoise(...)` to multiply by `spectralResponse`, max-normalize the post-response spectrum to `[0, 1]`, multiply by `scaleFactor`, and apply Finotello multiplicative noise $\max(0.0, 1.0 + \beta \mathcal{N}(0, 1))$
-  - [ ] Write unit tests in `SpectrumUtilsTest` verifying that `max(applyInstrumentResponseAndNoise(..., finotelloBeta=0.0)) == scaleFactor`
-- [ ] Task: Update `LIBSDataService.java` forward synthesis to invoke the updated `SpectrumUtils` pipeline
+- [x] Task: Refactor `SpectrumUtils.java` for 1:1 normalized 5-step RTE parity with Python (cb85c5d)
+  - [x] Update `SpectrumUtils.combineNZones(List<double[]> zoneSpectra, List<PlasmaZone> zones)` to max-normalize Zone 0 (`coreRaw[p] / maxCore`) and every outer shell (`shellRaw[p] / maxShell`) to `[0, 1]` before applying $I_z(\lambda) = I_{z-1}(\lambda)\exp(-k_z \tilde{S}_z(\lambda)) + V_z \tilde{S}_z(\lambda)$
+  - [x] Update `SpectrumUtils.applyInstrumentResponseAndNoise(...)` to multiply by `spectralResponse`, max-normalize the post-response spectrum to `[0, 1]`, multiply by `scaleFactor`, and apply Finotello multiplicative noise $\max(0.0, 1.0 + \beta \mathcal{N}(0, 1))$
+  - [x] Write unit tests in `SpectrumUtilsTest` verifying that `max(applyInstrumentResponseAndNoise(..., finotelloBeta=0.0)) == scaleFactor`
+- [x] Task: Update `LIBSDataService.java` forward synthesis to invoke the updated `SpectrumUtils` pipeline (cb85c5d)
 - [ ] Task: Conductor - User Manual Verification 'Phase 8: 1:1 Forward RTE Parity in Java & Morphological Baseline Structuring Size Upgrade' (Protocol in workflow.md)
 
 ### Phase 9: Upgrade PyTorch GPU Calibration Engine (`scripts/gpu_calibration_engine.py`)
