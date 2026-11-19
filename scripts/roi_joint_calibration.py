@@ -608,3 +608,267 @@ def run_joint_solver(
         diagnostics_flags=diag["flags"],
         reduced_chi2=reduced_chi2,
     )
+
+
+def solve_family_plasma(
+    mat_sub_data: Dict[str, List[Dict[str, Any]]],
+    n_states: int,
+    max_sweeps: int = 5,
+    tol: float = 1e-4,
+) -> Tuple[np.ndarray, Dict[str, float]]:
+    """R8.1: Solve family-shared plasma weights w_f >= 0 and per-material scales alpha_m > 0.
+    
+    Excludes prone sub-bins from fitting. Alternates between:
+    1. Stacked NNLS across materials for shared w_f >= 0
+    2. Closed-form weighted least squares for alpha_m > 0
+    """
+    mat_names = sorted(mat_sub_data.keys())
+    # Exclude prone sub-bins
+    filtered_data = {
+        m: [sb for sb in mat_sub_data[m] if not sb.get("is_prone", False)]
+        for m in mat_names
+    }
+
+    # Initialize per-material scales
+    scales = {m: 1.0 for m in mat_names}
+    w_fam = np.zeros(n_states, dtype=np.float64)
+
+    for sweep in range(max_sweeps):
+        prev_scales = scales.copy()
+
+        # Step 1: Stacked NNLS for w_f
+        row_list = []
+        target_list = []
+        for m in mat_names:
+            alpha_m = scales[m]
+            for sb in filtered_data[m]:
+                A_row = np.asarray(sb["A_row"], dtype=np.float64)
+                Y_val = float(sb["Y"])
+                sig_val = max(float(sb.get("sigma", 1.0)), 1e-6)
+                row_list.append((alpha_m * A_row) / sig_val)
+                target_list.append(Y_val / sig_val)
+
+        if not row_list:
+            break
+
+        X_mat = np.array(row_list, dtype=np.float64)
+        y_vec = np.array(target_list, dtype=np.float64)
+
+        col_scales = np.max(np.abs(X_mat), axis=0)
+        col_scales[col_scales == 0] = 1.0
+        X_scaled = X_mat / col_scales
+
+        w_scaled, _ = nnls(X_scaled, y_vec)
+        w_fam = w_scaled / col_scales
+
+        # Step 2: Closed-form WLS for alpha_m
+        for m in mat_names:
+            num = 0.0
+            den = 0.0
+            for sb in filtered_data[m]:
+                A_row = np.asarray(sb["A_row"], dtype=np.float64)
+                Y_val = float(sb["Y"])
+                sig_val = max(float(sb.get("sigma", 1.0)), 1e-6)
+                pred_val = float(np.dot(A_row, w_fam))
+                num += (Y_val * pred_val) / (sig_val ** 2)
+                den += (pred_val ** 2) / (sig_val ** 2)
+            if den > 1e-12:
+                scales[m] = max(1e-12, num / den)
+
+        # Check convergence
+        rel_diffs = [abs(scales[m] - prev_scales[m]) / max(prev_scales[m], 1e-12) for m in mat_names]
+        if max(rel_diffs) < tol and sweep >= 1:
+            break
+
+    return w_fam, scales
+
+
+def reduce_zones_to_num_zones(
+    initial_weights: np.ndarray,
+    sub_data: List[Dict[str, Any]],
+    num_zones: int = 2,
+    c_huber: float = 1.345,
+) -> Tuple[np.ndarray, float]:
+    """R8.2: Reduce plasma state support to numZones and compute zoneReductionPenalty.
+    
+    While non-zero states > numZones, drops the state with the smallest total contribution
+    and re-solves NNLS on the remaining support.
+    """
+    def eval_phi(w: np.ndarray) -> float:
+        phi = 0.0
+        for sb in sub_data:
+            if sb.get("is_prone", False):
+                continue
+            A_row = np.asarray(sb["A_row"], dtype=np.float64)
+            Y = float(sb["Y"])
+            sig = max(float(sb.get("sigma", 1.0)), 1e-6)
+            M = float(np.dot(A_row, w))
+            u = abs((Y - M) / sig)
+            if u <= c_huber:
+                phi += 0.5 * u ** 2
+            else:
+                phi += c_huber * u - 0.5 * c_huber ** 2
+        return phi
+
+    phi_full = max(eval_phi(initial_weights), 1e-12)
+
+    active_indices = [int(j) for j in np.where(initial_weights > 1e-6)[0]]
+    current_w = initial_weights.copy()
+
+    # Pre-extract A and Y for non-prone sub-bins
+    valid_sbs = [sb for sb in sub_data if not sb.get("is_prone", False)]
+    if not valid_sbs:
+        return current_w, 1.0
+
+    A_all = np.array([sb["A_row"] for sb in valid_sbs], dtype=np.float64)
+    Y_all = np.array([sb["Y"] for sb in valid_sbs], dtype=np.float64)
+    sig_all = np.array([max(float(sb.get("sigma", 1.0)), 1e-6) for sb in valid_sbs], dtype=np.float64)
+
+    A_weighted = A_all / sig_all[:, np.newaxis]
+    y_weighted = Y_all / sig_all
+
+    while len(active_indices) > num_zones:
+        # Calculate contribution for each active state
+        contributions = {}
+        for j in active_indices:
+            contributions[j] = float(np.sum(A_all[:, j] * current_w[j]))
+        
+        # State with smallest contribution
+        min_j = min(contributions.keys(), key=lambda j: contributions[j])
+        active_indices.remove(min_j)
+
+        # Re-solve NNLS on reduced support
+        A_sub = A_weighted[:, active_indices]
+        col_scale = np.max(np.abs(A_sub), axis=0)
+        col_scale[col_scale == 0] = 1.0
+        w_sub_scaled, _ = nnls(A_sub / col_scale, y_weighted)
+        w_sub = w_sub_scaled / col_scale
+
+        current_w = np.zeros_like(initial_weights)
+        for idx, k in enumerate(active_indices):
+            current_w[k] = w_sub[idx]
+
+    phi_reduced = eval_phi(current_w)
+    penalty = max(1.0, float(phi_reduced / phi_full))
+    return current_w, penalty
+
+
+def scan_absorption(
+    sub_data: List[Dict[str, Any]],
+    k_grid: np.ndarray = np.linspace(0.0, 8.0, 81),
+    c_huber: float = 1.345,
+) -> Tuple[float, List[str]]:
+    """R8.3: Scan self-absorption k in [0, 8] for the coolest zone across prone sub-bins.
+    
+    Returns chosen k and any diagnostic flags (e.g. K_ABSORPTION_AT_BOUND).
+    Keeps k = 0 if the improvement over k = 0 is under 2%.
+    """
+    d_cool = np.array([float(sb["d_cool"]) for sb in sub_data], dtype=np.float64)
+    d_hot = np.array([float(sb["d_hot"]) for sb in sub_data], dtype=np.float64)
+    Y_all = np.array([float(sb["Y"]) for sb in sub_data], dtype=np.float64)
+    sig_all = np.array([max(float(sb.get("sigma", 1.0)), 1e-6) for sb in sub_data], dtype=np.float64)
+    is_prone = np.array([bool(sb.get("is_prone", False)) for sb in sub_data], dtype=bool)
+
+    max_cool = max(float(np.max(d_cool)), 1e-12)
+    d_tilde_cool = d_cool / max_cool
+
+    def eval_k(k_val: float) -> Tuple[float, np.ndarray]:
+        attenuation = np.ones(len(sub_data), dtype=np.float64)
+        attenuation[is_prone] = np.exp(-k_val * d_tilde_cool[is_prone])
+        cool_col = (d_cool * attenuation) / sig_all
+        hot_col = d_hot / sig_all
+        X = np.column_stack([cool_col, hot_col])
+        y = Y_all / sig_all
+        V, _ = nnls(X, y)
+        pred = (d_cool * attenuation) * V[0] + d_hot * V[1]
+        u = np.abs((Y_all - pred) / sig_all)
+        phi = np.sum(np.where(u <= c_huber, 0.5 * u ** 2, c_huber * u - 0.5 * c_huber ** 2))
+        return float(phi), V
+
+    phi_zero, _ = eval_k(0.0)
+    best_k = 0.0
+    min_phi = phi_zero
+
+    for k in k_grid:
+        phi, _ = eval_k(float(k))
+        if phi < min_phi:
+            min_phi = phi
+            best_k = float(k)
+
+    # 2% improvement rule
+    if (phi_zero - min_phi) < 0.02 * phi_zero:
+        best_k = 0.0
+
+    flags = []
+    if abs(best_k - 8.0) < 1e-2 or best_k >= 7.95:
+        flags.append("K_ABSORPTION_AT_BOUND")
+
+    return best_k, flags
+
+
+def compute_family_scales_and_sharing_penalty(
+    material_scales: Dict[str, float],
+    phi_family: float,
+    phi_materials: Dict[str, float],
+) -> Dict[str, Any]:
+    """R8.5, R8.7: Compute median scaleFactor, per-material scales, and family sharing penalty."""
+    scales_list = list(material_scales.values())
+    med_scale = float(np.median(scales_list)) if scales_list else 1.0
+    sum_phi_mat = max(float(sum(phi_materials.values())), 1e-12)
+    sharing_penalty = float(phi_family / sum_phi_mat)
+
+    return {
+        "scaleFactor": med_scale,
+        "materialScaleFactors": {m: float(s) for m, s in material_scales.items()},
+        "familySharingPenalty": sharing_penalty,
+    }
+
+
+def compute_plasma_dispersion(
+    point_te: List[float] | np.ndarray,
+    point_ne: List[float] | np.ndarray,
+) -> Dict[str, float]:
+    """R8.6: Compute plasma dispersion across points clamped to [0.01, 0.10] Te and [0.02, 0.30] log10 Ne."""
+    te_arr = np.asarray(point_te, dtype=np.float64)
+    ne_arr = np.asarray(point_ne, dtype=np.float64)
+
+    te_std = float(np.std(te_arr)) if len(te_arr) > 1 else 0.01
+    # Check if point_ne is already in log10 scale (> 10 means raw Ne cm^-3)
+    if np.any(ne_arr > 100.0):
+        ne_log_arr = np.log10(np.maximum(ne_arr, 1.0))
+    else:
+        ne_log_arr = ne_arr
+    ne_log_std = float(np.std(ne_log_arr)) if len(ne_log_arr) > 1 else 0.02
+
+    te_clamped = min(0.10, max(0.01, te_std))
+    ne_log_clamped = min(0.30, max(0.02, ne_log_std))
+
+    return {
+        "teStdDev": float(te_clamped),
+        "neLogStdDev": float(ne_log_clamped),
+    }
+
+
+def compute_element_parity(
+    sub_bins: List[Dict[str, Any]],
+) -> Tuple[Dict[str, float], List[str]]:
+    """R9, R11: Compute per-element median log10(synthetic / measured) and ELEMENT_BIAS flag."""
+    by_elem: Dict[str, List[float]] = {}
+    for sb in sub_bins:
+        el = sb.get("dominant_element") or sb.get("element", "Unknown")
+        synth = float(sb.get("synthetic", 0.0))
+        meas = float(sb.get("measured", 0.0))
+        if synth > 0 and meas > 0:
+            log_ratio = float(np.log10(synth / meas))
+            by_elem.setdefault(el, []).append(log_ratio)
+
+    parity: Dict[str, float] = {}
+    flags: List[str] = []
+    for el, ratios in sorted(by_elem.items()):
+        med_ratio = float(np.median(ratios))
+        parity[el] = med_ratio
+        if abs(med_ratio) > 0.30:
+            flags.append(f"ELEMENT_BIAS:{el}")
+
+    return parity, flags
+

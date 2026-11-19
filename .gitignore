@@ -48,6 +48,9 @@ GEMINI.md
 gha-creds-*.json
 
 # Python bytecode
+.venv/
+__pycache__/
+*.pyc
 __pycache__/
 *.py[cod]
 *$py.class

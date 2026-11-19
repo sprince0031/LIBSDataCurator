@@ -108,30 +108,30 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 5: Joint Solver and Planted-Truth Recovery' (Protocol in workflow.md) (aaa0964)
 
 ### Phase 6: Family Zones, Absorption, Scale and Engine Integration (R8, R10, R13)
-- [ ] Task: Write unit tests in `scripts/test_roi_joint_calibration.py` and `scripts/test_gpu_calibration_engine.py`
-    - [ ] Family-shared weights with per-material scales recover a planted family state
-    - [ ] Zone reduction to `numZones` and `zoneReductionPenalty`
-    - [ ] Absorption scan recovers a planted `k`, returns 0 when there is none, and flags the scan limit
-    - [ ] Median family `scaleFactor`, `materialScaleFactors`, `materialPlasmaZones`, `familySharingPenalty`
-    - [ ] Dispersion from per-point solutions and its clamps
-    - [ ] `elementParity` and the `ELEMENT_BIAS` flag
-    - [ ] Engine: validation materials are excluded from fitting; profile and `regionsOfInterest.json` are upserted without losing other families; the module imports without `torch`; `--strict` exits with status 2 on a flag
-    - [ ] Intermediate debug JSON dumps are written to `temp/calibration_debug/<materialFamily>/` without overwriting existing families (R13)
-    - [ ] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement R8, R10, and R13 debug export
-    - [ ] Stage functions in `roi_joint_calibration.py`
-    - [ ] `scripts/match_metrics.py` with the shared metric functions
-    - [ ] Rewire `GpuLibsCalibrationEngine.run()`; write the profile (§5.1) and `data/regionsOfInterest.json` (§5.2); leave legacy functions in place, unused
-    - [ ] Instrument calibration pipeline to dump `conditioned_<material>.json`, `rois_<family>.json`, `solver_trace_<family>.json`, and `fit_comparison_<material>.json` under `temp/calibration_debug/<materialFamily>/`
-    - [ ] Ensure non-destructive upserts preserve other families in `conf/instrument_profile.json` and debug storage
-    - [ ] Confirm the tests pass (Green Phase)
-- [ ] Task: Create interactive diagnostic notebook in `notebooks/calibration_inspector.ipynb` (R13, AC13)
-    - [ ] Implement family and material interactive dropdown selectors reading from `temp/calibration_debug/`
-    - [ ] Build Plotly interactive spectral viewer with zoom/pan, line species hover tooltips, and ROI window overlays
-    - [ ] Build solver convergence trace visualizations (objective Φ and spline β evolution per iteration)
-    - [ ] Build element parity log-ratio bar charts
-    - [ ] Verify notebook execution against test fixture JSON dumps
-- [ ] Task: Conductor - User Manual Verification 'Phase 6: Family Zones, Absorption, Scale and Engine Integration' (Protocol in workflow.md)
+- [x] Task: Write unit tests in `scripts/test_roi_joint_calibration.py` and `scripts/test_gpu_calibration_engine.py` (a569d4a)
+    - [x] Family-shared weights with per-material scales recover a planted family state
+    - [x] Zone reduction to `numZones` and `zoneReductionPenalty`
+    - [x] Absorption scan recovers a planted `k`, returns 0 when there is none, and flags the scan limit
+    - [x] Median family `scaleFactor`, `materialScaleFactors`, `materialPlasmaZones`, `familySharingPenalty`
+    - [x] Dispersion from per-point solutions and its clamps
+    - [x] `elementParity` and the `ELEMENT_BIAS` flag
+    - [x] Engine: validation materials are excluded from fitting; profile and `regionsOfInterest.json` are upserted without losing other families; the module imports without `torch`; `--strict` exits with status 2 on a flag
+    - [x] Intermediate debug JSON dumps are written to `temp/calibration_debug/<materialFamily>/` without overwriting existing families (R13)
+    - [x] Confirm the tests fail (Red Phase)
+- [x] Task: Implement R8, R10, and R13 debug export
+    - [x] Stage functions in `roi_joint_calibration.py`
+    - [x] `scripts/match_metrics.py` with the shared metric functions
+    - [x] Rewire `GpuLibsCalibrationEngine.run()`; write the profile (§5.1) and `data/regionsOfInterest.json` (§5.2); leave legacy functions in place, unused
+    - [x] Instrument calibration pipeline to dump `conditioned_<material>.json`, `rois_<family>.json`, `solver_trace_<family>.json`, and `fit_comparison_<material>.json` under `temp/calibration_debug/<materialFamily>/`
+    - [x] Ensure non-destructive upserts preserve other families in `conf/instrument_profile.json` and debug storage
+    - [x] Confirm the tests pass (Green Phase)
+- [x] Task: Create interactive diagnostic notebook in `notebooks/calibration_inspector.ipynb` (R13, AC13)
+    - [x] Implement family and material interactive dropdown selectors reading from `temp/calibration_debug/`
+    - [x] Build Plotly interactive spectral viewer with zoom/pan, line species hover tooltips, and ROI window overlays
+    - [x] Build solver convergence trace visualizations (objective Φ and spline β evolution per iteration)
+    - [x] Build element parity log-ratio bar charts
+    - [x] Verify notebook execution against test fixture JSON dumps
+- [~] Task: Conductor - User Manual Verification 'Phase 6: Family Zones, Absorption, Scale and Engine Integration' (Protocol in workflow.md)
 
 ### Phase 7: Match Report and End-to-End Verification (R11, AC9–AC12)
 - [ ] Task: Write unit tests in `scripts/test_validate_spectral_match.py`

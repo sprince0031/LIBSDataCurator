@@ -258,15 +258,138 @@ class GpuLibsCalibrationEngine:
         bc_params = self.manifest.get("baselineCorrectionParams", {})
         self.struct_size = max(int(bc_params.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_STRUCT_SIZE)), 55)
 
-        self.te_grid = np.array(self.manifest["teAnchorGridEv"], dtype=np.float64)
-        self.ne_grid = np.array(self.manifest["neAnchorGridCm3"], dtype=np.float64)
+        default_te_grid = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
+        default_ne_grid = [1.0e16, 5.0e16, 1.0e17, 5.0e17]
+        self.te_grid = np.array(self.manifest.get("teAnchorGridEv", default_te_grid), dtype=np.float64)
+        self.ne_grid = np.array(self.manifest.get("neAnchorGridCm3", default_ne_grid), dtype=np.float64)
         self.log_ne_grid = np.log10(self.ne_grid)
         self.n_te = len(self.te_grid)
         self.n_ne = len(self.ne_grid)
 
+        self.strict = bool(self.manifest.get("strict", False))
         nist_dir_str = self.manifest.get("nistLinesDir")
         self.nist_lines_dir = Path(nist_dir_str) if nist_dir_str else DEFAULT_NIST_LINES_DIR
         self.asd_advisor: Optional[AsdLineAdvisor] = None
+
+    def get_calibrated_materials(self, family: str) -> List[str]:
+        """R10.2: Materials listed under manifest key validationMaterials are loaded but excluded from fitting."""
+        validation_mats = set(str(m) for m in self.manifest.get("validationMaterials", []))
+        family_mats = self.manifest.get("materialFamilies", {}).get(family, [])
+        cal_mats = []
+        for m in family_mats:
+            mat_name = str(m.get("materialName", ""))
+            if mat_name and mat_name not in validation_mats:
+                cal_mats.append(mat_name)
+        return cal_mats
+
+    def check_strict_flags(self, flags: List[str]) -> None:
+        """R9, R10: With --strict, any diagnostic flag causes exit with status 2."""
+        if self.manifest.get("strict", False) or getattr(self, "strict", False):
+            if flags:
+                logger.error(f"[Strict Mode] Diagnostic flags raised: {flags}")
+                sys.exit(2)
+
+    def export_debug_json(
+        self,
+        family: str,
+        conditioned_data: dict,
+        rois_data: dict,
+        solver_trace: dict,
+        fit_comparison: dict
+    ) -> None:
+        """R13.1: Intermediate debug outputs dumped as structured JSONs under temp/calibration_debug/<materialFamily>/."""
+        base_dir = Path(self.manifest.get("debugOutputDir", "temp/calibration_debug"))
+        fam_dir = base_dir / family
+        fam_dir.mkdir(parents=True, exist_ok=True)
+
+        def _clean(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            if isinstance(obj, (np.floating, float)):
+                return float(obj)
+            if isinstance(obj, (np.integer, int)):
+                return int(obj)
+            if isinstance(obj, (np.bool_, bool)):
+                return bool(obj)
+            if isinstance(obj, dict):
+                return {k: _clean(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_clean(v) for v in obj]
+            return obj
+
+        for mat_name, c_data in conditioned_data.items():
+            out_p = fam_dir / f"conditioned_{mat_name}.json"
+            out_p.write_text(json.dumps(_clean(c_data), indent=2), encoding="utf-8")
+
+        (fam_dir / f"rois_{family}.json").write_text(
+            json.dumps(_clean(rois_data), indent=2), encoding="utf-8"
+        )
+        (fam_dir / f"solver_trace_{family}.json").write_text(
+            json.dumps(_clean(solver_trace), indent=2), encoding="utf-8"
+        )
+
+        for mat_name, f_data in fit_comparison.items():
+            out_p = fam_dir / f"fit_comparison_{mat_name}.json"
+            out_p.write_text(json.dumps(_clean(f_data), indent=2), encoding="utf-8")
+
+    def upsert_family_profile(
+        self,
+        family: str,
+        family_profile: dict,
+        family_rois: Union[List[dict], dict]
+    ) -> None:
+        """R10.3, R13.2: Calibrating a single family upserts instrument_profile.json and regionsOfInterest.json without wiping existing families."""
+        out_profile_path = Path(self.manifest.get("outputProfilePath", "conf/instrument_profile.json"))
+        if out_profile_path.exists():
+            profile_json = json.loads(out_profile_path.read_text(encoding="utf-8"))
+        else:
+            profile_json = {
+                "schemaVersion": "1.0.0",
+                "emissionScale": "absolute",
+                "materialFamilyProfiles": {},
+            }
+        if "materialFamilyProfiles" not in profile_json or not isinstance(profile_json["materialFamilyProfiles"], dict):
+            profile_json["materialFamilyProfiles"] = {}
+        profile_json["materialFamilyProfiles"][family] = family_profile
+        out_profile_path.parent.mkdir(parents=True, exist_ok=True)
+        out_profile_path.write_text(json.dumps(profile_json, indent=2), encoding="utf-8")
+
+        out_rois_path = Path(self.manifest.get("outputRoisPath", "data/regionsOfInterest.json"))
+        if out_rois_path.exists():
+            rois_json = json.loads(out_rois_path.read_text(encoding="utf-8"))
+        else:
+            rois_json = {
+                "schemaVersion": "2.0",
+                "instrumentName": self.manifest.get("instrumentName", "LSA_Calibrated_Instrument"),
+            }
+
+        has_families_key = "families" in rois_json
+        has_mat_fam_key = "materialFamilyRois" in rois_json
+
+        if not has_families_key and not has_mat_fam_key:
+            rois_json["materialFamilyRois"] = {}
+            has_mat_fam_key = True
+
+        if has_mat_fam_key:
+            if isinstance(family_rois, dict):
+                rois_json["materialFamilyRois"][family] = family_rois
+            else:
+                rois_json["materialFamilyRois"][family] = {
+                    "calibratedMaterials": self.get_calibrated_materials(family),
+                    "rois": family_rois,
+                }
+
+        if has_families_key:
+            if isinstance(family_rois, dict):
+                rois_json["families"][family] = family_rois
+            else:
+                rois_json["families"][family] = {
+                    "regionsOfInterest": family_rois,
+                    "rois": family_rois,
+                }
+
+        out_rois_path.parent.mkdir(parents=True, exist_ok=True)
+        out_rois_path.write_text(json.dumps(rois_json, indent=2), encoding="utf-8")
 
     def _init_logger(self):
         logger.setLevel(logging.DEBUG)
@@ -609,7 +732,10 @@ class GpuLibsCalibrationEngine:
         total_shots_per_file = 40
 
         for family_name, mat_list in families_dict.items():
+            cal_mats = set(self.get_calibrated_materials(family_name))
             for mat in mat_list:
+                if str(mat.get("materialName", "")) not in cal_mats:
+                    continue
                 lam_m, y_m, sig_m, pt_means, n_shots = self.load_and_clean_material_csvs(mat["measuredCsvPaths"])
                 if lam_meas is None:
                     lam_meas = lam_m
