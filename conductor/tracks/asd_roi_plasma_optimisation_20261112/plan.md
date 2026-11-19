@@ -100,11 +100,11 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Three-start loop, convergence criteria, `responseRestartSpread`
     - [x] One test per flag of R9 that constructs its condition (AC8)
     - [x] Confirm the tests fail (Red Phase)
-- [~] Task: Implement `scripts/roi_joint_calibration.py`
-    - [ ] Sub-bin operators, variance model, Huber IRLS weights
-    - [ ] Blocks A and B, the loop, restarts
-    - [ ] Diagnostics of R9, including the two-group response comparison
-    - [ ] Confirm unit tests and all four planted-truth scenarios pass (Green Phase, AC7)
+- [x] Task: Implement `scripts/roi_joint_calibration.py` (43b504c)
+    - [x] Sub-bin operators, variance model, Huber IRLS weights
+    - [x] Blocks A and B, the loop, restarts
+    - [x] Diagnostics of R9, including the two-group response comparison
+    - [x] Confirm unit tests and all four planted-truth scenarios pass (Green Phase, AC7)
 - [ ] Task: Conductor - User Manual Verification 'Phase 5: Joint Solver and Planted-Truth Recovery' (Protocol in workflow.md)
 
 ### Phase 6: Family Zones, Absorption, Scale and Engine Integration (R8, R10, R13)
