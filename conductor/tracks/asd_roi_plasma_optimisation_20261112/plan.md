@@ -26,9 +26,9 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `measure_source_fwhm` recovers a known Gaussian width within 5%
     - [x] `measure_instrument_fwhm` recovers a planted 0.37 nm width within 15% and respects the clamp
     - [x] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement `scripts/spectral_resampling.py`
-    - [ ] `pixel_edges`, `resample_to_detector`, `measure_source_fwhm`, `measure_instrument_fwhm`, `add_sigma_nm`
-    - [ ] Confirm the tests pass (Green Phase)
+- [x] Task: Implement `scripts/spectral_resampling.py` (7c5c052)
+    - [x] `pixel_edges`, `resample_to_detector`, `measure_source_fwhm`, `measure_instrument_fwhm`, `add_sigma_nm`
+    - [x] Confirm the tests pass (Green Phase)
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Line Data and Flux-Conserving Resampling' (Protocol in workflow.md)
 
 ### Phase 2: Measured-Data Conditioning (R3)
