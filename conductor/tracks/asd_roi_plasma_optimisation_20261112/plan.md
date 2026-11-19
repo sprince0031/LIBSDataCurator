@@ -13,11 +13,11 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Tests that `load_model_lines` returns only rows with `boltzmann_ok` and adds `wl_nm`, `gA`, `unc`
     - [x] Test that `lte_strength` equals `gA / wl_nm * exp(-Ek_eV / t_ev)`
     - [x] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement R1 in `scripts/nist_lines.py`
-    - [ ] Add the five functions and the constant
-    - [ ] Delete every `rel_intensity * 1e4` fallback in `scripts/`; remove the duplicate `parse_composition_dict` and `ACCURACY_WEIGHTS` from `gpu_calibration_engine.py`
-    - [ ] Check the grade percentages against the NIST ASD documentation and record the source in a comment
-    - [ ] Confirm the tests pass (Green Phase)
+- [x] Task: Implement R1 in `scripts/nist_lines.py` (2361cfc)
+    - [x] Add the five functions and the constant
+    - [x] Delete every `rel_intensity * 1e4` fallback in `scripts/`; remove the duplicate `parse_composition_dict` and `ACCURACY_WEIGHTS` from `gpu_calibration_engine.py`
+    - [x] Check the grade percentages against the NIST ASD documentation and record the source in a comment
+    - [x] Confirm the tests pass (Green Phase)
 - [ ] Task: Write unit tests for resampling in `scripts/test_spectral_resampling.py`
     - [ ] `pixel_edges` length and monotonicity on the real 2048-channel grid
     - [ ] Flux conservation within 0.1% on a non-uniform source grid with gaps (AC4)
