@@ -32,14 +32,14 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Line Data and Flux-Conserving Resampling' (Protocol in workflow.md)
 
 ### Phase 2: Measured-Data Conditioning (R3)
-- [ ] Task: Write unit tests in `scripts/test_measured_conditioning.py`
-    - [ ] Lit mask finds a planted run of unlit leading channels and subtracts the dark level
-    - [ ] Conditioning-shot rule discards planted anomalous leading shots and respects the `[3, 15]` clamp and the manifest override
-    - [ ] Saturated readings are excluded per shot; a channel with too few valid shots is masked, not zeroed
-    - [ ] Shot-scale normalisation removes a planted common-mode fluctuation
-    - [ ] `sigma_mean` equals the standard error of normalised shots
-    - [ ] `preprocess` is idempotent on an already-processed spectrum and is the same function used for measured and synthetic spectra
-    - [ ] Confirm the tests fail (Red Phase)
+- [x] Task: Write unit tests in `scripts/test_measured_conditioning.py` (6b74601)
+    - [x] Lit mask finds a planted run of unlit leading channels and subtracts the dark level
+    - [x] Conditioning-shot rule discards planted anomalous leading shots and respects the `[3, 15]` clamp and the manifest override
+    - [x] Saturated readings are excluded per shot; a channel with too few valid shots is masked, not zeroed
+    - [x] Shot-scale normalisation removes a planted common-mode fluctuation
+    - [x] `sigma_mean` equals the standard error of normalised shots
+    - [x] `preprocess` is idempotent on an already-processed spectrum and is the same function used for measured and synthetic spectra
+    - [x] Confirm the tests fail (Red Phase)
 - [ ] Task: Implement `scripts/measured_conditioning.py`
     - [ ] `condition_material(csv_paths, manifest) -> ConditionedMaterial` returning wavelengths, mean, `sigma_mean`, valid mask, per-point means, `n0` per point
     - [ ] `preprocess(spectrum, struct_size)`
