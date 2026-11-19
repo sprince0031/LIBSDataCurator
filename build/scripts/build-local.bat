@@ -135,10 +135,13 @@ if exist "docs" (
     for %%f in (docs\CHANGELOG.md docs\README.md) do copy "%%f" "build\release-package\docs\"
 )
 
-REM Copy scripts if they exist
+REM Copy scripts if they exist (excluding unit tests and generators)
 if exist "scripts" (
-    xcopy /s /e scripts\gpu_calibration_engine.py build\release-package\scripts\ 2>nul
-    xcopy /s /e scripts\nist_lines.py build\release-package\scripts\ 2>nul
+    for %%f in (scripts\*.py) do (
+        echo %%~nxf | findstr /b /i "test_ generate_" >nul || (
+            copy "%%f" build\release-package\scripts\ >nul
+        )
+    )
 )
 
 REM Create run script

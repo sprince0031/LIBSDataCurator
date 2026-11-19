@@ -87,9 +87,10 @@ if [ -d "docs" ]; then
     cp -r docs/{CHANGELOG.md,README.md} build/release-package/docs/ 2>/dev/null || true
 fi
 
-# Copy scripts if they exist
+# Copy scripts if they exist (excluding unit tests and generators)
 if [ -d "scripts" ]; then
-    cp -r scripts/{gpu_calibration_engine.py,nist_lines.py} build/release-package/scripts/ 2>/dev/null || true
+    cp scripts/*.py build/release-package/scripts/ 2>/dev/null || true
+    rm -f build/release-package/scripts/test_*.py build/release-package/scripts/generate_*.py 2>/dev/null || true
     chmod +x build/release-package/scripts/*.py 2>/dev/null || true
 fi
 

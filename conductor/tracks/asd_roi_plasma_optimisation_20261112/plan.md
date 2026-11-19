@@ -131,7 +131,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Build solver convergence trace visualizations (objective Φ and spline β evolution per iteration)
     - [x] Build element parity log-ratio bar charts
     - [x] Verify notebook execution against test fixture JSON dumps
-- [~] Task: Conductor - User Manual Verification 'Phase 6: Family Zones, Absorption, Scale and Engine Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 6: Family Zones, Absorption, Scale and Engine Integration' (Protocol in workflow.md)
 
 ### Phase 7: Match Report and End-to-End Verification (R11, AC9–AC12)
 - [ ] Task: Write unit tests in `scripts/test_validate_spectral_match.py`
