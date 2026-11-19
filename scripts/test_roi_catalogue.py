@@ -28,11 +28,13 @@ def make_mock_conditioned(wavelengths: np.ndarray, mean_counts: float = 1000.0, 
     return ConditionedMaterial(
         wavelengths=wavelengths,
         mean_spectrum=np.full(n, mean_counts, dtype=np.float64),
+        preprocessed_mean=np.full(n, mean_counts, dtype=np.float64),
         sigma_mean=np.full(n, sigma, dtype=np.float64),
+        valid_mask=lit,
         lit_mask=lit,
         dark_level=100.0,
-        dark_std=5.0,
-        saturated_mask=np.zeros(n, dtype=bool),
+        point_means={"P1": np.full(n, mean_counts, dtype=np.float64)},
+        discarded_shots_per_point={"P1": 0},
     )
 
 
@@ -290,10 +292,11 @@ def test_ss551_bronze_real_asd_cache_ac2():
     
     # Create reference model dictionary column: calculate lte_strength for each model line and sum on detector
     dict_ref = np.zeros_like(det_wl)
-    for _, row in model_lines.iterrows():
+    st_arr = lte_strength(model_lines, 0.8)
+    for i, (_, row) in enumerate(model_lines.iterrows()):
         wl = row["wavelength_nm"]
         if 345.0 <= wl <= 895.0:
-            st = lte_strength(row["Aki"], row["Ek_eV"], row["g_k"], 0.8)
+            st = st_arr[i]
             el_wt = ss551_comp.get(row["element"], 0.0)
             idx = np.argmin(np.abs(det_wl - wl))
             dict_ref[idx] += st * el_wt * 1e-8

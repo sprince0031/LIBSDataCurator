@@ -141,6 +141,7 @@ def test_asd_line_advisor(tmp_path):
 
 
 def test_end_to_end_synthetic_manifest(tmp_path):
+    pytest.importorskip("torch")
     # Create mock NIST grid CSVs (48 states)
     te_grid = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
     ne_grid = [1.0e16, 5.0e16, 1.0e17, 5.0e17]
