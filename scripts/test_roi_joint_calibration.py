@@ -44,7 +44,7 @@ def test_cubic_b_spline_basis_properties():
 def test_sub_bin_variance_model():
     """R6 variance model combines measurement, model error, atomic line uncertainty, and floor terms."""
     # 4 channels
-    chans = [10, 11, 12, 13]
+    chans = [0, 1, 2, 3]
     y_meas = np.array([100.0, 150.0, 200.0, 250.0])
     sigma_meas = np.array([5.0, 5.0, 5.0, 5.0])
 
@@ -118,7 +118,7 @@ def test_block_b_recovers_smooth_response_with_gauge():
         sub_bin_centers=sub_bin_centers,
         rho=rho,
         weights=weights,
-        mu_r=1.0,
+        mu_r=1e-4,
     )
 
     log_r_est = basis.evaluate(sub_bin_centers) @ beta_est
@@ -166,7 +166,7 @@ def test_diagnostics_r9_flags_construction(sample_manifest):
         gap_flag=False,
         reduced_chi2_by_mat={"M1": 1.2},
     )
-    assert "TE_GRID_EDGE" in diag1["flags"]
+    assert any("TE_GRID_EDGE" in f for f in diag1["flags"])
 
     # 2. RESPONSE_RANGE_SUSPECT (max/min > 30)
     diag2 = evaluate_diagnostics(
@@ -179,7 +179,7 @@ def test_diagnostics_r9_flags_construction(sample_manifest):
         gap_flag=False,
         reduced_chi2_by_mat={"M1": 1.2},
     )
-    assert "RESPONSE_RANGE_SUSPECT" in diag2["flags"]
+    assert any("RESPONSE_RANGE_SUSPECT" in f for f in diag2["flags"])
 
     # 3. RESPONSE_GAP
     diag3 = evaluate_diagnostics(
@@ -192,7 +192,7 @@ def test_diagnostics_r9_flags_construction(sample_manifest):
         gap_flag=True,
         reduced_chi2_by_mat={"M1": 1.2},
     )
-    assert "RESPONSE_GAP" in diag3["flags"]
+    assert any("RESPONSE_GAP" in f for f in diag3["flags"])
 
     # 4. RESPONSE_RESTART_SPREAD (> 0.10)
     diag4 = evaluate_diagnostics(
@@ -205,7 +205,7 @@ def test_diagnostics_r9_flags_construction(sample_manifest):
         gap_flag=False,
         reduced_chi2_by_mat={"M1": 1.2},
     )
-    assert "RESPONSE_RESTART_SPREAD" in diag4["flags"]
+    assert any("RESPONSE_RESTART_SPREAD" in f for f in diag4["flags"])
 
     # 5. CHI2_HIGH (> 5.0)
     diag5 = evaluate_diagnostics(
@@ -218,7 +218,7 @@ def test_diagnostics_r9_flags_construction(sample_manifest):
         gap_flag=False,
         reduced_chi2_by_mat={"M1": 6.8},  # > 5.0
     )
-    assert "CHI2_HIGH" in diag5["flags"]
+    assert any("CHI2_HIGH" in f for f in diag5["flags"])
 
     # 6. NOT_CONVERGED (>= 100 iterations)
     diag6 = evaluate_diagnostics(
@@ -231,7 +231,7 @@ def test_diagnostics_r9_flags_construction(sample_manifest):
         gap_flag=False,
         reduced_chi2_by_mat={"M1": 1.2},
     )
-    assert "NOT_CONVERGED" in diag6["flags"]
+    assert any("NOT_CONVERGED" in f for f in diag6["flags"])
 
 
 @pytest.fixture

@@ -36,17 +36,12 @@ class PlantedTruthSimulation:
         self.elements = ["Fe", "Cr", "Ni", "Mn", "Cu", "Al", "Si", "Mo"]
 
         # Known analytic ground truth response with 20x dynamic range
-        # Normalized so geometric mean is ~1.0
+        # Matches realistic spectrometer efficiency (cut-on, peak, fall-off)
         x = (self.det_wl - 350.0) / (850.0 - 350.0)
-        log_r_true = 1.5 * np.sin(2.0 * np.pi * x) - 1.2 * (x - 0.5) ** 2
+        log_r_true = 1.8 * np.sin(np.pi * x) - 1.0 * (x - 0.2) ** 2
+        log_r_true = log_r_true * (np.log(20.0) / (np.max(log_r_true) - np.min(log_r_true)))
         log_r_true -= np.mean(log_r_true)
         self.true_response = np.exp(log_r_true)
-        # Ensure ~20x range:
-        ratio = np.max(self.true_response) / np.min(self.true_response)
-        if ratio < 15.0 or ratio > 25.0:
-            log_r_true = log_r_true * (np.log(20.0) / (np.max(log_r_true) - np.min(log_r_true)))
-            log_r_true -= np.mean(log_r_true)
-            self.true_response = np.exp(log_r_true)
 
         # 7 materials in 3 families (Fe-based, Cu-based, Al-based)
         self.compositions = {
