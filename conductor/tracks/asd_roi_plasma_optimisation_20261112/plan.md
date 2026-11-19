@@ -88,19 +88,19 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md) (89eeee2)
 
 ### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12)
-- [~] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py`
-    - [ ] Port the generator from `analysis/20_planted_truth_sim.py` and `analysis/22_planted_truth_runaway.py` as a test fixture
-    - [ ] Scenarios Clean, Harsh, Edge and Split with the thresholds of R12
-    - [ ] Confirm the tests fail (Red Phase)
-- [ ] Task: Write unit tests in `scripts/test_roi_joint_calibration.py`
-    - [ ] Sub-bin variance model: measurement, model-error and floor terms; `ε_atomic` from line grades
-    - [ ] Block A returns non-negative weights and reproduces a planted mixture
-    - [ ] Block B recovers a planted smooth response from exact log-ratios, applies the `1/n_f` family factor and the gauge
-    - [ ] Knot-count reduction against the widest gap
-    - [ ] Three-start loop, convergence criteria, `responseRestartSpread`
-    - [ ] One test per flag of R9 that constructs its condition (AC8)
-    - [ ] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement `scripts/roi_joint_calibration.py`
+- [x] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py` (b70d78a)
+    - [x] Port the generator from `analysis/20_planted_truth_sim.py` and `analysis/22_planted_truth_runaway.py` as a test fixture
+    - [x] Scenarios Clean, Harsh, Edge and Split with the thresholds of R12
+    - [x] Confirm the tests fail (Red Phase)
+- [x] Task: Write unit tests in `scripts/test_roi_joint_calibration.py` (b70d78a)
+    - [x] Sub-bin variance model: measurement, model-error and floor terms; `ε_atomic` from line grades
+    - [x] Block A returns non-negative weights and reproduces a planted mixture
+    - [x] Block B recovers a planted smooth response from exact log-ratios, applies the `1/n_f` family factor and the gauge
+    - [x] Knot-count reduction against the widest gap
+    - [x] Three-start loop, convergence criteria, `responseRestartSpread`
+    - [x] One test per flag of R9 that constructs its condition (AC8)
+    - [x] Confirm the tests fail (Red Phase)
+- [~] Task: Implement `scripts/roi_joint_calibration.py`
     - [ ] Sub-bin operators, variance model, Huber IRLS weights
     - [ ] Blocks A and B, the loop, restarts
     - [ ] Diagnostics of R9, including the two-group response comparison
