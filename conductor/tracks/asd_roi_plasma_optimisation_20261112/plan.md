@@ -5,7 +5,7 @@
 Requirement numbers (R1–R12) and acceptance criteria (AC1–AC12) refer to [`spec.md`](./spec.md).
 All work stays on `feat/instrument-profile-optimisation`.
 
-### Phase 1: Line Data and Flux-Conserving Resampling (R1, R2)
+### Phase 1: Line Data and Flux-Conserving Resampling (R1, R2) [checkpoint: 790b72d]
 - [x] Task: Write unit tests for line data in `scripts/test_nist_lines.py` (297ac0c)
     - [x] Tests for `parse_composition_dict` (string with `-` and `:` delimiters, ranges, `#` remainder, dict input, 100 wt% normalisation)
     - [x] Tests for `to_atomic_fractions`
@@ -29,7 +29,7 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Implement `scripts/spectral_resampling.py` (7c5c052)
     - [x] `pixel_edges`, `resample_to_detector`, `measure_source_fwhm`, `measure_instrument_fwhm`, `add_sigma_nm`
     - [x] Confirm the tests pass (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Line Data and Flux-Conserving Resampling' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Line Data and Flux-Conserving Resampling' (Protocol in workflow.md)
 
 ### Phase 2: Measured-Data Conditioning (R3)
 - [ ] Task: Write unit tests in `scripts/test_measured_conditioning.py`
