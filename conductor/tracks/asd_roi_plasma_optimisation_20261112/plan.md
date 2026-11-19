@@ -54,10 +54,10 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Gate G1 passes on two synthetic compositions that share a scale and fails when one is rescaled
     - [x] The test writes `src/test/resources/forward_model_fixture.json`
     - [x] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement `scripts/forward_model.py`
-    - [ ] Dictionary loader: NIST `Sum(calc)` and per-element sums of species columns, through `resample_to_detector`, with `NIST_UNIT_SCALE`
-    - [ ] `combine_zones`, `apply_response_and_scale`, `composition_scale_check`
-    - [ ] Confirm the tests pass (Green Phase)
+- [x] Task: Implement `scripts/forward_model.py` (c9929a9)
+    - [x] Dictionary loader: NIST `Sum(calc)` and per-element sums of species columns, through `resample_to_detector`, with `NIST_UNIT_SCALE`
+    - [x] `combine_zones`, `apply_response_and_scale`, `composition_scale_check`
+    - [x] Confirm the tests pass (Green Phase)
 - [ ] Task: Write Java tests for parity
     - [ ] `SpectrumUtilsTest`: `resampleToDetector`, `combineNZones` and `applyInstrumentResponseAndNoise` reproduce the fixture to a relative `1e-9` in both `emissionScale` modes (AC5)
     - [ ] `InstrumentProfileTest`: new optional fields round-trip; a profile without them still loads
