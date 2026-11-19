@@ -31,7 +31,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Confirm the tests pass (Green Phase)
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Line Data and Flux-Conserving Resampling' (Protocol in workflow.md)
 
-### Phase 2: Measured-Data Conditioning (R3)
+### Phase 2: Measured-Data Conditioning (R3) [checkpoint: 640b469]
 - [x] Task: Write unit tests in `scripts/test_measured_conditioning.py` (6b74601)
     - [x] Lit mask finds a planted run of unlit leading channels and subtracts the dark level
     - [x] Conditioning-shot rule discards planted anomalous leading shots and respects the `[3, 15]` clamp and the manifest override
@@ -44,7 +44,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `condition_material(csv_paths, manifest) -> ConditionedMaterial` returning wavelengths, mean, `sigma_mean`, valid mask, per-point means, `n0` per point
     - [x] `preprocess(spectrum, struct_size)`
     - [x] Confirm the tests pass (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Measured-Data Conditioning' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Measured-Data Conditioning' (Protocol in workflow.md)
 
 ### Phase 3: Forward Model on the Absolute Scale and Java Parity (R2.7, R4)
 - [ ] Task: Write unit tests in `scripts/test_forward_model.py`
