@@ -71,7 +71,7 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md) (acaaa7c)
 
 ### Phase 4: ROI Catalogue (R5)
-- [ ] Task: Write unit tests in `scripts/test_roi_catalogue.py`
+- [~] Task: Write unit tests in `scripts/test_roi_catalogue.py`
     - [ ] Candidates contain only model lines of certified elements at or above 0.05 wt%, inside the lit range
     - [ ] Mask windows exclude air and contaminant lines
     - [ ] Model detectability, line significance and measured detectability thresholds
