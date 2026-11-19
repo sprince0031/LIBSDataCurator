@@ -40,10 +40,10 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `sigma_mean` equals the standard error of normalised shots
     - [x] `preprocess` is idempotent on an already-processed spectrum and is the same function used for measured and synthetic spectra
     - [x] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement `scripts/measured_conditioning.py`
-    - [ ] `condition_material(csv_paths, manifest) -> ConditionedMaterial` returning wavelengths, mean, `sigma_mean`, valid mask, per-point means, `n0` per point
-    - [ ] `preprocess(spectrum, struct_size)`
-    - [ ] Confirm the tests pass (Green Phase)
+- [x] Task: Implement `scripts/measured_conditioning.py` (ed48c0f)
+    - [x] `condition_material(csv_paths, manifest) -> ConditionedMaterial` returning wavelengths, mean, `sigma_mean`, valid mask, per-point means, `n0` per point
+    - [x] `preprocess(spectrum, struct_size)`
+    - [x] Confirm the tests pass (Green Phase)
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Measured-Data Conditioning' (Protocol in workflow.md)
 
 ### Phase 3: Forward Model on the Absolute Scale and Java Parity (R2.7, R4)
