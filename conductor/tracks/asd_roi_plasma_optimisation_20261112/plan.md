@@ -18,14 +18,14 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Delete every `rel_intensity * 1e4` fallback in `scripts/`; remove the duplicate `parse_composition_dict` and `ACCURACY_WEIGHTS` from `gpu_calibration_engine.py`
     - [x] Check the grade percentages against the NIST ASD documentation and record the source in a comment
     - [x] Confirm the tests pass (Green Phase)
-- [ ] Task: Write unit tests for resampling in `scripts/test_spectral_resampling.py`
-    - [ ] `pixel_edges` length and monotonicity on the real 2048-channel grid
-    - [ ] Flux conservation within 0.1% on a non-uniform source grid with gaps (AC4)
-    - [ ] Pixel sum of a single line changes by less than 2% as its centre moves across a pixel (AC4)
-    - [ ] `σ == 0` reduces to pixel-box averaging
-    - [ ] `measure_source_fwhm` recovers a known Gaussian width within 5%
-    - [ ] `measure_instrument_fwhm` recovers a planted 0.37 nm width within 15% and respects the clamp
-    - [ ] Confirm the tests fail (Red Phase)
+- [x] Task: Write unit tests for resampling in `scripts/test_spectral_resampling.py` (ca3c170)
+    - [x] `pixel_edges` length and monotonicity on the real 2048-channel grid
+    - [x] Flux conservation within 0.1% on a non-uniform source grid with gaps (AC4)
+    - [x] Pixel sum of a single line changes by less than 2% as its centre moves across a pixel (AC4)
+    - [x] `σ == 0` reduces to pixel-box averaging
+    - [x] `measure_source_fwhm` recovers a known Gaussian width within 5%
+    - [x] `measure_instrument_fwhm` recovers a planted 0.37 nm width within 15% and respects the clamp
+    - [x] Confirm the tests fail (Red Phase)
 - [ ] Task: Implement `scripts/spectral_resampling.py`
     - [ ] `pixel_edges`, `resample_to_detector`, `measure_source_fwhm`, `measure_instrument_fwhm`, `add_sigma_nm`
     - [ ] Confirm the tests pass (Green Phase)
