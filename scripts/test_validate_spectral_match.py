@@ -17,7 +17,14 @@ def mock_validation_setup(tmp_path):
     """Sets up a complete mock calibration manifest, profile, rois, and holdout data."""
     # 1. Measured holdout CSV (10 channels)
     wls = np.linspace(350.0, 360.0, 10)
-    shots = np.tile([100.0, 120.0, 300.0, 450.0, 200.0, 110.0, 500.0, 600.0, 180.0, 100.0], (5, 1))
+    wls_src = np.linspace(350.0, 360.0, 501)
+    p1 = np.exp(-0.5 * ((wls_src - wls[3]) / 0.40) ** 2)
+    p2 = np.exp(-0.5 * ((wls_src - wls[7]) / 0.40) ** 2)
+    s_src_base = 50.0 + 400.0 * p1 + 550.0 * p2
+
+    from scripts.spectral_resampling import resample_to_detector
+    meas_spectrum = resample_to_detector(wls_src, s_src_base, wls, add_sigma_nm=0.05)
+    shots = np.tile(meas_spectrum, (5, 1))
     holdout_csv = tmp_path / "holdout_pt1.csv"
     import pandas as pd
     pd.DataFrame(shots, columns=[str(w) for w in wls]).to_csv(holdout_csv, index=False)
@@ -29,9 +36,8 @@ def mock_validation_setup(tmp_path):
     for te in te_grid:
         for ne in ne_grid:
             csv_path = tmp_path / f"dict_Te{te}_Ne{ne:.1E}.csv"
-            # Stronger peaks at channels 3, 7
-            synth = np.array([50.0, 60.0, 150.0, 220.0, 100.0, 55.0, 240.0, 290.0, 90.0, 50.0]) * (te / 1.0)
-            pd.DataFrame({"wavelength": wls, "intensity": synth}).to_csv(csv_path, index=False)
+            synth = s_src_base * (te / 1.0)
+            pd.DataFrame({"wavelength": wls_src, "intensity": synth}).to_csv(csv_path, index=False)
             nist_paths[f"{te}_{ne:.1E}"] = str(csv_path)
 
     # 3. Instrument Profile
@@ -47,15 +53,15 @@ def mock_validation_setup(tmp_path):
             "Steel": {
                 "materialFamily": "Steel",
                 "resolution": 3000,
-                "scaleFactor": 2.0,
-                "materialScaleFactors": {"473": 2.0},
+                "scaleFactor": 1.0,
+                "materialScaleFactors": {"473": 1.0},
                 "plasmaZones": [
-                    {"zoneIndex": 0, "Te": 1.0, "Ne": 1.0e17, "volumeFraction": 0.8, "kAbsorption": 0.0},
-                    {"zoneIndex": 1, "Te": 0.8, "Ne": 1.0e17, "volumeFraction": 0.2, "kAbsorption": 0.5},
+                    {"zoneIndex": 0, "Te": 1.0, "Ne": 1.0e17, "volumeFraction": 1.0, "kAbsorption": 0.0},
+                    {"zoneIndex": 1, "Te": 0.8, "Ne": 1.0e17, "volumeFraction": 0.0, "kAbsorption": 0.0},
                 ],
                 "calibrationStats": {
-                    "roiRSquared": 0.95,
-                    "roiRmse": 0.03,
+                    "roiRSquared": 0.98,
+                    "roiRmse": 0.02,
                 }
             }
         }
