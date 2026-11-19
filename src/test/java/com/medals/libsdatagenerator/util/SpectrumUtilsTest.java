@@ -139,4 +139,73 @@ public class SpectrumUtilsTest {
             assertTrue(val >= 0.0, "Noise-injected counts must be non-negative");
         }
     }
+
+    @Test
+    @DisplayName("resampleToDetector, combineNZones, and applyInstrumentResponseAndNoise match Python fixture to 1e-9 (AC5)")
+    void testForwardModelParityWithPythonFixture() throws Exception {
+        java.io.InputStream is = getClass().getResourceAsStream("/forward_model_fixture.json");
+        assertNotNull(is, "forward_model_fixture.json must exist in test resources");
+        String content = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        org.json.JSONObject json = new org.json.JSONObject(content);
+
+        // 1. resampleToDetector
+        double[] srcWl = toDoubleArray(json.getJSONArray("srcWl"));
+        double[] srcI = toDoubleArray(json.getJSONArray("srcI"));
+        double[] detWl = toDoubleArray(json.getJSONArray("detWl"));
+        double[] addSigma = toDoubleArray(json.getJSONArray("addSigmaNm"));
+        double[] resampledExp = toDoubleArray(json.getJSONArray("resampledExpected"));
+
+        double[] resampledActual = SpectrumUtils.resampleToDetector(srcWl, srcI, detWl, addSigma);
+        assertNotNull(resampledActual);
+        assertEquals(resampledExp.length, resampledActual.length);
+        for (int i = 0; i < resampledExp.length; i++) {
+            assertEquals(resampledExp[i], resampledActual[i], Math.abs(resampledExp[i]) * 1e-9 + 1e-12,
+                    "Resampled channel " + i + " mismatch");
+        }
+
+        // 2. combineNZones (R4: unnormalized emission, max-normalized opacity)
+        double[] d0 = toDoubleArray(json.getJSONArray("d0"));
+        double[] d1 = toDoubleArray(json.getJSONArray("d1"));
+        double[] combinedExp = toDoubleArray(json.getJSONArray("combinedExpected"));
+
+        PlasmaZone z0 = new PlasmaZone(1.1, 1e17, 0.35, 0.0);
+        PlasmaZone z1 = new PlasmaZone(0.7, 5e16, 0.65, 1.4);
+        double[] combinedActual = SpectrumUtils.combineNZones(List.of(d0, d1), List.of(z0, z1));
+        assertNotNull(combinedActual);
+        assertEquals(combinedExp.length, combinedActual.length);
+        for (int i = 0; i < combinedExp.length; i++) {
+            assertEquals(combinedExp[i], combinedActual[i], Math.abs(combinedExp[i]) * 1e-9 + 1e-12,
+                    "Combined channel " + i + " mismatch");
+        }
+
+        // 3. applyInstrumentResponseAndNoise
+        double[] response = toDoubleArray(json.getJSONArray("spectralResponse"));
+        double scaleFactor = json.getDouble("scaleFactor");
+        double[] finalAbsExp = toDoubleArray(json.getJSONArray("finalAbsoluteExpected"));
+        double[] finalNormExp = toDoubleArray(json.getJSONArray("finalMaxNormalisedExpected"));
+
+        double[] finalAbsActual = SpectrumUtils.applyInstrumentResponseAndNoise(
+                combinedActual, response, scaleFactor, 0.0, null, "absolute"
+        );
+        for (int i = 0; i < finalAbsExp.length; i++) {
+            assertEquals(finalAbsExp[i], finalAbsActual[i], Math.abs(finalAbsExp[i]) * 1e-9 + 1e-12,
+                    "Final absolute channel " + i + " mismatch");
+        }
+
+        double[] finalNormActual = SpectrumUtils.applyInstrumentResponseAndNoise(
+                combinedActual, response, scaleFactor, 0.0, null, "max_normalised"
+        );
+        for (int i = 0; i < finalNormExp.length; i++) {
+            assertEquals(finalNormExp[i], finalNormActual[i], Math.abs(finalNormExp[i]) * 1e-9 + 1e-12,
+                    "Final max-normalised channel " + i + " mismatch");
+        }
+    }
+
+    private static double[] toDoubleArray(org.json.JSONArray arr) {
+        double[] res = new double[arr.length()];
+        for (int i = 0; i < arr.length(); i++) {
+            res[i] = arr.getDouble(i);
+        }
+        return res;
+    }
 }

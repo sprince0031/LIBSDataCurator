@@ -440,4 +440,21 @@ public class InstrumentProfileServiceTest {
         assertFalse(manifest.containsKey("trampWindowsNm"), "fresh manifest must not have hardcoded trampWindowsNm");
         assertFalse(manifest.containsKey("resonanceMaskWindowsNm"), "fresh manifest must not have hardcoded resonanceMaskWindowsNm");
     }
+
+    @Test
+    void testLoadOrInitializeManifestPreservesValidationMaterials() throws IOException {
+        Path manifestPath = tempDir.resolve("manifest_with_validation.json");
+        String existingJson = "{\n" +
+                "  \"instrumentName\": \"ExistingInst\",\n" +
+                "  \"validationMaterials\": [\"473\", \"556\"]\n" +
+                "}";
+        Files.writeString(manifestPath, existingJson);
+
+        var manifest = service.loadOrInitializeManifest(
+                manifestPath, "ExistingInst", 2, tempDir.resolve("profile.json"), 3000.0);
+
+        assertNotNull(manifest);
+        assertTrue(manifest.containsKey("validationMaterials"), "validationMaterials must be preserved");
+        assertEquals(List.of("473", "556"), manifest.get("validationMaterials"));
+    }
 }

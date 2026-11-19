@@ -272,10 +272,10 @@ public class PythonUtils {
         }
         String venv = System.getenv("VIRTUAL_ENV");
         if (venv != null) {
-            Path p = Path.of(venv, "bin", "python3");
-            if (Files.exists(p)) return p.toString();
-            p = Path.of(venv, "bin", "python");
-            if (Files.exists(p)) return p.toString();
+            for (String relPath : List.of("bin/python3", "bin/python", "Scripts/python.exe")) {
+                Path p = Path.of(venv).resolve(relPath);
+                if (Files.exists(p)) return p.toString();
+            }
         }
         Path phdEnv = Path.of(System.getProperty("user.home"), "Work", "PhD", "phd_code_env", "bin", "python3");
         if (Files.exists(phdEnv)) {

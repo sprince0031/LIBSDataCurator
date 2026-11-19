@@ -51,4 +51,41 @@ class InstrumentProfileTest {
         assertEquals(1.5, deserializedMaterialFamilyProfile.getPlasmaZones().get(0).getTe());
         assertEquals(0.99, deserializedMaterialFamilyProfile.getCalibrationStats().getRSquared());
     }
+
+    @Test
+    void testNewProfileOptionalFieldsRoundTrip() {
+        InstrumentProfile profile = new InstrumentProfile();
+        profile.setInstrumentName("Parity_Instrument");
+        profile.setWavelengthGrid(new double[]{350.0, 500.0, 850.0});
+        profile.setEmissionScale("absolute");
+        profile.setLineSpreadAddSigmaNm(List.of(0.12, 0.14, 0.16));
+        profile.setLineSpreadFwhmNm(List.of(0.35, 0.37, 0.39));
+        profile.setSpectralResponseValidRangeNm(List.of(352.4, 688.1));
+        profile.setValidChannelRangeNm(List.of(346.655, 896.916));
+
+        JSONObject json = profile.toJson();
+        assertNotNull(json);
+        assertEquals("absolute", json.getString("emissionScale"));
+        assertEquals(3, json.getJSONArray("lineSpreadAddSigmaNm").length());
+        assertEquals(3, json.getJSONArray("lineSpreadFwhmNm").length());
+        assertEquals(2, json.getJSONArray("spectralResponseValidRangeNm").length());
+        assertEquals(2, json.getJSONArray("validChannelRangeNm").length());
+
+        InstrumentProfile deserialized = new InstrumentProfile();
+        deserialized.fromJson(json);
+        assertEquals("absolute", deserialized.getEmissionScale());
+        assertEquals(List.of(0.12, 0.14, 0.16), deserialized.getLineSpreadAddSigmaNm());
+        assertEquals(List.of(0.35, 0.37, 0.39), deserialized.getLineSpreadFwhmNm());
+        assertEquals(List.of(352.4, 688.1), deserialized.getSpectralResponseValidRangeNm());
+        assertEquals(List.of(346.655, 896.916), deserialized.getValidChannelRangeNm());
+
+        // Backward compatibility: loading from legacy JSON without new fields
+        JSONObject legacyJson = new JSONObject();
+        legacyJson.put("instrumentName", "Legacy_Instrument");
+        legacyJson.put("wavelengths", new double[]{400.0, 500.0});
+        InstrumentProfile legacyProfile = new InstrumentProfile();
+        legacyProfile.fromJson(legacyJson);
+        assertEquals("Legacy_Instrument", legacyProfile.getInstrumentName());
+        assertEquals("absolute", legacyProfile.getEmissionScale());
+    }
 }
