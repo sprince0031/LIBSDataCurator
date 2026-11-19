@@ -71,17 +71,17 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md) (acaaa7c)
 
 ### Phase 4: ROI Catalogue (R5)
-- [~] Task: Write unit tests in `scripts/test_roi_catalogue.py`
-    - [ ] Candidates contain only model lines of certified elements at or above 0.05 wt%, inside the lit range
-    - [ ] Mask windows exclude air and contaminant lines
-    - [ ] Model detectability, line significance and measured detectability thresholds
-    - [ ] The prone rule
-    - [ ] Tercile stratification by `Ek_eV` per 25 nm band, and element coverage for every certified element
-    - [ ] Window merging, prone classification of merged windows, sub-bin partition and channel disjointness
-    - [ ] With the real ASD cache fixture and the SS551 composition, the catalogue contains Cu I 515.324 and 521.820 nm and no Cu II line (AC2)
-    - [ ] A source scan asserting that `roi_catalogue.py` and `roi_joint_calibration.py` contain no element symbols or category weights (AC3)
-    - [ ] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement `scripts/roi_catalogue.py`
+- [x] Task: Write unit tests in `scripts/test_roi_catalogue.py` (b266128)
+    - [x] Candidates contain only model lines of certified elements at or above 0.05 wt%, inside the lit range
+    - [x] Mask windows exclude air and contaminant lines
+    - [x] Model detectability, line significance and measured detectability thresholds
+    - [x] The prone rule
+    - [x] Tercile stratification by `Ek_eV` per 25 nm band, and element coverage for every certified element
+    - [x] Window merging, prone classification of merged windows, sub-bin partition and channel disjointness
+    - [x] With the real ASD cache fixture and the SS551 composition, the catalogue contains Cu I 515.324 and 521.820 nm and no Cu II line (AC2)
+    - [x] A source scan asserting that `roi_catalogue.py` and `roi_joint_calibration.py` contain no element symbols or category weights (AC3)
+    - [x] Confirm the tests fail (Red Phase)
+- [~] Task: Implement `scripts/roi_catalogue.py`
     - [ ] `RoiWindow` dataclass and `build_catalogue(family, compositions, model_lines, dictionary, conditioned) -> list[RoiWindow]`
     - [ ] Response set and full set accessors
     - [ ] Confirm the tests pass (Green Phase)
