@@ -70,7 +70,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `mvn test` passes (Green Phase)
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md) (acaaa7c)
 
-### Phase 4: ROI Catalogue (R5)
+### Phase 4: ROI Catalogue (R5) [checkpoint: 89eeee2]
 - [x] Task: Write unit tests in `scripts/test_roi_catalogue.py` (b266128)
     - [x] Candidates contain only model lines of certified elements at or above 0.05 wt%, inside the lit range
     - [x] Mask windows exclude air and contaminant lines
@@ -85,7 +85,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `RoiWindow` dataclass and `build_catalogue(family, compositions, model_lines, dictionary, conditioned) -> list[RoiWindow]`
     - [x] Response set and full set accessors
     - [x] Confirm the tests pass (Green Phase)
-- [~] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md) (89eeee2)
 
 ### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12)
 - [ ] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py`
