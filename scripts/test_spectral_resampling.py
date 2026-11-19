@@ -104,10 +104,9 @@ def test_resample_zero_sigma_reduces_to_pixel_box_averaging(real_detector_grid):
     for i in indices[:5]:
         e_p = edges[i]
         e_next = edges[i + 1]
-        mask = (wl_src >= e_p) & (wl_src <= e_next)
-        if np.sum(mask) >= 2:
-            expected_mean = trapezoid(s_src[mask], wl_src[mask]) / (e_next - e_p)
-            assert pytest.approx(out[i], rel=1e-2) == expected_mean
+        # Analytical mean of 100 + (x - 455)^2 over [e_p, e_next]
+        expected_mean = (100.0 * (e_next - e_p) + ((e_next - 455.0) ** 3 - (e_p - 455.0) ** 3) / 3.0) / (e_next - e_p)
+        assert pytest.approx(out[i], rel=1e-3) == expected_mean
 
 
 def test_measure_source_fwhm():
@@ -131,8 +130,8 @@ def test_measure_instrument_fwhm_and_clamps(real_detector_grid):
     # Planted instrument peaks with FWHM = 0.37 nm
     sigma_inst = 0.37 / (2.0 * np.sqrt(2.0 * np.log(2.0)))
     y_mean = np.zeros_like(real_detector_grid)
-    # Add peaks in each band
-    peaks = [400.0, 500.0, 620.0, 800.0]
+    # Add multiple peaks in each band
+    peaks = [380.0, 420.0, 480.0, 520.0, 600.0, 650.0, 750.0, 850.0]
     for p in peaks:
         y_mean += 10000.0 * np.exp(-0.5 * ((real_detector_grid - p) / sigma_inst) ** 2)
     
