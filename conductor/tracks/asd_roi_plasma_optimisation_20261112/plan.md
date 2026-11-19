@@ -47,13 +47,13 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Measured-Data Conditioning' (Protocol in workflow.md)
 
 ### Phase 3: Forward Model on the Absolute Scale and Java Parity (R2.7, R4)
-- [ ] Task: Write unit tests in `scripts/test_forward_model.py`
-    - [ ] The R4 operator for one, two and three zones against hand-computed values
-    - [ ] `k = 0` reduces to a non-negative mixture; the opacity term uses the max-normalised zone spectrum
-    - [ ] Both `emissionScale` modes
-    - [ ] Gate G1 passes on two synthetic compositions that share a scale and fails when one is rescaled
-    - [ ] The test writes `src/test/resources/forward_model_fixture.json`
-    - [ ] Confirm the tests fail (Red Phase)
+- [x] Task: Write unit tests in `scripts/test_forward_model.py` (0aef0f5)
+    - [x] The R4 operator for one, two and three zones against hand-computed values
+    - [x] `k = 0` reduces to a non-negative mixture; the opacity term uses the max-normalised zone spectrum
+    - [x] Both `emissionScale` modes
+    - [x] Gate G1 passes on two synthetic compositions that share a scale and fails when one is rescaled
+    - [x] The test writes `src/test/resources/forward_model_fixture.json`
+    - [x] Confirm the tests fail (Red Phase)
 - [ ] Task: Implement `scripts/forward_model.py`
     - [ ] Dictionary loader: NIST `Sum(calc)` and per-element sums of species columns, through `resample_to_detector`, with `NIST_UNIT_SCALE`
     - [ ] `combine_zones`, `apply_response_and_scale`, `composition_scale_check`
