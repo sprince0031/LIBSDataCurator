@@ -88,7 +88,7 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md) (89eeee2)
 
 ### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12)
-- [ ] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py`
+- [~] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py`
     - [ ] Port the generator from `analysis/20_planted_truth_sim.py` and `analysis/22_planted_truth_runaway.py` as a test fixture
     - [ ] Scenarios Clean, Harsh, Edge and Split with the thresholds of R12
     - [ ] Confirm the tests fail (Red Phase)
