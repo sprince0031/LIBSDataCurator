@@ -6,13 +6,13 @@ Requirement numbers (R1–R12) and acceptance criteria (AC1–AC12) refer to [`s
 All work stays on `feat/instrument-profile-optimisation`.
 
 ### Phase 1: Line Data and Flux-Conserving Resampling (R1, R2)
-- [ ] Task: Write unit tests for line data in `scripts/test_nist_lines.py`
-    - [ ] Tests for `parse_composition_dict` (string with `-` and `:` delimiters, ranges, `#` remainder, dict input, 100 wt% normalisation)
-    - [ ] Tests for `to_atomic_fractions`
-    - [ ] Tests for `ACCURACY_UNCERTAINTY` lookup, including grades with a trailing `'` and unknown grades
-    - [ ] Tests that `load_model_lines` returns only rows with `boltzmann_ok` and adds `wl_nm`, `gA`, `unc`
-    - [ ] Test that `lte_strength` equals `gA / wl_nm * exp(-Ek_eV / t_ev)`
-    - [ ] Confirm the tests fail (Red Phase)
+- [x] Task: Write unit tests for line data in `scripts/test_nist_lines.py` (297ac0c)
+    - [x] Tests for `parse_composition_dict` (string with `-` and `:` delimiters, ranges, `#` remainder, dict input, 100 wt% normalisation)
+    - [x] Tests for `to_atomic_fractions`
+    - [x] Tests for `ACCURACY_UNCERTAINTY` lookup, including grades with a trailing `'` and unknown grades
+    - [x] Tests that `load_model_lines` returns only rows with `boltzmann_ok` and adds `wl_nm`, `gA`, `unc`
+    - [x] Test that `lte_strength` equals `gA / wl_nm * exp(-Ek_eV / t_ev)`
+    - [x] Confirm the tests fail (Red Phase)
 - [ ] Task: Implement R1 in `scripts/nist_lines.py`
     - [ ] Add the five functions and the constant
     - [ ] Delete every `rel_intensity * 1e4` fallback in `scripts/`; remove the duplicate `parse_composition_dict` and `ACCURACY_WEIGHTS` from `gpu_calibration_engine.py`
