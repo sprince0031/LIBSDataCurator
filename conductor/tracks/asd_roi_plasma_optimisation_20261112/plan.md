@@ -63,12 +63,12 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `InstrumentProfileTest`: new optional fields round-trip; a profile without them still loads
     - [x] `InstrumentProfileServiceTest`: the manifest upsert preserves `validationMaterials`
     - [x] Confirm the tests fail (Red Phase)
-- [~] Task: Implement the Java changes
-    - [ ] `SpectrumUtils.resampleToDetector`; update `combineNZones` and `applyInstrumentResponseAndNoise`
-    - [ ] `LIBSDataService` uses `resampleToDetector` when the profile carries `lineSpreadAddSigmaNm`
-    - [ ] `InstrumentProfile` fields `emissionScale`, `lineSpreadAddSigmaNm`, `lineSpreadFwhmNm`, `spectralResponseValidRangeNm`, `validChannelRangeNm`
-    - [ ] `mvn test` passes (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md)
+- [x] Task: Implement the Java changes (5c1c6e7)
+    - [x] `SpectrumUtils.resampleToDetector`; update `combineNZones` and `applyInstrumentResponseAndNoise`
+    - [x] `LIBSDataService` uses `resampleToDetector` when the profile carries `lineSpreadAddSigmaNm`
+    - [x] `InstrumentProfile` fields `emissionScale`, `lineSpreadAddSigmaNm`, `lineSpreadFwhmNm`, `spectralResponseValidRangeNm`, `validChannelRangeNm`
+    - [x] `mvn test` passes (Green Phase)
+- [~] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md)
 
 ### Phase 4: ROI Catalogue (R5)
 - [ ] Task: Write unit tests in `scripts/test_roi_catalogue.py`
