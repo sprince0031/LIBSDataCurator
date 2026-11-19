@@ -154,3 +154,30 @@ def test_generate_forward_model_parity_fixture():
         json.dump(fixture, f, indent=2)
         
     assert fixture_path.exists()
+
+
+def test_resample_real_cached_nist_spectrum():
+    """Verify resampling real cached NIST high-resolution spectrum onto AvaSpec detector channels."""
+    import pandas as pd
+    nist_csv = Path("build/release-package/cache/nist/469_Te1.0_Ne1.0E+17.csv")
+    det_csv = Path("data/LSA/Medals_Samples_Feb26/469/LSA_ava_S20260311162055_E20260311162058.csv")
+    if not nist_csv.exists() or not det_csv.exists():
+        pytest.skip("Real NIST or detector CSVs not found")
+
+    df_nist = pd.read_csv(nist_csv)
+    df_det = pd.read_csv(det_csv, sep=";", nrows=1)
+
+    src_wl = df_nist["Wavelength (nm)"].to_numpy()
+    src_flux = df_nist["Sum(calc)"].to_numpy()
+    det_wl = np.array([float(c) for c in df_det.columns if c not in ("MeasCtr", "TimeStamp")], dtype=np.float64)
+
+    assert len(src_wl) > 10000, f"Expected > 10000 high-res points, got {len(src_wl)}"
+    assert len(det_wl) == 2048, f"Expected 2048 detector channels, got {len(det_wl)}"
+
+    resampled = resample_to_detector(src_wl, src_flux, det_wl, add_sigma_nm=0.0)
+
+    assert resampled.shape == (2048,)
+    assert np.all(resampled >= 0.0)
+    # Total resampled flux must be positive and non-zero
+    assert np.sum(resampled) > 0.0
+

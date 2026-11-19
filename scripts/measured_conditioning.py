@@ -78,12 +78,29 @@ def condition_material(
     
     for path in csv_paths:
         p_obj = Path(path)
-        df = pd.read_csv(p_obj)
-        if wavelengths is None:
+        with open(p_obj, "r", encoding="utf-8", errors="ignore") as f:
+            first_line = f.readline()
+        sep = ";" if ";" in first_line else ","
+        df = pd.read_csv(p_obj, sep=sep)
+        
+        # Filter for numeric wavelength columns (drop MeasCtr, TimeStamp, etc.)
+        numeric_cols = []
+        for col in df.columns:
             try:
-                wavelengths = np.array([float(col) for col in df.columns], dtype=np.float64)
+                float(str(col).strip())
+                numeric_cols.append(col)
             except ValueError:
+                pass
+                
+        if numeric_cols:
+            df = df[numeric_cols]
+            
+        if wavelengths is None:
+            if numeric_cols:
+                wavelengths = np.array([float(str(c).strip()) for c in numeric_cols], dtype=np.float64)
+            else:
                 wavelengths = np.arange(df.shape[1], dtype=np.float64)
+                
         point_raw_shots[p_obj.stem] = df.to_numpy(dtype=np.float64)
         
     p_len = len(wavelengths)

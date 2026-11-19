@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 import numpy as np
+import pandas as pd
 import pytest
 
-from scripts.measured_conditioning import ConditionedMaterial
-from scripts.roi_catalogue import RoiWindow, SubBin
+from scripts.measured_conditioning import ConditionedMaterial, condition_material
+from scripts.forward_model import resample_to_detector
+from scripts.nist_lines import load_lines, accuracy_to_uncertainty
+from scripts.roi_catalogue import RoiWindow, SubBin, build_catalogue
 from scripts.roi_joint_calibration import (
     CubicBSplineBasis,
     compute_sub_bin_variances,
@@ -240,3 +245,85 @@ def sample_manifest():
         "modelErrorFraction": 0.10,
         "responsePenalty": 1.0,
     }
+
+
+def test_joint_solver_on_real_reference_dataset():
+    """Verify joint plasma-response solver on real experimental LIBS dataset (469, 470, 551).
+    
+    Uses:
+    - Real conditioned LSA measured CSVs from data/LSA/Medals_Samples_Feb26
+    - Real cached NIST calculated spectra from build/release-package/cache/nist
+    - Real ASD line transitions from data/nist_lines
+    - Real ROI catalogue generated via build_catalogue
+    """
+    mats = ["469", "470", "551"]
+    cond_map = {}
+    for m in mats:
+        paths = list(Path(f"data/LSA/Medals_Samples_Feb26/{m}").glob("*.csv"))
+        if not paths:
+            pytest.skip(f"Measured CSVs for material {m} not found")
+        cond_map[m] = condition_material(paths)
+    det_wl = cond_map["469"].wavelengths
+
+    comp_map = {
+        "469": {"Fe": 86.49, "Cr": 11.93, "Ni": 0.25, "Mn": 0.60, "Si": 0.42, "C": 0.28},
+        "470": {"Fe": 81.17, "Cr": 17.68, "Ni": 0.37, "Mn": 0.24, "Si": 0.34, "C": 0.15},
+        "551": {"Cu": 84.5, "Sn": 6.0, "Pb": 4.5, "Zn": 4.5, "Ni": 0.5},
+    }
+    fam_map = {"469": "Steel", "470": "Steel", "551": "Bronze"}
+
+    # Load real ASD lines
+    lines = load_lines(["steel", "bronze"], wl_range=(float(det_wl[0]), float(det_wl[-1])))
+    valid = (lines["Aki"] > 0) & (lines["Ek_eV"] > 0) & (lines["g_k"] > 0) & lines["wavelength_nm"].notna()
+    model_lines = lines[valid].copy().sort_values("Aki", ascending=False).head(1000).reset_index(drop=True)
+    model_lines["wl_nm"] = model_lines["wavelength_nm"]
+    model_lines["unc"] = model_lines["accuracy"].apply(accuracy_to_uncertainty)
+    model_lines["gA"] = model_lines["g_k"] * model_lines["Aki"]
+
+    # Load cached NIST dictionary
+    te_grid = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
+    ne_grid = [1e16, 5e16, 1e17, 5e17]
+    cache_dir = Path("build/release-package/cache/nist")
+    dictionary = {}
+    for m in mats:
+        files = sorted(cache_dir.glob(f"{m}_Te*.csv"))
+        if not files:
+            pytest.skip(f"Cached NIST spectra for {m} not found")
+        D = np.zeros((len(det_wl), len(files)), dtype=np.float64)
+        for i, f in enumerate(files):
+            df_c = pd.read_csv(f)
+            D[:, i] = resample_to_detector(df_c["Wavelength (nm)"].to_numpy(), df_c["Sum(calc)"].to_numpy(), det_wl, 0.0)
+        dictionary[m] = D
+
+    # Build real ROIs
+    rois = build_catalogue(
+        family="Steel",
+        compositions=comp_map,
+        model_lines=model_lines,
+        dictionary_ref=dictionary["469"],
+        conditioned=cond_map,
+        detector_wavelengths=det_wl,
+    )
+    assert len(rois) >= 10, f"Expected at least 10 ROIs, got {len(rois)}"
+
+    # Run joint solver on real data
+    result = run_joint_solver(
+        rois=rois,
+        dictionary=dictionary,
+        conditioned=cond_map,
+        detector_wavelengths=det_wl,
+        material_families=fam_map,
+        te_grid=te_grid,
+        ne_grid=ne_grid,
+    )
+
+    # Verification assertions on real data
+    assert result.converged is True, "Solver must converge on real experimental data"
+    assert result.spectral_response.shape == det_wl.shape
+    assert np.all(result.spectral_response > 0.0), "Instrument response must be strictly positive"
+    resp_ratio = float(np.max(result.spectral_response) / np.min(result.spectral_response))
+    assert resp_ratio < 30.0, f"Instrument response dynamic range {resp_ratio:.1f} must be < 30"
+    for m in mats:
+        assert np.all(result.plasma_weights[m] >= 0.0), f"Weights for {m} must be non-negative"
+        assert np.sum(result.plasma_weights[m]) > 0.0, f"Weights for {m} must have non-zero sum"
+

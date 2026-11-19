@@ -159,3 +159,24 @@ def test_preprocess_morphological_opening_idempotency():
     # Idempotent: morphological opening of line-only spectrum leaves it invariant
     np.testing.assert_allclose(p1, p2, atol=1e-5)
     assert np.all(p1 >= 0.0)
+
+
+def test_condition_real_lsa_measured_data():
+    """Verify conditioning on actual experimental AvaSpec CSVs from Medals_Samples_Feb26."""
+    p_469 = list(Path("data/LSA/Medals_Samples_Feb26/469").glob("*.csv"))
+    if not p_469:
+        pytest.skip("Real 469 CSV files not found")
+
+    cond = condition_material(p_469)
+    assert len(cond.wavelengths) == 2048
+    assert cond.wavelengths[0] == pytest.approx(341.952, rel=1e-3)
+    assert cond.wavelengths[-1] == pytest.approx(896.916, rel=1e-3)
+    assert cond.dark_level > 500.0, f"Expected realistic dark level (~637), got {cond.dark_level}"
+    assert cond.mean_spectrum.shape == (2048,)
+    assert cond.preprocessed_mean.shape == (2048,)
+    assert np.all(cond.preprocessed_mean >= 0.0), "Preprocessed mean must be non-negative"
+    assert np.max(cond.mean_spectrum) > 10000.0, "Expected strong line emission peaks > 10,000 counts"
+    assert cond.sigma_mean.shape == (2048,)
+    assert np.all(cond.sigma_mean > 0.0)
+    assert len(cond.point_means) == len(p_469)
+

@@ -565,7 +565,7 @@ def run_joint_solver(
         reduced_chi2[m] = float(chi2_sum / dof)
 
     # Group comparison (iron-based vs others)
-    iron_mats = [m for m in mat_names if "Fe" in m or material_families.get(m, "").startswith("Ferritic") or material_families.get(m, "").startswith("Stainless")]
+    iron_mats = [m for m in mat_names if "Fe" in m or "Steel" in material_families.get(m, "") or material_families.get(m, "").startswith("Ferritic") or material_families.get(m, "").startswith("Stainless")]
     other_mats = [m for m in mat_names if m not in iron_mats]
 
     family_group_rms_diff = 0.0
