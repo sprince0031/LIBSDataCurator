@@ -46,7 +46,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Confirm the tests pass (Green Phase)
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Measured-Data Conditioning' (Protocol in workflow.md)
 
-### Phase 3: Forward Model on the Absolute Scale and Java Parity (R2.7, R4)
+### Phase 3: Forward Model on the Absolute Scale and Java Parity (R2.7, R4) [checkpoint: acaaa7c]
 - [x] Task: Write unit tests in `scripts/test_forward_model.py` (0aef0f5)
     - [x] The R4 operator for one, two and three zones against hand-computed values
     - [x] `k = 0` reduces to a non-negative mixture; the opacity term uses the max-normalised zone spectrum
@@ -68,7 +68,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] `LIBSDataService` uses `resampleToDetector` when the profile carries `lineSpreadAddSigmaNm`
     - [x] `InstrumentProfile` fields `emissionScale`, `lineSpreadAddSigmaNm`, `lineSpreadFwhmNm`, `spectralResponseValidRangeNm`, `validChannelRangeNm`
     - [x] `mvn test` passes (Green Phase)
-- [~] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md) (acaaa7c)
 
 ### Phase 4: ROI Catalogue (R5)
 - [ ] Task: Write unit tests in `scripts/test_roi_catalogue.py`
