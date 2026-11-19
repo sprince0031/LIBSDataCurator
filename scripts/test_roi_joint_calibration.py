@@ -21,6 +21,12 @@ from scripts.roi_joint_calibration import (
     evaluate_diagnostics,
     run_joint_solver,
     CalibrationResult,
+    solve_family_plasma,
+    reduce_zones_to_num_zones,
+    scan_absorption,
+    compute_family_scales_and_sharing_penalty,
+    compute_plasma_dispersion,
+    compute_element_parity,
 )
 
 
@@ -326,4 +332,181 @@ def test_joint_solver_on_real_reference_dataset():
     for m in mats:
         assert np.all(result.plasma_weights[m] >= 0.0), f"Weights for {m} must be non-negative"
         assert np.sum(result.plasma_weights[m]) > 0.0, f"Weights for {m} must have non-zero sum"
+
+
+def test_family_shared_weights_and_scales():
+    """R8.1: Family-shared weights with per-material scales recover a planted family state."""
+    n_sub_bins = 20
+    n_states = 5
+    rng = np.random.default_rng(42)
+
+    A_ref = rng.uniform(10.0, 500.0, size=(n_sub_bins, n_states))
+    w_planted = np.array([0.0, 15.0, 0.0, 35.0, 0.0])
+    y_base = A_ref @ w_planted
+
+    scale_469 = 1.40
+    scale_470 = 0.75
+
+    y_469 = y_base * scale_469
+    y_470 = y_base * scale_470
+    sigma = np.full(n_sub_bins, 1.0)
+
+    # Build sub-bin info
+    mat_sub_data = {
+        "469": [{"A_row": A_ref[b], "Y": y_469[b], "sigma": sigma[b], "is_prone": False} for b in range(n_sub_bins)],
+        "470": [{"A_row": A_ref[b], "Y": y_470[b], "sigma": sigma[b], "is_prone": False} for b in range(n_sub_bins)],
+    }
+
+    w_fam, scales = solve_family_plasma(mat_sub_data, n_states=n_states)
+
+    assert len(w_fam) == n_states
+    assert np.all(w_fam >= 0.0)
+    # Recovered support matches planted states 1 and 3
+    assert w_fam[0] == pytest.approx(0.0, abs=1e-3)
+    assert w_fam[2] == pytest.approx(0.0, abs=1e-3)
+    assert w_fam[4] == pytest.approx(0.0, abs=1e-3)
+    # Scale ratio matches 1.40 / 0.75
+    ratio_recovered = scales["469"] / scales["470"]
+    assert ratio_recovered == pytest.approx(scale_469 / scale_470, rel=1e-2)
+
+
+def test_zone_reduction():
+    """R8.2: Zone reduction reduces support to numZones and computes zoneReductionPenalty."""
+    n_sub_bins = 20
+    n_states = 6
+    rng = np.random.default_rng(43)
+
+    A_ref = rng.uniform(10.0, 500.0, size=(n_sub_bins, n_states))
+    # 4 non-zero zones: states 0 (weak), 1 (strong), 3 (medium), 4 (very weak)
+    w_initial = np.array([5.0, 40.0, 0.0, 20.0, 1.0, 0.0])
+    y = A_ref @ w_initial
+    sigma = np.full(n_sub_bins, 1.0)
+
+    sub_data = [{"A_row": A_ref[b], "Y": y[b], "sigma": sigma[b], "is_prone": False} for b in range(n_sub_bins)]
+
+    w_red, penalty = reduce_zones_to_num_zones(
+        initial_weights=w_initial,
+        sub_data=sub_data,
+        num_zones=2,
+    )
+
+    non_zero_indices = np.where(w_red > 1e-4)[0]
+    assert len(non_zero_indices) <= 2, f"Expected <= 2 non-zero zones, got {len(non_zero_indices)}"
+    # Strongest states 1 and 3 should be preserved
+    assert 1 in non_zero_indices
+    assert 3 in non_zero_indices
+    assert penalty >= 1.0, f"zoneReductionPenalty {penalty} must be >= 1.0"
+
+
+def test_absorption_scan():
+    """R8.3: Absorption scan recovers planted k, returns 0 when no benefit, and flags bound."""
+    n_sub_bins = 25
+    rng = np.random.default_rng(44)
+    # Coolest zone profile (d_cool), hottest zone profile (d_hot)
+    d_cool = rng.uniform(50.0, 200.0, n_sub_bins)
+    d_hot = rng.uniform(10.0, 100.0, n_sub_bins)
+    sigma = np.full(n_sub_bins, 1.0)
+    is_prone = np.array([b % 3 == 0 for b in range(n_sub_bins)])
+
+    # Case 1: Planted k = 2.4 on prone lines for coolest zone
+    k_planted = 2.4
+    d_tilde_cool = d_cool / np.max(d_cool)
+    attenuation = np.ones(n_sub_bins)
+    attenuation[is_prone] = np.exp(-k_planted * d_tilde_cool[is_prone])
+    y_synth = 0.6 * d_cool * attenuation + 0.4 * d_hot
+
+    sub_data = [
+        {"d_cool": d_cool[b], "d_hot": d_hot[b], "Y": y_synth[b], "sigma": sigma[b], "is_prone": is_prone[b]}
+        for b in range(n_sub_bins)
+    ]
+
+    k_est, flags = scan_absorption(sub_data, k_grid=np.linspace(0.0, 8.0, 81))
+    assert k_est == pytest.approx(k_planted, abs=0.15)
+    assert "K_ABSORPTION_AT_BOUND" not in flags
+
+    # Case 2: No absorption planted (k = 0) -> retains k = 0
+    y_no_abs = 0.6 * d_cool + 0.4 * d_hot
+    sub_data_no_abs = [
+        {"d_cool": d_cool[b], "d_hot": d_hot[b], "Y": y_no_abs[b], "sigma": sigma[b], "is_prone": is_prone[b]}
+        for b in range(n_sub_bins)
+    ]
+    k_zero, flags_zero = scan_absorption(sub_data_no_abs, k_grid=np.linspace(0.0, 8.0, 81))
+    assert k_zero == pytest.approx(0.0, abs=1e-5)
+
+    # Case 3: Planted k = 8.0 -> hits scan limit, flags K_ABSORPTION_AT_BOUND
+    attenuation_bound = np.ones(n_sub_bins)
+    attenuation_bound[is_prone] = np.exp(-8.0 * d_tilde_cool[is_prone])
+    y_bound = 0.6 * d_cool * attenuation_bound + 0.4 * d_hot
+    sub_data_bound = [
+        {"d_cool": d_cool[b], "d_hot": d_hot[b], "Y": y_bound[b], "sigma": sigma[b], "is_prone": is_prone[b]}
+        for b in range(n_sub_bins)
+    ]
+    k_bound, flags_bound = scan_absorption(sub_data_bound, k_grid=np.linspace(0.0, 8.0, 81))
+    assert k_bound == pytest.approx(8.0, abs=0.1)
+    assert any("K_ABSORPTION_AT_BOUND" in f for f in flags_bound)
+
+
+def test_family_scale_factors_and_sharing_penalty():
+    """R8.5, R8.7: Median family scaleFactor, materialScaleFactors, materialPlasmaZones, familySharingPenalty."""
+    mat_scales = {"469": 1.20, "470": 1.50, "471": 0.90}
+    mat_phis = {"469": 10.0, "470": 15.0, "471": 8.0}
+    phi_family = 36.3  # 10% penalty over sum(10+15+8 = 33)
+
+    metrics = compute_family_scales_and_sharing_penalty(
+        material_scales=mat_scales,
+        phi_family=phi_family,
+        phi_materials=mat_phis,
+    )
+
+    # Median of [0.90, 1.20, 1.50] is 1.20
+    assert metrics["scaleFactor"] == pytest.approx(1.20, abs=1e-4)
+    assert metrics["materialScaleFactors"]["469"] == 1.20
+    assert metrics["materialScaleFactors"]["470"] == 1.50
+    assert metrics["materialScaleFactors"]["471"] == 0.90
+    # familySharingPenalty = 36.3 / 33.0 = 1.10
+    assert metrics["familySharingPenalty"] == pytest.approx(1.10, rel=1e-4)
+
+
+def test_plasma_dispersion_and_clamps():
+    """R8.6: teStdDev in [0.01, 0.10], neLogStdDev in [0.02, 0.30] clamped."""
+    # Point mean temperatures: tight spread (std = 0.002 -> clamp to 0.01)
+    tight_te = [0.850, 0.852, 0.851, 0.849, 0.850]
+    tight_ne = [17.00, 17.01, 16.99, 17.00, 17.00]  # log10 Ne
+    disp_tight = compute_plasma_dispersion(tight_te, tight_ne)
+    assert disp_tight["teStdDev"] == pytest.approx(0.01, abs=1e-5)
+    assert disp_tight["neLogStdDev"] == pytest.approx(0.02, abs=1e-5)
+
+    # Wide spread: std Te = 0.25 -> clamp to 0.10, std log10 Ne = 0.50 -> clamp to 0.30
+    wide_te = [0.60, 0.90, 1.20, 0.70, 1.10]
+    wide_ne = [15.5, 17.5, 16.0, 16.8, 17.2]
+    disp_wide = compute_plasma_dispersion(wide_te, wide_ne)
+    assert disp_wide["teStdDev"] == pytest.approx(0.10, abs=1e-5)
+    assert disp_wide["neLogStdDev"] == pytest.approx(0.30, abs=1e-5)
+
+    # Moderate spread within bounds
+    mod_te = [0.80, 0.85, 0.90, 0.82, 0.88]  # std ~= 0.041
+    mod_ne = [16.8, 17.0, 17.1, 16.9, 17.0]  # std ~= 0.114
+    disp_mod = compute_plasma_dispersion(mod_te, mod_ne)
+    assert 0.01 < disp_mod["teStdDev"] < 0.10
+    assert 0.02 < disp_mod["neLogStdDev"] < 0.30
+
+
+def test_element_parity_and_bias_flag():
+    """R9, R11: elementParity distribution and ELEMENT_BIAS flag when |bias| > 0.30."""
+    sub_bins = [
+        {"dominant_element": "Fe", "synthetic": 400.0, "measured": 100.0},  # log10(4) = +0.602 (bias)
+        {"dominant_element": "Fe", "synthetic": 800.0, "measured": 200.0},
+        {"dominant_element": "Cr", "synthetic": 110.0, "measured": 100.0},  # log10(1.1) = +0.041
+        {"dominant_element": "Ni", "synthetic": 95.0, "measured": 100.0},   # log10(0.95) = -0.022
+    ]
+
+    parity, flags = compute_element_parity(sub_bins)
+
+    assert "Fe" in parity
+    assert parity["Fe"] == pytest.approx(np.log10(4.0), abs=1e-3)
+    assert parity["Cr"] == pytest.approx(np.log10(1.1), abs=1e-3)
+    assert any("ELEMENT_BIAS:Fe" in f for f in flags)
+    assert not any("ELEMENT_BIAS:Cr" in f for f in flags)
+    assert not any("ELEMENT_BIAS:Ni" in f for f in flags)
+
 
