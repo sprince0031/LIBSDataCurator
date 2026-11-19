@@ -58,12 +58,12 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Dictionary loader: NIST `Sum(calc)` and per-element sums of species columns, through `resample_to_detector`, with `NIST_UNIT_SCALE`
     - [x] `combine_zones`, `apply_response_and_scale`, `composition_scale_check`
     - [x] Confirm the tests pass (Green Phase)
-- [ ] Task: Write Java tests for parity
-    - [ ] `SpectrumUtilsTest`: `resampleToDetector`, `combineNZones` and `applyInstrumentResponseAndNoise` reproduce the fixture to a relative `1e-9` in both `emissionScale` modes (AC5)
-    - [ ] `InstrumentProfileTest`: new optional fields round-trip; a profile without them still loads
-    - [ ] `InstrumentProfileServiceTest`: the manifest upsert preserves `validationMaterials`
-    - [ ] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement the Java changes
+- [x] Task: Write Java tests for parity (0b2bfcd)
+    - [x] `SpectrumUtilsTest`: `resampleToDetector`, `combineNZones` and `applyInstrumentResponseAndNoise` reproduce the fixture to a relative `1e-9` in both `emissionScale` modes (AC5)
+    - [x] `InstrumentProfileTest`: new optional fields round-trip; a profile without them still loads
+    - [x] `InstrumentProfileServiceTest`: the manifest upsert preserves `validationMaterials`
+    - [x] Confirm the tests fail (Red Phase)
+- [~] Task: Implement the Java changes
     - [ ] `SpectrumUtils.resampleToDetector`; update `combineNZones` and `applyInstrumentResponseAndNoise`
     - [ ] `LIBSDataService` uses `resampleToDetector` when the profile carries `lineSpreadAddSigmaNm`
     - [ ] `InstrumentProfile` fields `emissionScale`, `lineSpreadAddSigmaNm`, `lineSpreadFwhmNm`, `spectralResponseValidRangeNm`, `validChannelRangeNm`
