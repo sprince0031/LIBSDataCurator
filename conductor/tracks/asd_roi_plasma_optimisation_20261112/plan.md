@@ -1,57 +1,155 @@
-# Implementation Plan: ASD & Composition-Informed ROI-Only Plasma Optimisation & `regionsOfInterest.json` Export
+# Implementation Plan: ROI-Scoped Joint Response–Plasma Calibration for Best Spectral Match
 
 ## Track ID: `asd_roi_plasma_optimisation_20261112`
 
-### Phase 1: Centralize Parsing & ASD Scoring in `scripts/nist_lines.py`
-- [ ] Task: Write unit tests for centralized composition parsing and LTE scoring in `scripts/test_nist_lines.py`
-    - [ ] Write unit tests for `parse_composition_dict` covering string `-`/`:` formats, dictionary inputs, `#` remainder calculation, and 100 wt.% normalization
-    - [ ] Write unit tests for `parse_elements_from_composition`
-    - [ ] Write unit tests for `ACCURACY_WEIGHTS` mapping and `load_scored_asd_lines` validating LTE scoring, Einstein $A_{ki}$, Boltzmann factors, and accuracy weights
-    - [ ] Verify test suite fails as expected prior to implementation (Red Phase)
-- [ ] Task: Implement centralized parsing and scored ASD line loading in `scripts/nist_lines.py`
-    - [ ] Define `ACCURACY_WEIGHTS` dictionary
-    - [ ] Implement `parse_composition_dict(raw_comp) -> dict[str, float]`
-    - [ ] Implement `parse_elements_from_composition(comp_str: str) -> list[str]`
-    - [ ] Implement `load_scored_asd_lines(...) -> pd.DataFrame`
-    - [ ] Verify unit tests pass (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Centralize Parsing & ASD Scoring in scripts/nist_lines.py' (Protocol in workflow.md)
+Requirement numbers (R1–R12) and acceptance criteria (AC1–AC12) refer to [`spec.md`](./spec.md).
+All work stays on `feat/instrument-profile-optimisation`.
 
-### Phase 2: ASD & Composition-Informed ROI Discovery Module (`scripts/asd_roi_discovery.py`)
-- [ ] Task: Write unit tests for ROI discovery engine in `scripts/test_asd_roi_discovery.py`
-    - [ ] Write unit tests for element categorization (Matrix $\ge 5\%$, Minor $0.5\%-5\%$, Tramp $< 0.5\%$, filtering ambient air elements `H`, `O`, `N`)
-    - [ ] Write unit tests for line scoring, concentration scaling ($C^{0.65}$), and matrix-interference isolation penalty
-    - [ ] Write unit tests for line clustering ($\pm 0.85\text{ nm}$, merge $\le 0.40\text{ nm}$, max cluster width $6.0\text{ nm}$)
-    - [ ] Write unit tests for channel grid mapping verifying strict disjointness (`startChannelIdx_k > endChannelIdx_{k-1}`) and minimum channel width $\ge 3$
-    - [ ] Write unit tests for `SpectralRoiSpec` schema and normalized importance weights
-    - [ ] Verify test suite fails as expected prior to implementation (Red Phase)
-- [ ] Task: Implement `scripts/asd_roi_discovery.py`
-    - [ ] Define `SpectralRoiSpec` dataclass
-    - [ ] Implement `AsdRoiDiscoveryEngine` leveraging `scripts/nist_lines.py` as single source of truth
-    - [ ] Implement `discover_rois_for_family(family_name)` returning `(rois, roi_weights_p, union_indices)`
-    - [ ] Verify unit tests pass (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: ASD & Composition-Informed ROI Discovery Module' (Protocol in workflow.md)
+### Phase 1: Line Data and Flux-Conserving Resampling (R1, R2)
+- [ ] Task: Write unit tests for line data in `scripts/test_nist_lines.py`
+    - [ ] Tests for `parse_composition_dict` (string with `-` and `:` delimiters, ranges, `#` remainder, dict input, 100 wt% normalisation)
+    - [ ] Tests for `to_atomic_fractions`
+    - [ ] Tests for `ACCURACY_UNCERTAINTY` lookup, including grades with a trailing `'` and unknown grades
+    - [ ] Tests that `load_model_lines` returns only rows with `boltzmann_ok` and adds `wl_nm`, `gA`, `unc`
+    - [ ] Test that `lte_strength` equals `gA / wl_nm * exp(-Ek_eV / t_ev)`
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement R1 in `scripts/nist_lines.py`
+    - [ ] Add the five functions and the constant
+    - [ ] Delete every `rel_intensity * 1e4` fallback in `scripts/`; remove the duplicate `parse_composition_dict` and `ACCURACY_WEIGHTS` from `gpu_calibration_engine.py`
+    - [ ] Check the grade percentages against the NIST ASD documentation and record the source in a comment
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Write unit tests for resampling in `scripts/test_spectral_resampling.py`
+    - [ ] `pixel_edges` length and monotonicity on the real 2048-channel grid
+    - [ ] Flux conservation within 0.1% on a non-uniform source grid with gaps (AC4)
+    - [ ] Pixel sum of a single line changes by less than 2% as its centre moves across a pixel (AC4)
+    - [ ] `σ == 0` reduces to pixel-box averaging
+    - [ ] `measure_source_fwhm` recovers a known Gaussian width within 5%
+    - [ ] `measure_instrument_fwhm` recovers a planted 0.37 nm width within 15% and respects the clamp
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement `scripts/spectral_resampling.py`
+    - [ ] `pixel_edges`, `resample_to_detector`, `measure_source_fwhm`, `measure_instrument_fwhm`, `add_sigma_nm`
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Conductor - User Manual Verification 'Phase 1: Line Data and Flux-Conserving Resampling' (Protocol in workflow.md)
 
-### Phase 3: Update `scripts/gpu_calibration_engine.py` with ROI-Exclusive Pass 2 & Metrics Export
-- [ ] Task: Write unit tests in `scripts/test_gpu_calibration_engine.py` for ROI masking and metrics export
-    - [ ] Write unit tests verifying `AsdLineAdvisor` refactoring (removal of `build_family_tramp_weights`, keeping `build_resonance_mask` and `get_asd_anchor_windows`)
-    - [ ] Write unit tests for Pass-1 unweighted full-spectrum warm-up vs. Pass-2 ROI-masked optimization
-    - [ ] Write unit tests for ROI-only OLS `scaleFactor`, hybrid objective function, and metrics calculation ($R^2_{\text{ROI}}$, $\text{RMSE}_{\text{ROI}}$, $R^2_{\text{whole}}$, $\text{RMSE}_{\text{whole}}$)
-    - [ ] Write unit tests for non-destructive upsert into `data/regionsOfInterest.json`
-    - [ ] Verify test suite fails as expected prior to implementation (Red Phase)
-- [ ] Task: Implement ROI-exclusive Pass 2 & `data/regionsOfInterest.json` export in `scripts/gpu_calibration_engine.py`
-    - [ ] Refactor imports to consume helpers from `nist_lines.py` and `asd_roi_discovery.py`
-    - [ ] Remove `build_family_tramp_weights` from `AsdLineAdvisor`
-    - [ ] Update `GpuLibsCalibrationEngine.run()`: Pass 1 with uniform full-spectrum weights; locked global P-spline $R(\lambda)$; Pass 2 strictly evaluated over $\mathcal{P}_{\text{ROI}, f}$
-    - [ ] Implement `evaluate_and_export_rois_json(...)` to non-destructively upsert `<repo_root>/data/regionsOfInterest.json`
-    - [ ] Verify unit tests pass (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Update scripts/gpu_calibration_engine.py with ROI-Exclusive Pass 2 & Metrics Export' (Protocol in workflow.md)
+### Phase 2: Measured-Data Conditioning (R3)
+- [ ] Task: Write unit tests in `scripts/test_measured_conditioning.py`
+    - [ ] Lit mask finds a planted run of unlit leading channels and subtracts the dark level
+    - [ ] Conditioning-shot rule discards planted anomalous leading shots and respects the `[3, 15]` clamp and the manifest override
+    - [ ] Saturated readings are excluded per shot; a channel with too few valid shots is masked, not zeroed
+    - [ ] Shot-scale normalisation removes a planted common-mode fluctuation
+    - [ ] `sigma_mean` equals the standard error of normalised shots
+    - [ ] `preprocess` is idempotent on an already-processed spectrum and is the same function used for measured and synthetic spectra
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement `scripts/measured_conditioning.py`
+    - [ ] `condition_material(csv_paths, manifest) -> ConditionedMaterial` returning wavelengths, mean, `sigma_mean`, valid mask, per-point means, `n0` per point
+    - [ ] `preprocess(spectrum, struct_size)`
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Conductor - User Manual Verification 'Phase 2: Measured-Data Conditioning' (Protocol in workflow.md)
 
-### Phase 4: End-to-End Calibration & Parity Verification
-- [ ] Task: Execute automated end-to-end test suite
-    - [ ] Run `pytest scripts/` to ensure all Python tests pass
-    - [ ] Run `mvn clean test` to verify zero regression across Java models and services
-- [ ] Task: End-to-end calibration run & `data/regionsOfInterest.json` verification
-    - [ ] Run `./calibrate.sh` on reference dataset / manifest
-    - [ ] Validate `data/regionsOfInterest.json` schema, channel disjointness, minimum channel width $\ge 3$, and metric consistency with `conf/instrument_profile.json`
-    - [ ] Run `./run.sh` to confirm synthetic spectrum synthesis parity
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: End-to-End Calibration & Parity Verification' (Protocol in workflow.md)
+### Phase 3: Forward Model on the Absolute Scale and Java Parity (R2.7, R4)
+- [ ] Task: Write unit tests in `scripts/test_forward_model.py`
+    - [ ] The R4 operator for one, two and three zones against hand-computed values
+    - [ ] `k = 0` reduces to a non-negative mixture; the opacity term uses the max-normalised zone spectrum
+    - [ ] Both `emissionScale` modes
+    - [ ] Gate G1 passes on two synthetic compositions that share a scale and fails when one is rescaled
+    - [ ] The test writes `src/test/resources/forward_model_fixture.json`
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement `scripts/forward_model.py`
+    - [ ] Dictionary loader: NIST `Sum(calc)` and per-element sums of species columns, through `resample_to_detector`, with `NIST_UNIT_SCALE`
+    - [ ] `combine_zones`, `apply_response_and_scale`, `composition_scale_check`
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Write Java tests for parity
+    - [ ] `SpectrumUtilsTest`: `resampleToDetector`, `combineNZones` and `applyInstrumentResponseAndNoise` reproduce the fixture to a relative `1e-9` in both `emissionScale` modes (AC5)
+    - [ ] `InstrumentProfileTest`: new optional fields round-trip; a profile without them still loads
+    - [ ] `InstrumentProfileServiceTest`: the manifest upsert preserves `validationMaterials`
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement the Java changes
+    - [ ] `SpectrumUtils.resampleToDetector`; update `combineNZones` and `applyInstrumentResponseAndNoise`
+    - [ ] `LIBSDataService` uses `resampleToDetector` when the profile carries `lineSpreadAddSigmaNm`
+    - [ ] `InstrumentProfile` fields `emissionScale`, `lineSpreadAddSigmaNm`, `lineSpreadFwhmNm`, `spectralResponseValidRangeNm`, `validChannelRangeNm`
+    - [ ] `mvn test` passes (Green Phase)
+- [ ] Task: Conductor - User Manual Verification 'Phase 3: Forward Model on the Absolute Scale and Java Parity' (Protocol in workflow.md)
+
+### Phase 4: ROI Catalogue (R5)
+- [ ] Task: Write unit tests in `scripts/test_roi_catalogue.py`
+    - [ ] Candidates contain only model lines of certified elements at or above 0.05 wt%, inside the lit range
+    - [ ] Mask windows exclude air and contaminant lines
+    - [ ] Model detectability, line significance and measured detectability thresholds
+    - [ ] The prone rule
+    - [ ] Tercile stratification by `Ek_eV` per 25 nm band, and element coverage for every certified element
+    - [ ] Window merging, prone classification of merged windows, sub-bin partition and channel disjointness
+    - [ ] With the real ASD cache fixture and the SS551 composition, the catalogue contains Cu I 515.324 and 521.820 nm and no Cu II line (AC2)
+    - [ ] A source scan asserting that `roi_catalogue.py` and `roi_joint_calibration.py` contain no element symbols or category weights (AC3)
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement `scripts/roi_catalogue.py`
+    - [ ] `RoiWindow` dataclass and `build_catalogue(family, compositions, model_lines, dictionary, conditioned) -> list[RoiWindow]`
+    - [ ] Response set and full set accessors
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md)
+
+### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12)
+- [ ] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py`
+    - [ ] Port the generator from `analysis/20_planted_truth_sim.py` and `analysis/22_planted_truth_runaway.py` as a test fixture
+    - [ ] Scenarios Clean, Harsh, Edge and Split with the thresholds of R12
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Write unit tests in `scripts/test_roi_joint_calibration.py`
+    - [ ] Sub-bin variance model: measurement, model-error and floor terms; `ε_atomic` from line grades
+    - [ ] Block A returns non-negative weights and reproduces a planted mixture
+    - [ ] Block B recovers a planted smooth response from exact log-ratios, applies the `1/n_f` family factor and the gauge
+    - [ ] Knot-count reduction against the widest gap
+    - [ ] Three-start loop, convergence criteria, `responseRestartSpread`
+    - [ ] One test per flag of R9 that constructs its condition (AC8)
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement `scripts/roi_joint_calibration.py`
+    - [ ] Sub-bin operators, variance model, Huber IRLS weights
+    - [ ] Blocks A and B, the loop, restarts
+    - [ ] Diagnostics of R9, including the two-group response comparison
+    - [ ] Confirm unit tests and all four planted-truth scenarios pass (Green Phase, AC7)
+- [ ] Task: Conductor - User Manual Verification 'Phase 5: Joint Solver and Planted-Truth Recovery' (Protocol in workflow.md)
+
+### Phase 6: Family Zones, Absorption, Scale and Engine Integration (R8, R10, R13)
+- [ ] Task: Write unit tests in `scripts/test_roi_joint_calibration.py` and `scripts/test_gpu_calibration_engine.py`
+    - [ ] Family-shared weights with per-material scales recover a planted family state
+    - [ ] Zone reduction to `numZones` and `zoneReductionPenalty`
+    - [ ] Absorption scan recovers a planted `k`, returns 0 when there is none, and flags the scan limit
+    - [ ] Median family `scaleFactor`, `materialScaleFactors`, `materialPlasmaZones`, `familySharingPenalty`
+    - [ ] Dispersion from per-point solutions and its clamps
+    - [ ] `elementParity` and the `ELEMENT_BIAS` flag
+    - [ ] Engine: validation materials are excluded from fitting; profile and `regionsOfInterest.json` are upserted without losing other families; the module imports without `torch`; `--strict` exits with status 2 on a flag
+    - [ ] Intermediate debug JSON dumps are written to `temp/calibration_debug/<materialFamily>/` without overwriting existing families (R13)
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement R8, R10, and R13 debug export
+    - [ ] Stage functions in `roi_joint_calibration.py`
+    - [ ] `scripts/match_metrics.py` with the shared metric functions
+    - [ ] Rewire `GpuLibsCalibrationEngine.run()`; write the profile (§5.1) and `data/regionsOfInterest.json` (§5.2); leave legacy functions in place, unused
+    - [ ] Instrument calibration pipeline to dump `conditioned_<material>.json`, `rois_<family>.json`, `solver_trace_<family>.json`, and `fit_comparison_<material>.json` under `temp/calibration_debug/<materialFamily>/`
+    - [ ] Ensure non-destructive upserts preserve other families in `conf/instrument_profile.json` and debug storage
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Create interactive diagnostic notebook in `notebooks/calibration_inspector.ipynb` (R13, AC13)
+    - [ ] Implement family and material interactive dropdown selectors reading from `temp/calibration_debug/`
+    - [ ] Build Plotly interactive spectral viewer with zoom/pan, line species hover tooltips, and ROI window overlays
+    - [ ] Build solver convergence trace visualizations (objective Φ and spline β evolution per iteration)
+    - [ ] Build element parity log-ratio bar charts
+    - [ ] Verify notebook execution against test fixture JSON dumps
+- [ ] Task: Conductor - User Manual Verification 'Phase 6: Family Zones, Absorption, Scale and Engine Integration' (Protocol in workflow.md)
+
+### Phase 7: Match Report and End-to-End Verification (R11, AC9–AC12)
+- [ ] Task: Write unit tests in `scripts/test_validate_spectral_match.py`
+    - [ ] Hold-out data is never read by the calibration stages
+    - [ ] Per-material metrics, thin/prone split, element parity table
+    - [ ] The three ablations (flat response, no absorption, legacy rendering)
+    - [ ] Output schema of `data/spectralMatchReport.json`
+    - [ ] Confirm the tests fail (Red Phase)
+- [ ] Task: Implement `scripts/validate_spectral_match.py`
+    - [ ] Confirm the tests pass (Green Phase)
+- [ ] Task: Run the automated suites
+    - [ ] `pytest scripts/`
+    - [ ] `mvn clean test`
+- [ ] Task: End-to-end calibration on the reference dataset
+    - [ ] Set `validationMaterials` in `temp/calibration_manifest.json` if 473 and 556 are free
+    - [ ] Run `./calibrate.sh` for every family; record `calibrationDiagnostics.flags`
+    - [ ] Check AC2, AC3, AC6 and AC9 against the written profile and `data/regionsOfInterest.json`
+    - [ ] Run `scripts/validate_spectral_match.py`; check AC11
+    - [ ] Check AC10 with the Java forward model and noise disabled; run `./run.sh` to confirm generation completes
+    - [ ] Record the before/after table (legacy rendering against the new calibration, per family, hold-out data) in the track notes
+- [ ] Task: Conductor - User Manual Verification 'Phase 7: Match Report and End-to-End Verification' (Protocol in workflow.md)
