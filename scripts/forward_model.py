@@ -17,7 +17,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from scripts.spectral_resampling import resample_to_detector
+try:
+    from scripts.spectral_resampling import resample_to_detector
+except ImportError:
+    from spectral_resampling import resample_to_detector
 
 #: Fixed unit scale applied to raw NIST values for numerical stability (R4.5)
 NIST_UNIT_SCALE: float = 1e-6

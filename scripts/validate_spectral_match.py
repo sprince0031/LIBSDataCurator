@@ -25,21 +25,38 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.measured_conditioning import condition_material, ConditionedMaterial
-from scripts.forward_model import resample_to_detector
-from scripts.roi_joint_calibration import (
-    compute_sub_bin_variances,
-    solve_family_plasma,
-    scan_absorption,
-    compute_family_scales_and_sharing_penalty,
-)
-from scripts.match_metrics import (
-    calculate_reduced_chi2,
-    calculate_roi_metrics,
-    calculate_whole_spectrum_metrics,
-    calculate_sub_bin_residuals,
-    calculate_element_parity_table,
-)
+try:
+    from scripts.measured_conditioning import condition_material, ConditionedMaterial
+    from scripts.forward_model import resample_to_detector
+    from scripts.roi_joint_calibration import (
+        compute_sub_bin_variances,
+        solve_family_plasma,
+        scan_absorption,
+        compute_family_scales_and_sharing_penalty,
+    )
+    from scripts.match_metrics import (
+        calculate_reduced_chi2,
+        calculate_roi_metrics,
+        calculate_whole_spectrum_metrics,
+        calculate_sub_bin_residuals,
+        calculate_element_parity_table,
+    )
+except ImportError:
+    from measured_conditioning import condition_material, ConditionedMaterial
+    from forward_model import resample_to_detector
+    from roi_joint_calibration import (
+        compute_sub_bin_variances,
+        solve_family_plasma,
+        scan_absorption,
+        compute_family_scales_and_sharing_penalty,
+    )
+    from match_metrics import (
+        calculate_reduced_chi2,
+        calculate_roi_metrics,
+        calculate_whole_spectrum_metrics,
+        calculate_sub_bin_residuals,
+        calculate_element_parity_table,
+    )
 
 logger = logging.getLogger("validate_spectral_match")
 

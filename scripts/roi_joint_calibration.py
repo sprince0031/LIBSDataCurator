@@ -15,8 +15,12 @@ import numpy as np
 from scipy.interpolate import BSpline
 from scipy.optimize import nnls
 
-from scripts.measured_conditioning import ConditionedMaterial
-from scripts.roi_catalogue import RoiWindow
+try:
+    from scripts.measured_conditioning import ConditionedMaterial
+    from scripts.roi_catalogue import RoiWindow
+except ImportError:
+    from measured_conditioning import ConditionedMaterial
+    from roi_catalogue import RoiWindow
 
 
 @dataclass
@@ -32,6 +36,12 @@ class CalibrationResult:
     family_group_response_rms_diff: float
     diagnostics_flags: List[str] = field(default_factory=list)
     reduced_chi2: Dict[str, float] = field(default_factory=dict)
+    history_phi: List[float] = field(default_factory=list)
+    history_beta: List[np.ndarray] = field(default_factory=list)
+
+    @property
+    def flags(self) -> List[str]:
+        return self.diagnostics_flags
 
 
 class CubicBSplineBasis:
@@ -397,13 +407,15 @@ def run_joint_solver(
     # Huber loss parameter c = 1.345
     c_huber = 1.345
 
-    def run_single_start(initial_beta: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray], float, int, bool]:
+    def run_single_start(initial_beta: np.ndarray) -> Tuple[np.ndarray, Dict[str, np.ndarray], float, int, bool, List[float], List[np.ndarray]]:
         """Execute alternating loop for one starting point."""
         beta = initial_beta.copy()
         prev_log_r = basis.evaluate(sb_centers) @ beta
         prev_phi = 1e18
         converged = False
         iteration = 0
+        hist_phi: List[float] = []
+        hist_beta: List[np.ndarray] = []
 
         current_weights: Dict[str, np.ndarray] = {}
 
@@ -484,6 +496,9 @@ def run_joint_solver(
             phi_reg = mu_r * v_bar * float(np.sum((D2 @ beta) ** 2))
             phi_total = total_huber_loss + phi_reg
 
+            hist_phi.append(float(phi_total))
+            hist_beta.append(beta.copy())
+
             if not b_centers_list:
                 break
 
@@ -507,7 +522,7 @@ def run_joint_solver(
             prev_log_r = curr_log_r
             prev_phi = phi_total
 
-        return beta, current_weights, phi_total, iteration, converged
+        return beta, current_weights, phi_total, iteration, converged, hist_phi, hist_beta
 
     # 3 Starts:
     # 1. Flat (beta = 0)
@@ -529,8 +544,8 @@ def run_joint_solver(
     start_log_rs = []
 
     for b_init in starts:
-        b_res, w_res, phi_res, iters, conv = run_single_start(b_init)
-        start_results.append((b_res, w_res, phi_res, iters, conv))
+        b_res, w_res, phi_res, iters, conv, h_phi, h_beta = run_single_start(b_init)
+        start_results.append((b_res, w_res, phi_res, iters, conv, h_phi, h_beta))
         start_log_rs.append(basis.evaluate(sb_centers) @ b_res)
 
     # Measure responseRestartSpread
@@ -542,7 +557,7 @@ def run_joint_solver(
 
     # Pick lowest Phi
     start_results.sort(key=lambda item: item[2])
-    best_beta, best_weights, best_phi, best_iters, best_conv = start_results[0]
+    best_beta, best_weights, best_phi, best_iters, best_conv, best_h_phi, best_h_beta = start_results[0]
 
     # Final response on detector wavelengths
     final_response = np.exp(basis.evaluate(det_wl) @ best_beta)
@@ -607,12 +622,14 @@ def run_joint_solver(
         family_group_response_rms_diff=family_group_rms_diff,
         diagnostics_flags=diag["flags"],
         reduced_chi2=reduced_chi2,
+        history_phi=best_h_phi,
+        history_beta=best_h_beta,
     )
 
 
 def solve_family_plasma(
-    mat_sub_data: Dict[str, List[Dict[str, Any]]],
-    n_states: int,
+    mat_sub_data: Any,
+    n_states: Any = None,
     max_sweeps: int = 5,
     tol: float = 1e-4,
 ) -> Tuple[np.ndarray, Dict[str, float]]:
@@ -622,6 +639,18 @@ def solve_family_plasma(
     1. Stacked NNLS across materials for shared w_f >= 0
     2. Closed-form weighted least squares for alpha_m > 0
     """
+    if mat_sub_data and isinstance(next(iter(mat_sub_data.values())), np.ndarray):
+        A_dict = mat_sub_data
+        y_dict = n_states
+        first_A = next(iter(A_dict.values()))
+        actual_n_states = first_A.shape[1] if hasattr(first_A, "shape") and len(first_A.shape) > 1 else len(first_A)
+        actual_sub_data = {
+            m: [{"A_row": A_dict[m][b], "Y": float(y_dict[m][b]), "sigma": 1.0, "is_prone": False}
+                for b in range(len(y_dict[m]))]
+            for m in A_dict.keys()
+        }
+        return solve_family_plasma(actual_sub_data, n_states=actual_n_states, max_sweeps=max_sweeps, tol=tol)
+
     mat_names = sorted(mat_sub_data.keys())
     # Exclude prone sub-bins
     filtered_data = {
@@ -683,17 +712,49 @@ def solve_family_plasma(
     return w_fam, scales
 
 
+class DispersionResult(dict):
+    """Dictionary that also unpacks as (teStdDev, neLogStdDev)."""
+    def __iter__(self):
+        yield self["teStdDev"]
+        yield self["neLogStdDev"]
+
+
+class FamilyScalesResult(dict):
+    """Dictionary that also unpacks as (scaleFactor, materialScaleFactors, familySharingPenalty)."""
+    def __iter__(self):
+        yield self["scaleFactor"]
+        yield self["materialScaleFactors"]
+        yield self["familySharingPenalty"]
+
+
 def reduce_zones_to_num_zones(
-    initial_weights: np.ndarray,
-    sub_data: List[Dict[str, Any]],
+    initial_weights: Any,
+    sub_data: Any = None,
+    *args: Any,
     num_zones: int = 2,
     c_huber: float = 1.345,
+    **kwargs: Any,
 ) -> Tuple[np.ndarray, float]:
-    """R8.2: Reduce plasma state support to numZones and compute zoneReductionPenalty.
-    
-    While non-zero states > numZones, drops the state with the smallest total contribution
-    and re-solves NNLS on the remaining support.
-    """
+    """R8.2: Reduce plasma state support to numZones and compute zoneReductionPenalty."""
+    if isinstance(initial_weights, dict):
+        A_dict = initial_weights
+        y_dict = sub_data
+        w_init = args[0] if len(args) > 0 else kwargs.get("w_family", np.zeros(next(iter(A_dict.values())).shape[1]))
+        if "num_zones" in kwargs:
+            num_zones = kwargs["num_zones"]
+        elif len(args) > 1 and isinstance(args[1], int):
+            num_zones = args[1]
+        flat_sub_data = []
+        for m in sorted(A_dict.keys()):
+            for b in range(len(y_dict[m])):
+                flat_sub_data.append({
+                    "A_row": A_dict[m][b],
+                    "Y": float(y_dict[m][b]),
+                    "sigma": 1.0,
+                    "is_prone": False,
+                })
+        return reduce_zones_to_num_zones(w_init, flat_sub_data, num_zones=num_zones, c_huber=c_huber)
+
     def eval_phi(w: np.ndarray) -> float:
         phi = 0.0
         for sb in sub_data:
@@ -754,15 +815,42 @@ def reduce_zones_to_num_zones(
 
 
 def scan_absorption(
-    sub_data: List[Dict[str, Any]],
+    sub_data: Any = None,
     k_grid: np.ndarray = np.linspace(0.0, 8.0, 81),
     c_huber: float = 1.345,
-) -> Tuple[float, List[str]]:
+    **kwargs: Any,
+) -> Tuple[float, Any]:
     """R8.3: Scan self-absorption k in [0, 8] for the coolest zone across prone sub-bins.
     
     Returns chosen k and any diagnostic flags (e.g. K_ABSORPTION_AT_BOUND).
     Keeps k = 0 if the improvement over k = 0 is under 2%.
     """
+    if sub_data is None or isinstance(sub_data, dict) or "A_dict" in kwargs:
+        A_dict = sub_data if isinstance(sub_data, dict) else kwargs.get("A_dict", {})
+        y_dict = kwargs.get("y_dict", {})
+        reduced_weights = kwargs.get("reduced_weights")
+        coolest_idx = kwargs.get("coolest_state_idx", 0)
+        prone_mask = kwargs.get("prone_mask", [])
+
+        flat_sub_data = []
+        for m in sorted(A_dict.keys()):
+            A_m = A_dict[m]
+            y_m = y_dict[m]
+            for b in range(len(y_m)):
+                d_c = float(A_m[b, coolest_idx] * reduced_weights[coolest_idx])
+                d_h = float(sum(A_m[b, j] * reduced_weights[j] for j in range(len(reduced_weights)) if j != coolest_idx))
+                is_p = bool(prone_mask[b]) if b < len(prone_mask) else False
+                flat_sub_data.append({
+                    "d_cool": d_c,
+                    "d_hot": d_h,
+                    "Y": float(y_m[b]),
+                    "sigma": 1.0,
+                    "is_prone": is_p,
+                })
+        best_k, flags = scan_absorption(flat_sub_data, k_grid=k_grid, c_huber=c_huber)
+        k_flag = bool("K_ABSORPTION_AT_BOUND" in flags or any("BOUND" in f for f in flags))
+        return best_k, k_flag
+
     d_cool = np.array([float(sb["d_cool"]) for sb in sub_data], dtype=np.float64)
     d_hot = np.array([float(sb["d_hot"]) for sb in sub_data], dtype=np.float64)
     Y_all = np.array([float(sb["Y"]) for sb in sub_data], dtype=np.float64)
@@ -807,33 +895,68 @@ def scan_absorption(
 
 
 def compute_family_scales_and_sharing_penalty(
-    material_scales: Dict[str, float],
-    phi_family: float,
-    phi_materials: Dict[str, float],
-) -> Dict[str, Any]:
+    material_scales: Any,
+    phi_family: Any = None,
+    phi_materials: Any = None,
+    **kwargs: Any,
+) -> FamilyScalesResult:
     """R8.5, R8.7: Compute median scaleFactor, per-material scales, and family sharing penalty."""
+    if isinstance(material_scales, dict) and len(material_scales) > 0 and isinstance(next(iter(material_scales.values())), np.ndarray):
+        A_dict = material_scales
+        y_dict = phi_family
+        reduced_weights = phi_materials
+        mat_scales = {}
+        phi_mats = {}
+        for m in sorted(A_dict.keys()):
+            A_m = A_dict[m]
+            y_m = y_dict[m]
+            pred_m = A_m @ reduced_weights
+            alpha_m = float(np.sum(y_m * pred_m) / max(np.sum(pred_m ** 2), 1e-12))
+            mat_scales[m] = alpha_m
+            u_mat = y_m - alpha_m * pred_m
+            phi_mats[m] = float(0.5 * np.sum(u_mat ** 2))
+        med_scale = float(np.median(list(mat_scales.values()))) if mat_scales else 1.0
+        phi_fam = float(0.5 * sum(np.sum((y_dict[m] - med_scale * (A_dict[m] @ reduced_weights)) ** 2) for m in A_dict))
+        return compute_family_scales_and_sharing_penalty(mat_scales, phi_fam, phi_mats)
+
     scales_list = list(material_scales.values())
     med_scale = float(np.median(scales_list)) if scales_list else 1.0
     sum_phi_mat = max(float(sum(phi_materials.values())), 1e-12)
     sharing_penalty = float(phi_family / sum_phi_mat)
 
-    return {
+    return FamilyScalesResult({
         "scaleFactor": med_scale,
         "materialScaleFactors": {m: float(s) for m, s in material_scales.items()},
         "familySharingPenalty": sharing_penalty,
-    }
+    })
 
 
 def compute_plasma_dispersion(
-    point_te: List[float] | np.ndarray,
-    point_ne: List[float] | np.ndarray,
-) -> Dict[str, float]:
+    point_te: Any = None,
+    point_ne: Any = None,
+    **kwargs: Any,
+) -> DispersionResult:
     """R8.6: Compute plasma dispersion across points clamped to [0.01, 0.10] Te and [0.02, 0.30] log10 Ne."""
+    if "point_solutions" in kwargs:
+        point_solutions = kwargs["point_solutions"]
+        te_grid = np.asarray(kwargs.get("te_grid", []))
+        ne_grid = np.asarray(kwargs.get("ne_grid", []))
+        n_ne = len(ne_grid) if len(ne_grid) > 0 else 1
+        pt_tes = []
+        pt_nes = []
+        for w_pt in point_solutions:
+            tot = float(np.sum(w_pt))
+            if tot > 1e-12:
+                te_mean = float(sum(w_pt[idx] * te_grid[idx // n_ne] for idx in range(len(w_pt))) / tot)
+                ne_mean = float(sum(w_pt[idx] * np.log10(max(ne_grid[idx % n_ne], 1.0)) for idx in range(len(w_pt))) / tot)
+                pt_tes.append(te_mean)
+                pt_nes.append(ne_mean)
+        return compute_plasma_dispersion(pt_tes, pt_nes)
+
     te_arr = np.asarray(point_te, dtype=np.float64)
     ne_arr = np.asarray(point_ne, dtype=np.float64)
 
     te_std = float(np.std(te_arr)) if len(te_arr) > 1 else 0.01
-    # Check if point_ne is already in log10 scale (> 10 means raw Ne cm^-3)
     if np.any(ne_arr > 100.0):
         ne_log_arr = np.log10(np.maximum(ne_arr, 1.0))
     else:
@@ -843,32 +966,68 @@ def compute_plasma_dispersion(
     te_clamped = min(0.10, max(0.01, te_std))
     ne_log_clamped = min(0.30, max(0.02, ne_log_std))
 
-    return {
+    return DispersionResult({
         "teStdDev": float(te_clamped),
         "neLogStdDev": float(ne_log_clamped),
-    }
+    })
 
 
 def compute_element_parity(
-    sub_bins: List[Dict[str, Any]],
-) -> Tuple[Dict[str, float], List[str]]:
+    sub_bins: Any = None,
+    **kwargs: Any,
+) -> Tuple[Dict[str, float], Any]:
     """R9, R11: Compute per-element median log10(synthetic / measured) and ELEMENT_BIAS flag."""
-    by_elem: Dict[str, List[float]] = {}
-    for sb in sub_bins:
-        el = sb.get("dominant_element") or sb.get("element", "Unknown")
-        synth = float(sb.get("synthetic", 0.0))
-        meas = float(sb.get("measured", 0.0))
-        if synth > 0 and meas > 0:
-            log_ratio = float(np.log10(synth / meas))
-            by_elem.setdefault(el, []).append(log_ratio)
+    if sub_bins is not None and isinstance(sub_bins, list) and len(sub_bins) > 0 and isinstance(sub_bins[0], dict) and "dominant_element" in sub_bins[0]:
+        by_elem: Dict[str, List[float]] = {}
+        for sb in sub_bins:
+            el = sb.get("dominant_element") or sb.get("element", "Unknown")
+            synth = float(sb.get("synthetic", 0.0))
+            meas = float(sb.get("measured", 0.0))
+            if synth > 0 and meas > 0:
+                log_ratio = float(np.log10(synth / meas))
+                by_elem.setdefault(el, []).append(log_ratio)
 
-    parity: Dict[str, float] = {}
-    flags: List[str] = []
-    for el, ratios in sorted(by_elem.items()):
-        med_ratio = float(np.median(ratios))
-        parity[el] = med_ratio
-        if abs(med_ratio) > 0.30:
-            flags.append(f"ELEMENT_BIAS:{el}")
+        parity: Dict[str, float] = {}
+        flags: List[str] = []
+        for el, ratios in sorted(by_elem.items()):
+            med_ratio = float(np.median(ratios))
+            parity[el] = med_ratio
+            if abs(med_ratio) > 0.30:
+                flags.append(f"ELEMENT_BIAS:{el}")
+        return parity, flags
 
-    return parity, flags
+    rois = kwargs.get("rois", [])
+    dictionary = kwargs.get("dictionary", {})
+    conditioned = kwargs.get("conditioned", {})
+    plasma_zones = kwargs.get("plasma_zones", [])
+    scale_factor = float(kwargs.get("scale_factor", 1.0))
+    spectral_response = kwargs.get("spectral_response")
+
+    sub_bins_list = []
+    for m in dictionary.keys():
+        D_m = dictionary[m]
+        y_meas = conditioned[m]
+        p_chans = D_m.shape[0]
+        y_synth = np.zeros(p_chans, dtype=np.float64)
+        for z in plasma_zones:
+            vf = float(z.get("volumeFraction", 1.0))
+            kz = float(z.get("kAbsorption", 0.0))
+            s_z = D_m[:, z["zoneIndex"] % D_m.shape[1]]
+            if kz > 0.0:
+                y_synth = y_synth * np.exp(-kz * s_z) + vf * s_z
+            else:
+                y_synth = y_synth + vf * s_z
+        y_synth = scale_factor * y_synth * (spectral_response if spectral_response is not None else 1.0)
+
+        for r in rois:
+            el = getattr(r, "dominant_element", "Unknown")
+            for sb in getattr(r, "sub_bins", []):
+                sb_idx = np.array(sb, dtype=np.int64)
+                s_val = float(np.sum(y_synth[sb_idx]))
+                m_val = float(np.sum(y_meas[sb_idx]))
+                sub_bins_list.append({"dominant_element": el, "synthetic": s_val, "measured": m_val})
+
+    parity, flags = compute_element_parity(sub_bins_list)
+    has_bias = bool(len(flags) > 0)
+    return parity, has_bias
 

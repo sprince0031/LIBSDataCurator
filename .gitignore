@@ -36,6 +36,7 @@ docs/assets/
 docs/Common Steel Grades in Steel Scrap.md
 data/
 python_env/
+temp/calibration_debug/
 
 # Build and packaging artifacts
 jre-custom/

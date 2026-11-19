@@ -19,8 +19,12 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import numpy as np
 import pandas as pd
 
-from scripts.measured_conditioning import ConditionedMaterial
-from scripts.nist_lines import lte_strength, to_atomic_fractions
+try:
+    from scripts.measured_conditioning import ConditionedMaterial
+    from scripts.nist_lines import lte_strength, to_atomic_fractions
+except ImportError:
+    from measured_conditioning import ConditionedMaterial
+    from nist_lines import lte_strength, to_atomic_fractions
 
 #: Default mask windows covering atmospheric / unmodelled / contaminant lines (R5.2)
 DEFAULT_MASK_WINDOWS_NM: List[Tuple[float, float]] = [

@@ -134,22 +134,22 @@ All work stays on `feat/instrument-profile-optimisation`.
 - [x] Task: Conductor - User Manual Verification 'Phase 6: Family Zones, Absorption, Scale and Engine Integration' (Protocol in workflow.md)
 
 ### Phase 7: Match Report and End-to-End Verification (R11, AC9–AC12)
-- [ ] Task: Write unit tests in `scripts/test_validate_spectral_match.py`
-    - [ ] Hold-out data is never read by the calibration stages
-    - [ ] Per-material metrics, thin/prone split, element parity table
-    - [ ] The three ablations (flat response, no absorption, legacy rendering)
-    - [ ] Output schema of `data/spectralMatchReport.json`
-    - [ ] Confirm the tests fail (Red Phase)
-- [ ] Task: Implement `scripts/validate_spectral_match.py`
-    - [ ] Confirm the tests pass (Green Phase)
-- [ ] Task: Run the automated suites
-    - [ ] `pytest scripts/`
-    - [ ] `mvn clean test`
-- [ ] Task: End-to-end calibration on the reference dataset
-    - [ ] Set `validationMaterials` in `temp/calibration_manifest.json` if 473 and 556 are free
-    - [ ] Run `./calibrate.sh` for every family; record `calibrationDiagnostics.flags`
-    - [ ] Check AC2, AC3, AC6 and AC9 against the written profile and `data/regionsOfInterest.json`
-    - [ ] Run `scripts/validate_spectral_match.py`; check AC11
-    - [ ] Check AC10 with the Java forward model and noise disabled; run `./run.sh` to confirm generation completes
-    - [ ] Record the before/after table (legacy rendering against the new calibration, per family, hold-out data) in the track notes
+- [x] Task: Write unit tests in `scripts/test_validate_spectral_match.py` (b09fe8d)
+    - [x] Hold-out data is never read by the calibration stages
+    - [x] Per-material metrics, thin/prone split, element parity table
+    - [x] The three ablations (flat response, no absorption, legacy rendering)
+    - [x] Output schema of `data/spectralMatchReport.json`
+    - [x] Confirm the tests fail (Red Phase)
+- [x] Task: Implement `scripts/validate_spectral_match.py` (bd447e9)
+    - [x] Confirm the tests pass (Green Phase)
+- [x] Task: Run the automated suites
+    - [x] `pytest scripts/`
+    - [x] `mvn clean test`
+- [x] Task: End-to-end calibration on the reference dataset
+    - [x] Set `validationMaterials` in `temp/calibration_manifest.json` if 473 and 556 are free
+    - [x] Run `./calibrate.sh` for every family; record `calibrationDiagnostics.flags`
+    - [x] Check AC2, AC3, AC6 and AC9 against the written profile and `data/regionsOfInterest.json`
+    - [x] Run `scripts/validate_spectral_match.py`; check AC11
+    - [x] Check AC10 with the Java forward model and noise disabled; run `./run.sh` to confirm generation completes
+    - [x] Record the before/after table (legacy rendering against the new calibration, per family, hold-out data) in the track notes
 - [ ] Task: Conductor - User Manual Verification 'Phase 7: Match Report and End-to-End Verification' (Protocol in workflow.md)
