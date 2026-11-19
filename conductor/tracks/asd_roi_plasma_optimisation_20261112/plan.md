@@ -87,7 +87,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Confirm the tests pass (Green Phase)
 - [x] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md) (89eeee2)
 
-### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12)
+### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12) [checkpoint: aaa0964]
 - [x] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py` (b70d78a)
     - [x] Port the generator from `analysis/20_planted_truth_sim.py` and `analysis/22_planted_truth_runaway.py` as a test fixture
     - [x] Scenarios Clean, Harsh, Edge and Split with the thresholds of R12
@@ -105,7 +105,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Blocks A and B, the loop, restarts
     - [x] Diagnostics of R9, including the two-group response comparison
     - [x] Confirm unit tests and all four planted-truth scenarios pass (Green Phase, AC7)
-- [ ] Task: Conductor - User Manual Verification 'Phase 5: Joint Solver and Planted-Truth Recovery' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 5: Joint Solver and Planted-Truth Recovery' (Protocol in workflow.md) (aaa0964)
 
 ### Phase 6: Family Zones, Absorption, Scale and Engine Integration (R8, R10, R13)
 - [ ] Task: Write unit tests in `scripts/test_roi_joint_calibration.py` and `scripts/test_gpu_calibration_engine.py`
