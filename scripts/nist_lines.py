@@ -44,6 +44,7 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import requests
 
@@ -51,6 +52,42 @@ ASD_URL = "https://physics.nist.gov/cgi-bin/ASD/lines1.pl"
 
 #: Default cache location (repo-root/data/nist_lines).
 DEFAULT_CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "nist_lines"
+
+# NIST ASD accuracy ratings for transition probabilities (A_ki):
+# Source: NIST Atomic Spectra Database documentation (https://physics.nist.gov/PhysRefData/ASD/Html/lineshelp.html#OUTACC)
+# AAA: <= 0.3%, AA: <= 1%, A+: <= 2%, A: <= 3%, B+: <= 7%, B: <= 10%,
+# C+: <= 18%, C: <= 25%, D+: <= 40%, D: <= 50%, E: > 50%.
+ACCURACY_UNCERTAINTY: dict[str, float] = {
+    "AAA": 0.003,
+    "AA": 0.01,
+    "A+": 0.02,
+    "A": 0.03,
+    "B+": 0.07,
+    "B": 0.10,
+    "C+": 0.18,
+    "C": 0.25,
+    "D+": 0.40,
+    "D": 0.50,
+    "E": 1.00,
+}
+
+#: Standard atomic weights (IUPAC standard values in g/mol).
+ATOMIC_WEIGHTS: dict[str, float] = {
+    "H": 1.008, "He": 4.0026, "Li": 6.94, "Be": 9.0122, "B": 10.81, "C": 12.011,
+    "N": 14.007, "O": 15.999, "F": 18.998, "Ne": 20.180, "Na": 22.990, "Mg": 24.305,
+    "Al": 26.982, "Si": 28.085, "P": 30.974, "S": 32.06, "Cl": 35.45, "Ar": 39.95,
+    "K": 39.098, "Ca": 40.078, "Sc": 44.956, "Ti": 47.867, "V": 50.942, "Cr": 51.996,
+    "Mn": 54.938, "Fe": 55.845, "Co": 58.933, "Ni": 58.693, "Cu": 63.546, "Zn": 65.38,
+    "Ga": 69.723, "Ge": 72.630, "As": 74.922, "Se": 78.971, "Br": 79.904, "Kr": 83.798,
+    "Rb": 85.468, "Sr": 87.62, "Y": 88.906, "Zr": 91.224, "Nb": 92.906, "Mo": 95.95,
+    "Ru": 101.07, "Rh": 102.91, "Pd": 106.42, "Ag": 107.87, "Cd": 112.41, "In": 114.82,
+    "Sn": 118.71, "Sb": 121.76, "Te": 127.60, "I": 126.90, "Xe": 131.29, "Cs": 132.91,
+    "Ba": 137.33, "La": 138.91, "Ce": 140.12, "Pr": 140.91, "Nd": 144.24, "Sm": 150.36,
+    "Eu": 151.96, "Gd": 157.25, "Tb": 158.93, "Dy": 162.50, "Ho": 164.93, "Er": 167.26,
+    "Tm": 168.93, "Yb": 173.05, "Lu": 174.97, "Hf": 178.49, "Ta": 180.95, "W": 183.84,
+    "Re": 186.21, "Os": 190.23, "Ir": 192.22, "Pt": 195.08, "Au": 196.97, "Hg": 200.59,
+    "Tl": 204.38, "Pb": 207.2, "Bi": 208.98, "Th": 232.04, "U": 238.03,
+}
 
 #: Candidate elements per matrix.  Restricting the search space is essential —
 #: matching against every element produces a candidate for any peak and makes
@@ -275,6 +312,81 @@ def parse_elements_from_composition(comp_str: str) -> list[str]:
     return elements
 
 
+def accuracy_to_uncertainty(grade: str | None) -> float:
+    """Return fractional uncertainty for a NIST accuracy grade.
+    
+    A trailing prime (') is stripped before lookup. Unknown or missing grades map to 0.50.
+    """
+    if grade is None or pd.isna(grade):
+        return 0.50
+    s = str(grade).strip().strip("'\"")
+    return ACCURACY_UNCERTAINTY.get(s, 0.50)
+
+
+def parse_composition_dict(raw_comp) -> dict[str, float]:
+    """Parse and normalize a material composition into a dict[str, float] summing to 100 wt%.
+    
+    Accepts:
+    - A string with '-' or ':' key-value delimiters (e.g. 'C-0.28,Fe-#' or 'C:0.28,Cr:11.9,Fe:87.82')
+    - Range syntax (e.g. 'Si-6.5:7.5') which evaluates to the range midpoint
+    - Remainder symbol '#' which takes up 100 - sum(explicit)
+    - A dictionary mapping element symbols to float weights
+    """
+    if isinstance(raw_comp, str):
+        items = []
+        for t in re.split(r"[,;]", raw_comp.strip()):
+            if not t.strip():
+                continue
+            parts = re.split(r"[-:]", t.strip(), maxsplit=1)
+            if len(parts) == 2:
+                items.append((parts[0].strip(), parts[1].strip()))
+        raw_dict = dict(items)
+    elif isinstance(raw_comp, dict):
+        raw_dict = raw_comp
+    else:
+        return {}
+
+    parsed: dict[str, float] = {}
+    rem_key = None
+    for el, val in raw_dict.items():
+        if not re.fullmatch(r"[A-Z][a-z]?", str(el).strip()):
+            continue
+        el_clean = str(el).strip()
+        s_val = str(val).strip()
+        if s_val == "#":
+            rem_key = el_clean
+        elif ":" in s_val:
+            parts = s_val.split(":")
+            parsed[el_clean] = 0.5 * (float(parts[0]) + float(parts[1]))
+        else:
+            try:
+                parsed[el_clean] = float(s_val)
+            except ValueError:
+                continue
+
+    explicit_sum = sum(parsed.values())
+    if rem_key is not None:
+        parsed[rem_key] = max(0.0, 100.0 - explicit_sum)
+    elif explicit_sum > 0:
+        for el in list(parsed.keys()):
+            parsed[el] = 100.0 * parsed[el] / explicit_sum
+    return parsed
+
+
+def to_atomic_fractions(comp_wt: dict[str, float]) -> dict[str, float]:
+    """Convert weight percent composition to normalized atomic fractions using standard atomic masses."""
+    moles: dict[str, float] = {}
+    for el, wt in comp_wt.items():
+        mass = ATOMIC_WEIGHTS.get(el)
+        if mass is None:
+            raise KeyError(f"Unknown atomic weight for element {el!r}")
+        moles[el] = wt / mass
+    total_moles = sum(moles.values())
+    if total_moles <= 0:
+        return {}
+    return {el: n / total_moles for el, n in moles.items()}
+
+
 def build_cache(
     set_names: list[str] | str = (),
     wl_range: tuple[float, float] = (340.0, 900.0),
@@ -383,6 +495,50 @@ def load_lines(
     if boltzmann_only:
         out = out[out["boltzmann_ok"]]
     return out.sort_values("wavelength_nm").reset_index(drop=True)
+
+
+def load_model_lines(
+    elements: list[str],
+    wl_range: tuple[float, float] | None = None,
+    cache_dir: Path | None = None,
+    include_common: bool = False,
+) -> pd.DataFrame:
+    """Load model ASD lines with boltzmann_ok == True, adding wl_nm, gA, and unc columns.
+
+    Parameters
+    ----------
+    elements : list of element symbols to load.
+    wl_range : optional (min_nm, max_nm) range.
+    cache_dir : optional cache directory.
+    include_common : whether to include common atmospheric/ambient lines.
+    """
+    df = load_lines(
+        elements=elements,
+        wl_range=wl_range,
+        cache_dir=cache_dir,
+        boltzmann_only=True,
+        include_common=include_common,
+    )
+    if df.empty:
+        return pd.DataFrame(columns=[
+            "species", "element", "stage", "wavelength_nm", "obs_wl_nm", "ritz_wl_nm",
+            "rel_intensity_raw", "rel_intensity", "Aki_raw", "Aki", "accuracy",
+            "Ei_raw", "Ei_eV", "Ek_raw", "Ek_eV", "g_i", "g_k", "term_k", "conf_k",
+            "boltzmann_ok", "wl_nm", "gA", "unc"
+        ])
+    out = df.copy()
+    out["wl_nm"] = out["wavelength_nm"].fillna(out.get("obs_wl_nm", np.nan)).fillna(out.get("ritz_wl_nm", np.nan))
+    out["gA"] = out["g_k"] * out["Aki"]
+    out["unc"] = out["accuracy"].map(accuracy_to_uncertainty)
+    return out.sort_values("wl_nm").reset_index(drop=True)
+
+
+def lte_strength(df: pd.DataFrame, t_ev: float) -> np.ndarray:
+    """Compute LTE emission strength: gA / wl_nm * exp(-Ek_eV / t_ev)."""
+    wl = df["wl_nm"].to_numpy(dtype=float)
+    ga = df["gA"].to_numpy(dtype=float)
+    ek = df["Ek_eV"].to_numpy(dtype=float)
+    return (ga / wl) * np.exp(-ek / t_ev)
 
 
 def cache_status(

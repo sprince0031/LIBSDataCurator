@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 """
 GPU-Accelerated Multi-Material & Multi-Family LIBS Calibration Engine (v0.9.8)
 Hardware Target: NVIDIA RTX 4070 MAX SUPER (PyTorch CUDA) / CPU Fallback
@@ -22,8 +23,12 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn.functional as F
+except ImportError:
+    torch = None
+    F = None
 from scipy.interpolate import BSpline
 from scipy.ndimage import grey_opening
 
@@ -32,63 +37,18 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from nist_lines import build_cache, load_lines  # noqa: E402
+from nist_lines import (  # noqa: E402
+    build_cache,
+    load_lines,
+    parse_composition_dict,
+    accuracy_to_uncertainty,
+    ACCURACY_UNCERTAINTY,
+)
 
 DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 65
 DEFAULT_NIST_LINES_DIR = SCRIPT_DIR.parent / "data" / "nist_lines"
 
-ACCURACY_WEIGHTS = {
-    "AAA": 1.0, "AA": 1.0, "A+": 0.95, "A": 0.90,
-    "B+": 0.85, "B": 0.80, "C+": 0.70, "C": 0.65,
-    "D+": 0.50, "D": 0.45, "E": 0.25
-}
-
 logger = logging.getLogger("gpu_calibration_engine")
-
-
-def parse_composition_dict(raw_comp) -> Dict[str, float]:
-    """
-    Normalizes a material composition (either a dict {'Fe': 86.5, 'Cr': 11.9} or a string
-    'C:0.28,Cr:11.9,Fe:#' / 'C-0.279,Si-6.5:7.5,Fe-#') into a clean Dict[str, float] summing to 100%.
-    """
-    if isinstance(raw_comp, str):
-        items = []
-        for t in re.split(r"[,;]", raw_comp.strip()):
-            if not t.strip():
-                continue
-            parts = re.split(r"[-:]", t.strip(), maxsplit=1)
-            if len(parts) == 2:
-                items.append((parts[0].strip(), parts[1].strip()))
-        raw_dict = dict(items)
-    elif isinstance(raw_comp, dict):
-        raw_dict = raw_comp
-    else:
-        return {}
-
-    parsed: Dict[str, float] = {}
-    rem_key = None
-    for el, val in raw_dict.items():
-        if not re.fullmatch(r"[A-Z][a-z]?", str(el).strip()):
-            continue
-        s_val = str(val).strip()
-        if s_val == "#":
-            rem_key = el
-        elif ":" in s_val:
-            parts = s_val.split(":")
-            parsed[el] = 0.5 * (float(parts[0]) + float(parts[1]))
-        else:
-            try:
-                parsed[el] = float(s_val)
-            except ValueError:
-                continue
-
-    explicit_sum = sum(parsed.values())
-    if rem_key is not None:
-        parsed[rem_key] = max(0.0, 100.0 - explicit_sum)
-    elif explicit_sum > 0:
-        for el in list(parsed.keys()):
-            parsed[el] = 100.0 * parsed[el] / explicit_sum
-    return parsed
 
 
 class AsdLineAdvisor:
@@ -143,11 +103,12 @@ class AsdLineAdvisor:
         df = df.copy()
         df["wl_nm"] = df["wavelength_nm"].fillna(df.get("obs_wl_nm", np.nan)).fillna(df.get("ritz_wl_nm", np.nan))
         t_ref = 0.95
-        acc_w = df["accuracy"].map(lambda a: ACCURACY_WEIGHTS.get(str(a).strip(), 0.50)).to_numpy()
+        acc_unc = df["accuracy"].map(accuracy_to_uncertainty).to_numpy()
+        acc_w = 1.0 / (1.0 + acc_unc)
         emissivity = np.where(
             df["boltzmann_ok"].fillna(False),
             df["g_k"].fillna(1.0) * df["Aki"].fillna(0.0) * np.exp(-df["Ek_eV"].fillna(4.0) / t_ref),
-            df["rel_intensity"].fillna(0.0) * 1e4
+            0.0
         )
         df["lte_score"] = np.maximum(emissivity, 0.0) * acc_w
         return df
@@ -286,9 +247,13 @@ class GpuLibsCalibrationEngine:
         self.log_file = (self.logs_dir / "gpu_calibration_engine.log").resolve()
         self._init_logger()
 
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
-        logger.info(f"[GPU Engine] Active Device: {self.device} ({dev_name})")
+        if torch is not None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU"
+            logger.info(f"[GPU Engine] Active Device: {self.device} ({dev_name})")
+        else:
+            self.device = None
+            logger.info("[GPU Engine] Active Device: CPU (torch not installed)")
 
         bc_params = self.manifest.get("baselineCorrectionParams", {})
         self.struct_size = max(int(bc_params.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_STRUCT_SIZE)), 55)
