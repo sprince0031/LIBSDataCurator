@@ -366,17 +366,30 @@ public class LIBSDataService {
                             logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
                             continue;
                         }
-                        double[] interpolatedSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-                        fetchedZoneSpectra.add(interpolatedSpectrum);
+                        double[] zoneSpectrum;
+                        if (instrumentProfile != null && instrumentProfile.getLineSpreadAddSigmaNm() != null && !instrumentProfile.getLineSpreadAddSigmaNm().isEmpty()) {
+                            Spectrum parsedSpectrum = new Spectrum(waveMap);
+                            double[] srcWl = parsedSpectrum.getWavelengths();
+                            double[] srcI = parsedSpectrum.getIntensities();
+                            double[] addSigma = instrumentProfile.getLineSpreadAddSigmaNm().stream().mapToDouble(Double::doubleValue).toArray();
+                            zoneSpectrum = SpectrumUtils.resampleToDetector(srcWl, srcI, instrumentProfile.getWavelengthGrid(), addSigma);
+                        } else {
+                            zoneSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
+                        }
+                        fetchedZoneSpectra.add(zoneSpectrum);
                     }
                     double[] combinedSpectrum = SpectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
                     double finotelloBeta = instrumentProfile != null ? instrumentProfile.getFinotelloNoiseBeta() : 0.0;
+                    String emissionScale = (instrumentProfile != null && instrumentProfile.getEmissionScale() != null)
+                            ? instrumentProfile.getEmissionScale()
+                            : "absolute";
                     double[] finalCounts = SpectrumUtils.applyInstrumentResponseAndNoise(
                             combinedSpectrum,
                             instrumentProfile != null ? instrumentProfile.getSpectralResponse() : null,
                             scaleFactor,
                             finotelloBeta,
-                            new Random()
+                            new Random(),
+                            emissionScale
                     );
                     List<Double> scaledSpectrum = new ArrayList<>();
                     for (double val : finalCounts) {

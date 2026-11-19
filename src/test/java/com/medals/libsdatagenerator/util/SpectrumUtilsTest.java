@@ -38,18 +38,18 @@ public class SpectrumUtilsTest {
         assertNotNull(combined);
         assertEquals(2, combined.length);
 
-        // Channel 0:
-        // S_0_norm = 10.0 / 20.0 = 0.5, I_0 = 0.8 * 0.5 = 0.4
+        // Channel 0 (R4: unnormalized emission, max-normalized opacity):
+        // I_0 = 0.8 * 10.0 = 8.0
         // S_1_norm = 2.0 / 4.0 = 0.5, transmission = exp(-0.5 * 0.5) = exp(-0.25) ~= 0.77880
-        // Expected = 0.4 * exp(-0.25) + (0.2 * 0.5) = 0.31152 + 0.1 = 0.41152
-        double expected0 = (0.8 * 0.5) * Math.exp(-0.5 * 0.5) + (0.2 * 0.5);
+        // Expected = 8.0 * exp(-0.25) + (0.2 * 2.0) = 6.2304 + 0.4 = 6.6304
+        double expected0 = (0.8 * 10.0) * Math.exp(-0.5 * 0.5) + (0.2 * 2.0);
         assertEquals(expected0, combined[0], 1e-4);
 
         // Channel 1:
-        // S_0_norm = 20.0 / 20.0 = 1.0, I_0 = 0.8 * 1.0 = 0.8
+        // I_0 = 0.8 * 20.0 = 16.0
         // S_1_norm = 4.0 / 4.0 = 1.0, transmission = exp(-0.5 * 1.0) = exp(-0.5) ~= 0.60653
-        // Expected = 0.8 * exp(-0.5) + (0.2 * 1.0) = 0.485225 + 0.2 = 0.685225
-        double expected1 = (0.8 * 1.0) * Math.exp(-0.5 * 1.0) + (0.2 * 1.0);
+        // Expected = 16.0 * exp(-0.5) + (0.2 * 4.0) = 9.7045 + 0.8 = 10.5045
+        double expected1 = (0.8 * 20.0) * Math.exp(-0.5 * 1.0) + (0.2 * 4.0);
         assertEquals(expected1, combined[1], 1e-4);
     }
 
@@ -82,7 +82,7 @@ public class SpectrumUtilsTest {
     }
 
     @Test
-    @DisplayName("combineNZones performs per-zone max-normalization before recursive RTE")
+    @DisplayName("combineNZones uses unnormalized emission with max-normalized opacity in RTE (R4)")
     void testCombineNZonesPerZoneMaxNormalization() {
         double[] core = { 1000.0, 500.0 };
         double[] shell = { 250.0, 500.0 };
@@ -94,14 +94,14 @@ public class SpectrumUtilsTest {
         assertNotNull(combined);
         assertEquals(2, combined.length);
 
-        // Channel 0: Core norm = 1.0 (v=0.8 -> 0.8). Shell norm = 0.5 (k=1.0, v=0.2).
-        // combined[0] = 0.8 * exp(-1.0 * 0.5) + 0.2 * 0.5 = 0.8 * exp(-0.5) + 0.1
-        double expectedCh0 = 0.8 * Math.exp(-0.5) + 0.1;
+        // Channel 0: Core unnormalized emission = 0.8 * 1000 = 800. Shell norm for opacity = 250/500 = 0.5.
+        // combined[0] = 800.0 * exp(-1.0 * 0.5) + 0.2 * 250.0 = 800.0 * exp(-0.5) + 50.0
+        double expectedCh0 = 800.0 * Math.exp(-0.5) + 50.0;
         assertEquals(expectedCh0, combined[0], 1e-4);
 
-        // Channel 1: Core norm = 0.5 (v=0.8 -> 0.4). Shell norm = 1.0 (k=1.0, v=0.2).
-        // combined[1] = 0.4 * exp(-1.0 * 1.0) + 0.2 * 1.0 = 0.4 * exp(-1.0) + 0.2
-        double expectedCh1 = 0.4 * Math.exp(-1.0) + 0.2;
+        // Channel 1: Core unnormalized emission = 0.8 * 500 = 400. Shell norm for opacity = 500/500 = 1.0.
+        // combined[1] = 400.0 * exp(-1.0 * 1.0) + 0.2 * 500.0 = 400.0 * exp(-1.0) + 100.0
+        double expectedCh1 = 400.0 * Math.exp(-1.0) + 100.0;
         assertEquals(expectedCh1, combined[1], 1e-4);
     }
 

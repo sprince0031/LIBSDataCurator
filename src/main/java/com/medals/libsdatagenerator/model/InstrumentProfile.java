@@ -41,6 +41,21 @@ public class InstrumentProfile implements JsonModel {
     @JsonProperty("referenceComposition")
     private String referenceComposition;
 
+    @JsonProperty("emissionScale")
+    private String emissionScale = "absolute";
+
+    @JsonProperty("lineSpreadAddSigmaNm")
+    private java.util.List<Double> lineSpreadAddSigmaNm;
+
+    @JsonProperty("lineSpreadFwhmNm")
+    private java.util.List<Double> lineSpreadFwhmNm;
+
+    @JsonProperty("spectralResponseValidRangeNm")
+    private java.util.List<Double> spectralResponseValidRangeNm;
+
+    @JsonProperty("validChannelRangeNm")
+    private java.util.List<Double> validChannelRangeNm;
+
     public static final String INSTRUMENT_PROFILE_PATH = CommonUtils.CONF_PATH + File.separator +
             LIBSDataGenConstants.INSTRUMENT_PROFILE_JSON_FILE;
 
@@ -191,6 +206,46 @@ public class InstrumentProfile implements JsonModel {
         return baselineParams.getMaxIterations();
     }
 
+    public String getEmissionScale() {
+        return emissionScale != null ? emissionScale : "absolute";
+    }
+
+    public void setEmissionScale(String emissionScale) {
+        this.emissionScale = emissionScale;
+    }
+
+    public java.util.List<Double> getLineSpreadAddSigmaNm() {
+        return lineSpreadAddSigmaNm;
+    }
+
+    public void setLineSpreadAddSigmaNm(java.util.List<Double> lineSpreadAddSigmaNm) {
+        this.lineSpreadAddSigmaNm = lineSpreadAddSigmaNm;
+    }
+
+    public java.util.List<Double> getLineSpreadFwhmNm() {
+        return lineSpreadFwhmNm;
+    }
+
+    public void setLineSpreadFwhmNm(java.util.List<Double> lineSpreadFwhmNm) {
+        this.lineSpreadFwhmNm = lineSpreadFwhmNm;
+    }
+
+    public java.util.List<Double> getSpectralResponseValidRangeNm() {
+        return spectralResponseValidRangeNm;
+    }
+
+    public void setSpectralResponseValidRangeNm(java.util.List<Double> spectralResponseValidRangeNm) {
+        this.spectralResponseValidRangeNm = spectralResponseValidRangeNm;
+    }
+
+    public java.util.List<Double> getValidChannelRangeNm() {
+        return validChannelRangeNm;
+    }
+
+    public void setValidChannelRangeNm(java.util.List<Double> validChannelRangeNm) {
+        this.validChannelRangeNm = validChannelRangeNm;
+    }
+
     @Override
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
@@ -226,6 +281,22 @@ public class InstrumentProfile implements JsonModel {
         json.put("referenceComposition", referenceComposition);
         if (baselineParams != null) {
             json.put("baselineCorrectionParams", baselineParams.toJson());
+        }
+
+        if (emissionScale != null) {
+            json.put("emissionScale", emissionScale);
+        }
+        if (lineSpreadAddSigmaNm != null) {
+            json.put("lineSpreadAddSigmaNm", new JSONArray(lineSpreadAddSigmaNm));
+        }
+        if (lineSpreadFwhmNm != null) {
+            json.put("lineSpreadFwhmNm", new JSONArray(lineSpreadFwhmNm));
+        }
+        if (spectralResponseValidRangeNm != null) {
+            json.put("spectralResponseValidRangeNm", new JSONArray(spectralResponseValidRangeNm));
+        }
+        if (validChannelRangeNm != null) {
+            json.put("validChannelRangeNm", new JSONArray(validChannelRangeNm));
         }
         return json;
     }
@@ -265,5 +336,38 @@ public class InstrumentProfile implements JsonModel {
         this.numShots = json.optInt("numShots");
         this.sourceFile = json.optString("sourceFile");
         this.referenceComposition = json.optString("referenceComposition");
+
+        this.emissionScale = json.optString("emissionScale", "absolute");
+        if (this.emissionScale.isEmpty()) {
+            this.emissionScale = "absolute";
+        }
+        JSONArray addSigmaArr = json.optJSONArray("lineSpreadAddSigmaNm");
+        if (addSigmaArr != null) {
+            this.lineSpreadAddSigmaNm = new java.util.ArrayList<>();
+            for (int i = 0; i < addSigmaArr.length(); i++) {
+                this.lineSpreadAddSigmaNm.add(addSigmaArr.getDouble(i));
+            }
+        }
+        JSONArray fwhmArr = json.optJSONArray("lineSpreadFwhmNm");
+        if (fwhmArr != null) {
+            this.lineSpreadFwhmNm = new java.util.ArrayList<>();
+            for (int i = 0; i < fwhmArr.length(); i++) {
+                this.lineSpreadFwhmNm.add(fwhmArr.getDouble(i));
+            }
+        }
+        JSONArray respRangeArr = json.optJSONArray("spectralResponseValidRangeNm");
+        if (respRangeArr != null) {
+            this.spectralResponseValidRangeNm = new java.util.ArrayList<>();
+            for (int i = 0; i < respRangeArr.length(); i++) {
+                this.spectralResponseValidRangeNm.add(respRangeArr.getDouble(i));
+            }
+        }
+        JSONArray chanRangeArr = json.optJSONArray("validChannelRangeNm");
+        if (chanRangeArr != null) {
+            this.validChannelRangeNm = new java.util.ArrayList<>();
+            for (int i = 0; i < chanRangeArr.length(); i++) {
+                this.validChannelRangeNm.add(chanRangeArr.getDouble(i));
+            }
+        }
     }
 }
