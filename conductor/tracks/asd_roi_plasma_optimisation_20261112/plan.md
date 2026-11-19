@@ -81,11 +81,11 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] With the real ASD cache fixture and the SS551 composition, the catalogue contains Cu I 515.324 and 521.820 nm and no Cu II line (AC2)
     - [x] A source scan asserting that `roi_catalogue.py` and `roi_joint_calibration.py` contain no element symbols or category weights (AC3)
     - [x] Confirm the tests fail (Red Phase)
-- [~] Task: Implement `scripts/roi_catalogue.py`
-    - [ ] `RoiWindow` dataclass and `build_catalogue(family, compositions, model_lines, dictionary, conditioned) -> list[RoiWindow]`
-    - [ ] Response set and full set accessors
-    - [ ] Confirm the tests pass (Green Phase)
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md)
+- [x] Task: Implement `scripts/roi_catalogue.py` (cd45c11)
+    - [x] `RoiWindow` dataclass and `build_catalogue(family, compositions, model_lines, dictionary, conditioned) -> list[RoiWindow]`
+    - [x] Response set and full set accessors
+    - [x] Confirm the tests pass (Green Phase)
+- [~] Task: Conductor - User Manual Verification 'Phase 4: ROI Catalogue' (Protocol in workflow.md)
 
 ### Phase 5: Joint Solver and Planted-Truth Recovery (R6, R7, R9, R12)
 - [ ] Task: Write the planted-truth generator and test in `scripts/test_planted_truth_recovery.py`
