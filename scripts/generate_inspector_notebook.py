@@ -14,9 +14,11 @@ notebook = {
                 "\n",
                 "### Features:\n",
                 "- **Family & Material Selectors:** Interactive dropdowns to toggle between calibrated families and reference materials.\n",
-                "- **Spectral Fit Viewer:** Plotly zoom/pan overlay of measured vs. synthetic spectra with ROI window boundaries, $1\\sigma$ measurement ribbon, and line species annotations.\n",
+                "- **Morphological Opening Baseline Correction:** Configurable structuring element size (default 25 channels / ~6.75 nm) to strip broad continuum background while preserving sharp atomic emission peaks. Fully interactive slider control with optional continuum trace visualization.\n",
+                "- **Spectral Fit Viewer:** Plotly zoom/pan overlay of measured vs. synthetic spectra with ROI window boundaries, $1\\sigma$ measurement ribbon, line species annotations, and secondary-axis instrument response curve $R(\\lambda)$.\n",
                 "- **Solver Convergence:** Evolution of objective function $\\Phi$ and B-spline response coefficients $\\beta$ across alternating iterations.\n",
-                "- **Element Parity Chart:** Bar chart of $\\log_{10}(\\text{synthetic}/\\text{measured})$ across certified elements with bias threshold reference bands ($\\pm 0.10$, $\\pm 0.30$)."
+                "- **Element Parity Chart:** Bar chart of $\\log_{10}(\\text{synthetic}/\\text{measured})$ across certified elements with bias threshold reference bands ($\\pm 0.10$, $\\pm 0.30$).\n",
+                "- **Dynamic 5-Point Response & Baseline Tuner:** Interactive sliders for B-spline coefficients $\\beta_1 \\dots \\beta_5$ AND morphological opening size $W$, with real-time recalculation of the synthetic spectrum, $R^2$, and reduced $\\chi^2$ metrics."
             ]
         },
         {
@@ -36,14 +38,32 @@ notebook = {
                 "\n",
                 "from scripts.calibration_inspector import (\n",
                 "    launch_dashboard,\n",
+                "    create_interactive_response_tuner,\n",
                 "    plot_spectral_overlay,\n",
                 "    plot_solver_convergence,\n",
                 "    plot_element_parity,\n",
                 "    load_debug_data,\n",
                 "    list_families,\n",
-                "    list_materials_for_family\n",
+                "    list_materials_for_family,\n",
+                "    compute_bspline_basis,\n",
+                "    compute_response_from_beta,\n",
+                "    apply_morphological_baseline_correction\n",
                 ")\n",
                 "print(\"Calibration Inspector loaded successfully!\")"
+            ]
+        },
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": [
+                "## 1. Full Calibration Diagnostics Dashboard\n",
+                "\n",
+                "The dashboard below displays:\n",
+                "1. **Spectral Overlay:** Baseline-corrected measured spectrum (blue) with $1\\sigma$ error ribbon, synthetic fit (orange dashed), and spectrometer response curve $R(\\lambda)$ (purple dash-dotted line on the right-hand axis).\n",
+                "2. **Baseline Struct Size Slider (default 25):** Morphological opening size to remove continuum background. Set to 1 to view raw uncorrected spectrum.\n",
+                "3. **Show Baseline Checkbox:** Check to display the estimated continuum baseline as a dotted gray trace.\n",
+                "4. **Solver Convergence Trace:** Optimization trajectory for objective $\\Phi$ and spline knots $\\beta$.\n",
+                "5. **Element Parity Chart:** Relative balance across certified elements."
             ]
         },
         {
@@ -52,7 +72,7 @@ notebook = {
             "metadata": {},
             "outputs": [],
             "source": [
-                "# Launch Interactive Dashboard\n",
+                "# Launch Interactive Dashboard with Baseline Size slider and Response Curve overlay\n",
                 "launch_dashboard()"
             ]
         },
@@ -60,7 +80,44 @@ notebook = {
             "cell_type": "markdown",
             "metadata": {},
             "source": [
-                "## Manual Inspection & Custom Visualization\n",
+                "## 2. Dynamic 5-Point Response & Baseline Tuner\n",
+                "\n",
+                "### Morphological Opening Baseline Correction\n",
+                "In laser plasma spectroscopy, the raw measured spectrum contains a continuous background pedestal (Bremsstrahlung radiation and recombining electron-ion emission) under the atomic lines.\n",
+                "Morphological opening applies an erosion followed by a dilation using a flat horizontal structuring element of size $W$ channels:\n",
+                "$$\\text{Baseline}(\\lambda) = \\left(y_{\\text{raw}} \\circ S_W\\right)(\\lambda) = \\text{dilation}\\Big(\\text{erosion}\\big(y_{\\text{raw}}, W\\big), W\\Big)$$\n",
+                "$$y_{\\text{clean}}(\\lambda) = \\max\\left(y_{\\text{raw}}(\\lambda) - \\text{Baseline}(\\lambda), 0.0\\right)$$\n",
+                "\n",
+                "Because atomic emission peaks are narrow (FWHM $\\approx 2-4$ pixels $\\approx 0.6$ nm), a structuring element of **$W=25$ pixels** ($\\\\approx 6.75$ nm) acts as a high-pass filter: it rolls smoothly underneath the peaks without clipping their heights, eliminating the baseline offset between lines.\n",
+                "\n",
+                "### Spectrometer Response B-Spline Knobs ($\\beta_1 \\dots \\beta_5$)\n",
+                "The response curve $R(\\lambda)$ models spectrometer efficiency across wavelengths using a 5-knot cubic B-spline:\n",
+                "$$\\ln R(\\lambda) = \\sum_{j=1}^5 \\beta_j B_j(\\lambda) \\implies R(\\lambda) = \\exp\\left( \\sum_{j=1}^5 \\beta_j B_j(\\lambda) \\right)$$\n",
+                "\n",
+                "- **$\\beta_1$ (UV band, ~340–380 nm):** Controls UV detector sensitivity.\n",
+                "- **$\\beta_2$ (Blue band, ~424 nm):** Controls blue-region efficiency.\n",
+                "- **$\\beta_3$ (Cyan band, ~479 nm):** Controls mid-visible throughput.\n",
+                "- **$\\beta_4$ (Green band, ~534 nm):** Controls green-visible detector response.\n",
+                "- **$\\beta_5$ (NIR band, ~580+ nm):** Controls yellow, red, and near-infrared sensitivity.\n",
+                "\n",
+                "Use the sliders below to adjust the baseline structuring element size and the 5 spline knobs. Watch the clean measured spectrum, synthetic fit, and live $R^2$ / Reduced $\\chi^2$ metrics update in real time!"
+            ]
+        },
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": [
+                "# Launch the Dynamic Response & Baseline Tuner (default baseline size = 25)\n",
+                "create_interactive_response_tuner(\"Ferritic_Stainless_Steel\", \"469\", default_struct_size=25)"
+            ]
+        },
+        {
+            "cell_type": "markdown",
+            "metadata": {},
+            "source": [
+                "## 3. Manual Inspection & Custom Visualization\n",
                 "You can also extract and customize individual plots directly using the helper functions below."
             ]
         },
@@ -70,7 +127,7 @@ notebook = {
             "metadata": {},
             "outputs": [],
             "source": [
-                "# Example: Manually load and display a specific family and material\n",
+                "# Example: Manually load, baseline-correct, and display a specific material\n",
                 "families = list_families()\n",
                 "if families:\n",
                 "    fam = families[0]\n",
@@ -79,7 +136,19 @@ notebook = {
                 "        mat = mats[0]\n",
                 "        cond_data, rois_data, trace_data, fit_data = load_debug_data(fam, mat)\n",
                 "        \n",
-                "        fig_spec = plot_spectral_overlay(cond_data, rois_data, fit_data, title=f\"Spectrum: {fam} / {mat}\")\n",
+                "        # Evaluate response curve from trace\n",
+                "        wls = cond_data.get(\"wavelengths\")\n",
+                "        beta_hist = trace_data.get(\"beta\", [])\n",
+                "        resp_curve = compute_response_from_beta(wls, rois_data, beta_hist[-1]) if (beta_hist and wls) else None\n",
+                "        \n",
+                "        # Plot overlay with default morphological opening baseline size 25\n",
+                "        fig_spec = plot_spectral_overlay(\n",
+                "            cond_data, rois_data, fit_data,\n",
+                "            title=f\"Spectrum: {fam} / {mat}\",\n",
+                "            response_curve=resp_curve,\n",
+                "            baseline_struct_size=25,\n",
+                "            show_baseline=True\n",
+                "        )\n",
                 "        fig_spec.show()\n",
                 "        \n",
                 "        fig_conv = plot_solver_convergence(trace_data, title=f\"Solver Convergence: {fam}\")\n",

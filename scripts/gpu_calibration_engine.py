@@ -966,7 +966,10 @@ class GpuLibsCalibrationEngine:
                 )
 
                 nz_indices = sorted(non_zero_states, key=lambda idx: self.te_grid[idx // self.n_ne], reverse=True)
-                v_total = sum(reduced_weights[idx] for idx in nz_indices)
+                v_total = float(sum(reduced_weights[idx] for idx in nz_indices))
+                scale_factor_final = float(scale_factor * v_total)
+                mat_scales_final = {m: float(sc * v_total) for m, sc in mat_scales.items()}
+
                 plasma_zones_json = []
                 for z_i, idx in enumerate(nz_indices):
                     te_val = float(self.te_grid[idx // self.n_ne])
@@ -989,7 +992,7 @@ class GpuLibsCalibrationEngine:
                     dictionary={m: dictionary[m] for m in fam_mats},
                     conditioned={m: cond_map[m].preprocessed_mean for m in fam_mats},
                     plasma_zones=plasma_zones_json,
-                    scale_factor=scale_factor,
+                    scale_factor=scale_factor_final,
                     spectral_response=spectral_response,
                 )
                 if bias_flag:
@@ -1008,7 +1011,7 @@ class GpuLibsCalibrationEngine:
                         y_synth_ref = y_synth_ref * np.exp(-kz * s_z) + vz * s_z
                     else:
                         y_synth_ref = y_synth_ref + vz * s_z
-                y_synth_ref = scale_factor * y_synth_ref * spectral_response
+                y_synth_ref = scale_factor_final * y_synth_ref * spectral_response
 
                 roi_r2, roi_rmse = calculate_roi_metrics(cond_map[ref_m].preprocessed_mean, y_synth_ref, union_chans)
                 whole_r2, whole_rmse = calculate_whole_spectrum_metrics(cond_map[ref_m].preprocessed_mean, y_synth_ref, cond_map[ref_m].lit_mask)
@@ -1019,8 +1022,8 @@ class GpuLibsCalibrationEngine:
                 fam_profile = {
                     "materialFamily": family_name,
                     "resolution": r_nist_int,
-                    "scaleFactor": round(scale_factor, 6),
-                    "materialScaleFactors": {m: round(float(sc), 6) for m, sc in mat_scales.items()},
+                    "scaleFactor": round(scale_factor_final, 8),
+                    "materialScaleFactors": {m: round(float(sc), 8) for m, sc in mat_scales_final.items()},
                     "plasmaZones": plasma_zones_json,
                     "calibrationStats": {
                         "roiChi2Reduced": round(chi2_red, 4),

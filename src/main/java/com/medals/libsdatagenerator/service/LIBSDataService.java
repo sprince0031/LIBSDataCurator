@@ -1,11 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.medals.libsdatagenerator.controller.LIBSDataGenConstants;
-import com.medals.libsdatagenerator.model.Element;
-import com.medals.libsdatagenerator.model.InstrumentProfile;
-import com.medals.libsdatagenerator.model.MaterialFamilyProfile;
-import com.medals.libsdatagenerator.model.PlasmaZone;
-import com.medals.libsdatagenerator.model.UserInputConfig;
+import com.medals.libsdatagenerator.model.*;
 import com.medals.libsdatagenerator.model.matweb.MaterialGrade;
 import com.medals.libsdatagenerator.model.matweb.SeriesInput;
 import com.medals.libsdatagenerator.model.nist.NistUrlOptions;

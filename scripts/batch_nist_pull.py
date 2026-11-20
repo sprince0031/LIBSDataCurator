@@ -60,7 +60,8 @@ excluded_materials: List[str] = [
 run_args: List[str] = [
     # Uncomment or add flags as needed, for example:
     "-res", "3000",
-    "-v", "-n", "20",
+    "-v", "-vm", "2",
+    "-n", "40",
     "-sd", "42"
 ]
 

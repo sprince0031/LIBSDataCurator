@@ -57,8 +57,8 @@ excluded_materials: List[str] = [
 #   "-o", "<path>"         : Custom output path for instrument profile JSON
 calibrate_args: List[str] = [
     "-in", "LSA",
-    "-z", "2",
-    "-d"
+    "-z", "2"
+    # "-d"
 ]
 
 # Set to True to preview commands without executing calibrate.bat.

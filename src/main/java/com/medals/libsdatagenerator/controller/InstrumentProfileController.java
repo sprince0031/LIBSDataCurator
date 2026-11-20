@@ -14,6 +14,7 @@ import org.apache.commons.cli.CommandLine;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -119,6 +120,23 @@ public class InstrumentProfileController {
         );
     }
 
+    static boolean isCompositionString(String compositionOrRefPath) {
+        if (compositionOrRefPath == null || compositionOrRefPath.isBlank()) {
+            return false;
+        }
+        if (compositionOrRefPath.toLowerCase().endsWith(".json")) {
+            return false;
+        }
+        try {
+            Path path = Paths.get(compositionOrRefPath);
+            return !Files.exists(path);
+        } catch (InvalidPathException e) {
+            // Contains characters that are illegal in a file path (e.g. ':' in ranges on Windows),
+            // which confirms it is an inline composition string rather than a file path.
+            return true;
+        }
+    }
+
     public static void main(String[] args) {
         logger.info("Starting LIBS Instrument Profile Calibration...");
 
@@ -175,9 +193,7 @@ public class InstrumentProfileController {
             }
             int holdoutCsvs = Integer.parseInt(cmd.getOptionValue(LIBSDataGenConstants.CMD_OPT_HOLDOUT_CSVS_SHORT, "1"));
 
-            boolean isCompositionString = compositionOrRefPath != null &&
-                    !compositionOrRefPath.toLowerCase().endsWith(".json") &&
-                    !Files.exists(Paths.get(compositionOrRefPath));
+            boolean isCompositionString = isCompositionString(compositionOrRefPath);
 
             InstrumentProfileController controller = new InstrumentProfileController(profileService, InputCompositionProcessor.getInstance());
 
@@ -214,7 +230,11 @@ public class InstrumentProfileController {
                 // -c may be a path to reference_compositions.json, or absent
                 Path refCompositionsPath = null;
                 if (compositionOrRefPath != null && !compositionOrRefPath.isBlank()) {
-                    refCompositionsPath = Paths.get(compositionOrRefPath);
+                    try {
+                        refCompositionsPath = Paths.get(compositionOrRefPath);
+                    } catch (InvalidPathException e) {
+                        refCompositionsPath = null;
+                    }
                 }
 
                 System.out.println("=== LIBS Instrument Profile Generator (Directory Mode) ===");

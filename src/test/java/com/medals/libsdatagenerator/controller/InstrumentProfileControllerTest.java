@@ -64,4 +64,31 @@ class InstrumentProfileControllerTest {
         assertEquals("/data/measurements", cmd.getOptionValue("i"));
         assertNull(cmd.getOptionValue("c"));
     }
+
+    @Test
+    void testIsCompositionStringWithRangesContainingColons() {
+        String rangeComp = "Fe-0:0.55,Si-6.5:7.5,Mn-0:0.35,Ni-0:0.15,Ti-0:0.25,Cu-0:0.2,Pb-0:0.15,Mg-0.2:0.65,Zn-0:0.15,Sn-0:0.05,Ca-0.05,V-0.05,Zr-0.05,Al-#";
+        assertTrue(InstrumentProfileController.isCompositionString(rangeComp),
+                "Composition string with colon ranges should be identified as a composition string without throwing InvalidPathException");
+    }
+
+    @Test
+    void testIsCompositionStringWithSimpleComposition() {
+        String simpleComp = "Fe-80,C-20";
+        assertTrue(InstrumentProfileController.isCompositionString(simpleComp),
+                "Simple composition string should be identified as a composition string");
+    }
+
+    @Test
+    void testIsCompositionStringWithJsonPath() {
+        assertFalse(InstrumentProfileController.isCompositionString("conf/reference_compositions.json"));
+        assertFalse(InstrumentProfileController.isCompositionString("C:\\path\\to\\reference.json"));
+    }
+
+    @Test
+    void testIsCompositionStringWithNullOrBlank() {
+        assertFalse(InstrumentProfileController.isCompositionString(null));
+        assertFalse(InstrumentProfileController.isCompositionString(""));
+        assertFalse(InstrumentProfileController.isCompositionString("   "));
+    }
 }
