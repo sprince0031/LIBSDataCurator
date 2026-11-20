@@ -152,4 +152,7 @@ All work stays on `feat/instrument-profile-optimisation`.
     - [x] Run `scripts/validate_spectral_match.py`; check AC11
     - [x] Check AC10 with the Java forward model and noise disabled; run `./run.sh` to confirm generation completes
     - [x] Record the before/after table (legacy rendering against the new calibration, per family, hold-out data) in the track notes
-- [ ] Task: Conductor - User Manual Verification 'Phase 7: Match Report and End-to-End Verification' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 7: Match Report and End-to-End Verification' (Protocol in workflow.md)
+
+## Phase: Review Fixes
+- [x] Task: Apply review suggestions (3fe2845)
