@@ -14,6 +14,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: ASD & Composition-Informed ROI-Only Plasma Optimisation & `regionsOfInterest.json` Export**
+- [x] **Track: ASD & Composition-Informed ROI-Only Plasma Optimisation & `regionsOfInterest.json` Export**
 *Link: [./tracks/asd_roi_plasma_optimisation_20261112/](./tracks/asd_roi_plasma_optimisation_20261112/)*
 
