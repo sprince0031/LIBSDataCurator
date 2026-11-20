@@ -87,6 +87,12 @@ if [ -d "docs" ]; then
     cp -r docs/{CHANGELOG.md,README.md} build/release-package/docs/ 2>/dev/null || true
 fi
 
+# Copy notebooks if they exist
+mkdir -p build/release-package/notebooks
+if [ -d "notebooks" ]; then
+    cp notebooks/*.ipynb build/release-package/notebooks/ 2>/dev/null || true
+fi
+
 # Copy scripts if they exist (excluding unit tests and generators)
 if [ -d "scripts" ]; then
     cp scripts/*.py build/release-package/scripts/ 2>/dev/null || true

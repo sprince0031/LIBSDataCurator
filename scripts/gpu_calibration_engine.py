@@ -1083,6 +1083,19 @@ class GpuLibsCalibrationEngine:
 
             self.check_strict_flags(all_flags)
             logger.info(f"[Engine] Calibration complete -> {out_path}")
+
+            # Generate / refresh interactive diagnostic inspector notebook in notebooks/
+            try:
+                try:
+                    from scripts.calibration_inspector import generate_inspector_notebook
+                except ImportError:
+                    from calibration_inspector import generate_inspector_notebook
+                nb_dest = Path("notebooks/calibration_inspector.ipynb")
+                generate_inspector_notebook(nb_dest)
+                logger.info(f"[Engine] Generated calibration inspector notebook -> {nb_dest}")
+            except Exception as e:
+                logger.warning(f"[Engine] Could not generate calibration inspector notebook: {e}")
+
             return
         logger.info(f"[GPU Engine] Calibration complete (Voigt-free) -> {out_path}")
 

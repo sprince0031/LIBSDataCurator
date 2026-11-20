@@ -118,6 +118,7 @@ mkdir build\release-package\data
 mkdir build\release-package\logs
 mkdir build\release-package\docs
 mkdir build\release-package\scripts
+mkdir build\release-package\notebooks
 
 REM Copy JAR
 copy build\target\LIBSDataCurator.jar build\release-package\lib\
@@ -133,6 +134,11 @@ if exist "conf" (
 REM Copy docs if they exist
 if exist "docs" (
     for %%f in (docs\CHANGELOG.md docs\README.md) do copy "%%f" "build\release-package\docs\"
+)
+
+REM Copy notebooks if they exist
+if exist "notebooks" (
+    copy notebooks\*.ipynb build\release-package\notebooks\ 2>nul
 )
 
 REM Copy scripts if they exist (excluding unit tests and generators)
