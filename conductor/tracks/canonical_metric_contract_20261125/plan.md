@@ -52,8 +52,8 @@
 
 ## Phase 3: Java Canonical Metric API (`SpectrumUtils.java`)
 
-- [~] Task: Write failing JUnit tests for Java `SpectralMetrics` contract in `SpectrumUtilsTest.java` (Red phase)
-  - [ ] Add unit tests in `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` for:
+- [x] Task: Write failing JUnit tests for Java `SpectralMetrics` contract in `SpectrumUtilsTest.java` (Red phase) (9b3c87b)
+  - [x] Add unit tests in `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` for:
     - `NormalizationMode` (`NONE`, `MAX`, `L2`, `SUM` with L1 norm).
     - `SpectralMetrics` record fields (`rmse`, `nrmseMax`, `mae`, `r2`, `pearsonR2`, `cosineSimilarity`, nullable `Double reducedChi2`, `NormalizationMode normalization`, `int nValid`).
     - Explicit static helpers (`calculateR2`, `calculatePearsonR2`, `calculateMAE`, `calculateCosineSimilarity`).
@@ -62,14 +62,14 @@
     - `variance == null` returning `reducedChi2 == null` vs. empirical variance scaling (`1 / max(scaleRef, eps)^2`) and `dof = max(nValid - numParams, 1)`.
     - Zero-variance `r2`, zero-variance `pearsonR2`, and zero-norm `cosineSimilarity` edge cases (never `NaN`).
     - Backward compatibility of existing public methods (`calculateRMSE`, `calculateSpectralSimilarity`, `normalizeSpectrum`).
-  - [ ] Run `mvn test -Dtest=SpectrumUtilsTest` to confirm Red failure.
-- [ ] Task: Implement canonical metric API in `SpectrumUtils.java` (Green & Refactor phase)
-  - [ ] Add `NormalizationMode` enum and `SpectralMetrics` record aligned with `metric_contract_v1.json`.
-  - [ ] Implement stateless `double`-precision `computeSpectralMetrics(...)` overloads (with optional `mask`, `NormalizationMode`, `variance`, `numParams`, `wavelengthsRef`, `wavelengthsPred`, `eps`, `wavelengthTol`) and explicit `calculateR2`, `calculatePearsonR2`, `calculateMAE`, `calculateCosineSimilarity`.
-  - [ ] Enforce array-length mismatch, empty-mask, and strict wavelength grid checks raising `IllegalArgumentException`.
-  - [ ] Delegate existing public methods internally where appropriate without breaking existing method signatures or callers.
-  - [ ] Run `mvn test -Dtest=SpectrumUtilsTest` and full `mvn test` suite to verify zero regressions.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Run `mvn test -Dtest=SpectrumUtilsTest` to confirm Red failure.
+- [x] Task: Implement canonical metric API in `SpectrumUtils.java` (Green & Refactor phase) (9b3c87b)
+  - [x] Add `NormalizationMode` enum and `SpectralMetrics` record aligned with `metric_contract_v1.json`.
+  - [x] Implement stateless `double`-precision `computeSpectralMetrics(...)` overloads (with optional `mask`, `NormalizationMode`, `variance`, `numParams`, `wavelengthsRef`, `wavelengthsPred`, `eps`, `wavelengthTol`) and explicit `calculateR2`, `calculatePearsonR2`, `calculateMAE`, `calculateCosineSimilarity`.
+  - [x] Enforce array-length mismatch, empty-mask, and strict wavelength grid checks raising `IllegalArgumentException`.
+  - [x] Delegate existing public methods internally where appropriate without breaking existing method signatures or callers.
+  - [x] Run `mvn test -Dtest=SpectrumUtilsTest` and full `mvn test` suite to verify zero regressions.
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
