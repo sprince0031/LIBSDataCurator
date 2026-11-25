@@ -14,6 +14,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: TRACK-CORE-01 — Unify Canonical Spectral Metric & Preprocessing Contract in LIBSDataCurator**
+- [~] **Track: TRACK-CORE-01 — Unify Canonical Spectral Metric & Preprocessing Contract in LIBSDataCurator**
 *Link: [./tracks/canonical_metric_contract_20261125/index.md](./tracks/canonical_metric_contract_20261125/index.md)*
 
