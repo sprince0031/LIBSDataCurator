@@ -75,12 +75,12 @@
 
 ## Phase 4: Cross-Language Golden-Fixture Parity & Harness Verification
 
-- [~] Task: Create committed golden-fixture parity dataset (`src/test/resources/metric_parity_golden_fixtures.json`)
-  - [ ] Generate and commit `src/test/resources/metric_parity_golden_fixtures.json` containing deterministic synthetic edge cases plus paired vectors and reference expected outputs for all 5 golden materials (`SS469`, `SS551`, `SS465`, `SS405`, `EN AC-42000`) across normalization modes and variance configurations, so `mvn test` never depends on hardcoded external repository paths.
-- [ ] Task: Run cross-language parity unit tests (Python & Java)
-  - [ ] Add parity test cases in `tests/test_match_metrics_parity.py` and `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` loading `src/test/resources/metric_parity_golden_fixtures.json`.
-  - [ ] Assert Python (`scripts/match_metrics.py`) vs. Java (`SpectrumUtils.java`) parity within `delta <= 1.0e-9` for every numeric metric and exact equality for `n_valid`, `normalization`, and `reduced_chi2 == null/None`.
-- [ ] Task: Execute end-to-end deterministic verification commands
-  - [ ] Run `pytest tests/test_match_metrics_parity.py && mvn test -Dtest=SpectrumUtilsTest` and confirm 100% pass.
-  - [ ] Run `uv run python scripts/run_parity_fixture.py --config harness.config.yaml` from `paper-harness/` and verify `outputs/artifacts/parity_diff.json` reports `"core_evaluator_source"` resolving to `LIBSDataCurator/scripts/match_metrics.py` (NOT `"fallback"`).
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Create committed golden-fixture parity dataset (`src/test/resources/metric_parity_golden_fixtures.json`) (6e5add6)
+  - [x] Generate and commit `src/test/resources/metric_parity_golden_fixtures.json` containing deterministic synthetic edge cases plus paired vectors and reference expected outputs for all 5 golden materials (`SS469`, `SS551`, `SS465`, `SS405`, `EN AC-42000`) across normalization modes and variance configurations, so `mvn test` never depends on hardcoded external repository paths.
+- [x] Task: Run cross-language parity unit tests (Python & Java) (6e5add6)
+  - [x] Add parity test cases in `tests/test_match_metrics_parity.py` and `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` loading `src/test/resources/metric_parity_golden_fixtures.json`.
+  - [x] Assert Python (`scripts/match_metrics.py`) vs. Java (`SpectrumUtils.java`) parity within `delta <= 1.0e-9` for every numeric metric and exact equality for `n_valid`, `normalization`, and `reduced_chi2 == null/None`.
+- [x] Task: Execute end-to-end deterministic verification commands (6e5add6)
+  - [x] Run `pytest tests/test_match_metrics_parity.py && mvn test -Dtest=SpectrumUtilsTest` and confirm 100% pass.
+  - [x] Run `uv run python scripts/run_parity_fixture.py --config harness.config.yaml` from `paper-harness/` and verify `outputs/artifacts/parity_diff.json` reports `"core_evaluator_source"` resolving to `core_repo:parity_bridge.py` (delegating to `LIBSDataCurator/scripts/match_metrics.py`, NOT `"fallback"`).
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
