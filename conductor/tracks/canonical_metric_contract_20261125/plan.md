@@ -5,7 +5,7 @@
 
 ---
 
-## Phase 1: Shared Metric & Preprocessing Contract Schema (`metric_contract_v1.json`)
+## Phase 1: Shared Metric & Preprocessing Contract Schema (`metric_contract_v1.json`) [checkpoint: 7efbdaa]
 
 - [x] Task: Create contract schema validation tests (Red phase) (ccb1526)
   - [x] Create `tests/test_match_metrics_parity.py` with initial tests loading `src/main/resources/metric_contract_v1.json` and asserting presence of `schema_version` (`metric_contract_v1`), canonical metric keys, normalization modes (`none`, `max`, `l2`, `sum`), `eps` (`1e-12`), `wavelength_tol` (`1e-6`), variance-scaling rule, edge-case rules, and shot-level vs. post-average preprocessing stages.
@@ -16,15 +16,15 @@
   - [x] Document `eps = 1e-12`, `wavelength_tol = 1e-6`, normalization formulas (`none`, `max`, `l2`, `sum` via L1 `sum(abs(y))`), variance scaling (`variance / max(scale_ref, eps)^2`), array-length mismatch and empty-mask error contracts, and zero-variance / zero-norm rules (never `NaN`).
   - [x] Document exact shot-level (`apply_lit_and_saturation_mask` → `dark_subtract` → `trim_conditioning_shots` → shot-scale normalization / averaging) and post-average (`apply_morphological_baseline`) call order.
   - [x] Verify Phase 1 contract tests pass in both Python and Java.
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (7efbdaa)
 
 ---
 
 ## Phase 2: Python Canonical Metric API & Conditioning Helpers
 
-- [ ] Task: Probe `paper-harness/scripts/run_parity_fixture.py` (read-only) before coding
-  - [ ] Inspect `paper-harness/scripts/run_parity_fixture.py` (read-only) to confirm the exact module path, function name, signature, and return keys it probes in `LIBSDataCurator/scripts/match_metrics.py` so Phase 4 resolves cleanly without `"fallback"`.
-- [ ] Task: Write failing unit tests for `compute_spectral_metrics` in `scripts/match_metrics.py` (Red phase)
+- [x] Task: Probe `paper-harness/scripts/run_parity_fixture.py` (read-only) before coding
+  - [x] Inspect `paper-harness/scripts/run_parity_fixture.py` (read-only) to confirm the exact module path, function name, signature, and return keys it probes in `LIBSDataCurator/scripts/match_metrics.py` so Phase 4 resolves cleanly without `"fallback"`. *(Finding: `run_parity_fixture.py:39-59` probes `parity_bridge.py` / `scripts/parity_bridge.py` for `compute_spectral_metrics(y_ref, y_pred)` and reads `rmse`, `mae`, `r2`, `cosine_similarity`; we will expose a thin `scripts/parity_bridge.py` re-exporting `scripts/match_metrics.py:compute_spectral_metrics`.)*
+- [~] Task: Write failing unit tests for `compute_spectral_metrics` in `scripts/match_metrics.py` (Red phase)
   - [ ] Expand `tests/test_match_metrics_parity.py` and `scripts/test_match_metrics.py` to cover:
     - All normalization modes (`none`, `max`, `l2`, `sum` with L1 norm).
     - Array-length mismatch checks (`y_ref`, `y_pred`, `mask`, `variance`, `wavelengths_ref`, `wavelengths_pred`) raising `ValueError`.
