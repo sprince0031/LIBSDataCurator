@@ -2,8 +2,8 @@
   "track_id": "canonical_metric_contract_20261125",
   "external_ref": "TRACK-CORE-01",
   "type": "refactor",
-  "status": "in_progress",
+  "status": "completed",
   "created_at": "2026-11-25T21:22:40Z",
-  "updated_at": "2026-11-25T21:22:40Z",
+  "updated_at": "2026-11-25T21:51:50Z",
   "description": "TRACK-CORE-01: Unify Canonical Spectral Metric & Preprocessing Contract in LIBSDataCurator"
 }
