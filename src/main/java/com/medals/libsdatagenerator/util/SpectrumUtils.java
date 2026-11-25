@@ -4,7 +4,6 @@ import com.medals.libsdatagenerator.model.PlasmaZone;
 import com.medals.libsdatagenerator.model.Spectrum;
 import org.apache.commons.math3.analysis.interpolation.LinearInterpolator;
 import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
-import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -407,38 +406,391 @@ public class SpectrumUtils {
         return normalized;
     }
 
+    /** Default numerical guard matching metric_contract_v1.json. */
+    public static final double DEFAULT_METRIC_EPS = 1e-12;
+
+    /** Default wavelength grid equality tolerance in nm matching metric_contract_v1.json. */
+    public static final double DEFAULT_WAVELENGTH_TOL = 1e-6;
+
+    /**
+     * Canonical normalization modes defined in metric_contract_v1.json.
+     */
+    public enum NormalizationMode {
+        NONE,
+        MAX,
+        L2,
+        SUM;
+
+        /** Returns the lowercase contract identifier (none, max, l2, sum). */
+        public String contractName() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
+
+        /** Parses a contract normalization name (case-insensitive) into a NormalizationMode. */
+        public static NormalizationMode fromContractName(String name) {
+            if (name == null || name.isBlank()) {
+                throw new IllegalArgumentException("Normalization mode must not be null or blank");
+            }
+            return switch (name.trim().toLowerCase(java.util.Locale.ROOT)) {
+                case "none" -> NONE;
+                case "max" -> MAX;
+                case "l2" -> L2;
+                case "sum" -> SUM;
+                default -> throw new IllegalArgumentException(
+                        "Unsupported normalization mode '" + name + "'; expected one of none, max, l2, sum");
+            };
+        }
+    }
+
+    /**
+     * Canonical spectral comparison metric payload matching metric_contract_v1.json.
+     */
+    public record SpectralMetrics(
+            double rmse,
+            double nrmseMax,
+            double mae,
+            double r2,
+            double pearsonR2,
+            double cosineSimilarity,
+            Double reducedChi2,
+            NormalizationMode normalization,
+            int nValid
+    ) {}
+
+    /**
+     * Computes canonical spectral metrics with default settings (no normalization, no mask, no variance).
+     */
+    public static SpectralMetrics computeSpectralMetrics(double[] yRef, double[] yPred) {
+        return computeSpectralMetrics(
+                yRef, yPred, null, null, null, null,
+                NormalizationMode.NONE, 0, DEFAULT_METRIC_EPS, DEFAULT_WAVELENGTH_TOL);
+    }
+
+    /**
+     * Computes canonical spectral metrics with optional ROI mask, normalization mode, and eps guard.
+     */
+    public static SpectralMetrics computeSpectralMetrics(
+            double[] yRef,
+            double[] yPred,
+            boolean[] mask,
+            NormalizationMode normalization,
+            double eps) {
+        return computeSpectralMetrics(
+                yRef, yPred, null, null, null, mask,
+                normalization, 0, eps, DEFAULT_WAVELENGTH_TOL);
+    }
+
+    /**
+     * Computes canonical spectral metrics with optional mask, normalization mode, empirical variance,
+     * model parameter count, and eps guard.
+     */
+    public static SpectralMetrics computeSpectralMetrics(
+            double[] yRef,
+            double[] yPred,
+            boolean[] mask,
+            NormalizationMode normalization,
+            double[] variance,
+            int numParams,
+            double eps) {
+        return computeSpectralMetrics(
+                yRef, yPred, null, null, variance, mask,
+                normalization, numParams, eps, DEFAULT_WAVELENGTH_TOL);
+    }
+
+    /**
+     * Pure, stateless IEEE 754 double-precision spectral metric evaluator conforming to
+     * {@code metric_contract_v1.json}.
+     *
+     * @param yRef            Measured / reference intensity array
+     * @param yPred           Predicted / synthetic intensity array
+     * @param wavelengthsRef  Optional reference wavelength grid (nm)
+     * @param wavelengthsPred Optional predicted wavelength grid (nm)
+     * @param variance        Optional per-channel empirical variance array (null yields null reducedChi2)
+     * @param mask            Optional boolean validity / ROI mask
+     * @param normalization   Normalization mode (NONE, MAX, L2, SUM)
+     * @param numParams       Number of fitted model parameters for reduced chi-squared DoF
+     * @param eps             Numerical floor for division and zero-variance guards (default 1e-12)
+     * @param wavelengthTol   Strict wavelength grid equality tolerance in nm (default 1e-6)
+     * @return Immutable {@link SpectralMetrics} record
+     * @throws IllegalArgumentException on null/mismatched array lengths, wavelength mismatch, or nValid == 0
+     */
+    public static SpectralMetrics computeSpectralMetrics(
+            double[] yRef,
+            double[] yPred,
+            double[] wavelengthsRef,
+            double[] wavelengthsPred,
+            double[] variance,
+            boolean[] mask,
+            NormalizationMode normalization,
+            int numParams,
+            double eps,
+            double wavelengthTol) {
+        if (yRef == null || yPred == null) {
+            throw new IllegalArgumentException("yRef and yPred must not be null");
+        }
+        if (normalization == null) {
+            throw new IllegalArgumentException("normalization must not be null");
+        }
+        int nTotal = yRef.length;
+        if (yPred.length != nTotal) {
+            throw new IllegalArgumentException(
+                    "yRef and yPred length mismatch: " + nTotal + " != " + yPred.length);
+        }
+        if (wavelengthsRef != null && wavelengthsRef.length != nTotal) {
+            throw new IllegalArgumentException(
+                    "wavelengthsRef length mismatch: " + wavelengthsRef.length + " != " + nTotal);
+        }
+        if (wavelengthsPred != null && wavelengthsPred.length != nTotal) {
+            throw new IllegalArgumentException(
+                    "wavelengthsPred length mismatch: " + wavelengthsPred.length + " != " + nTotal);
+        }
+        if (wavelengthsRef != null && wavelengthsPred != null && nTotal > 0) {
+            double maxWlDiff = 0.0;
+            for (int i = 0; i < nTotal; i++) {
+                double d = Math.abs(wavelengthsRef[i] - wavelengthsPred[i]);
+                if (d > maxWlDiff) {
+                    maxWlDiff = d;
+                }
+            }
+            if (maxWlDiff > wavelengthTol) {
+                throw new IllegalArgumentException(
+                        "wavelength grid mismatch: max |wavelengthsRef - wavelengthsPred| = "
+                                + maxWlDiff + " nm exceeds wavelengthTol=" + wavelengthTol + " nm");
+            }
+        }
+        if (variance != null && variance.length != nTotal) {
+            throw new IllegalArgumentException(
+                    "variance length mismatch: " + variance.length + " != " + nTotal);
+        }
+        if (mask != null && mask.length != nTotal) {
+            throw new IllegalArgumentException(
+                    "mask length mismatch: " + mask.length + " != " + nTotal);
+        }
+
+        int nValid = 0;
+        if (mask == null) {
+            nValid = nTotal;
+        } else {
+            for (boolean b : mask) {
+                if (b) {
+                    nValid++;
+                }
+            }
+        }
+        if (nValid == 0) {
+            throw new IllegalArgumentException(
+                    "Cannot compute spectral metrics with nValid == 0 (empty input or mask)");
+        }
+
+        double[] ref = new double[nValid];
+        double[] pred = new double[nValid];
+        double[] var = variance != null ? new double[nValid] : null;
+        int idx = 0;
+        for (int i = 0; i < nTotal; i++) {
+            if (mask == null || mask[i]) {
+                ref[idx] = yRef[i];
+                pred[idx] = yPred[i];
+                if (var != null) {
+                    var[idx] = variance[i];
+                }
+                idx++;
+            }
+        }
+
+        double scaleRef = normalizationScale(ref, normalization, eps);
+        double scalePred = normalizationScale(pred, normalization, eps);
+
+        double[] refN = new double[nValid];
+        double[] predN = new double[nValid];
+        double ssRes = 0.0;
+        double sumAbsDiff = 0.0;
+        double maxAbsDiff = 0.0;
+        double maxAbsRefN = 0.0;
+        double sumRefN = 0.0;
+        double sumPredN = 0.0;
+        double dot = 0.0;
+        double normSqRef = 0.0;
+        double normSqPred = 0.0;
+
+        for (int i = 0; i < nValid; i++) {
+            double r = ref[i] / scaleRef;
+            double p = pred[i] / scalePred;
+            refN[i] = r;
+            predN[i] = p;
+
+            double diff = r - p;
+            double absDiff = Math.abs(diff);
+            ssRes += diff * diff;
+            sumAbsDiff += absDiff;
+            if (absDiff > maxAbsDiff) {
+                maxAbsDiff = absDiff;
+            }
+            double absR = Math.abs(r);
+            if (absR > maxAbsRefN) {
+                maxAbsRefN = absR;
+            }
+            sumRefN += r;
+            sumPredN += p;
+            dot += r * p;
+            normSqRef += r * r;
+            normSqPred += p * p;
+        }
+
+        double rmse = Math.sqrt(ssRes / nValid);
+        double nrmseMax = rmse / Math.max(maxAbsRefN, eps);
+        double mae = sumAbsDiff / nValid;
+
+        double meanRef = sumRefN / nValid;
+        double meanPred = sumPredN / nValid;
+        double ssTot = 0.0;
+        double ssPred = 0.0;
+        double covNum = 0.0;
+        for (int i = 0; i < nValid; i++) {
+            double rc = refN[i] - meanRef;
+            double pc = predN[i] - meanPred;
+            ssTot += rc * rc;
+            ssPred += pc * pc;
+            covNum += rc * pc;
+        }
+
+        double r2;
+        if (ssTot > eps) {
+            r2 = 1.0 - (ssRes / ssTot);
+        } else {
+            r2 = (ssRes < eps) ? 1.0 : 0.0;
+        }
+
+        double pearsonR2;
+        if (ssTot <= eps || ssPred <= eps) {
+            pearsonR2 = (maxAbsDiff <= eps) ? 1.0 : 0.0;
+        } else {
+            double corr = covNum / Math.sqrt(ssTot * ssPred);
+            pearsonR2 = Math.min(Math.max(corr * corr, 0.0), 1.0);
+        }
+
+        double normRef = Math.sqrt(normSqRef);
+        double normPred = Math.sqrt(normSqPred);
+        double cosineSimilarity;
+        if (normRef <= eps || normPred <= eps) {
+            cosineSimilarity = (maxAbsDiff <= eps) ? 1.0 : 0.0;
+        } else {
+            cosineSimilarity = dot / (normRef * normPred);
+        }
+
+        Double reducedChi2 = null;
+        if (var != null) {
+            double scaleRefSq = (normalization == NormalizationMode.NONE) ? 1.0 : (scaleRef * scaleRef);
+            double chi2Sum = 0.0;
+            for (int i = 0; i < nValid; i++) {
+                double diff = refN[i] - predN[i];
+                double varScaled = var[i] / scaleRefSq;
+                double varSafe = Math.max(varScaled, eps);
+                chi2Sum += (diff * diff) / varSafe;
+            }
+            int dof = Math.max(nValid - numParams, 1);
+            reducedChi2 = chi2Sum / dof;
+        }
+
+        return new SpectralMetrics(
+                rmse,
+                nrmseMax,
+                mae,
+                r2,
+                pearsonR2,
+                cosineSimilarity,
+                reducedChi2,
+                normalization,
+                nValid);
+    }
+
+    private static double normalizationScale(double[] values, NormalizationMode mode, double eps) {
+        return switch (mode) {
+            case NONE -> 1.0;
+            case MAX -> {
+                double maxAbs = 0.0;
+                for (double v : values) {
+                    double a = Math.abs(v);
+                    if (a > maxAbs) {
+                        maxAbs = a;
+                    }
+                }
+                yield Math.max(maxAbs, eps);
+            }
+            case L2 -> {
+                double sumSq = 0.0;
+                for (double v : values) {
+                    sumSq += v * v;
+                }
+                yield Math.max(Math.sqrt(sumSq), eps);
+            }
+            case SUM -> {
+                double sumAbs = 0.0;
+                for (double v : values) {
+                    sumAbs += Math.abs(v);
+                }
+                yield Math.max(sumAbs, eps);
+            }
+        };
+    }
+
+    /** Calculates canonical coefficient of determination R^2 = 1 - SS_res / SS_tot. */
+    public static double calculateR2(double[] yRef, double[] yPred) {
+        return calculateR2(yRef, yPred, DEFAULT_METRIC_EPS);
+    }
+
+    /** Calculates canonical coefficient of determination R^2 with custom zero-variance guard eps. */
+    public static double calculateR2(double[] yRef, double[] yPred, double eps) {
+        return computeSpectralMetrics(yRef, yPred, null, NormalizationMode.NONE, eps).r2();
+    }
+
+    /** Calculates canonical squared Pearson correlation coefficient r^2 in [0, 1] (never NaN). */
+    public static double calculatePearsonR2(double[] yRef, double[] yPred) {
+        return calculatePearsonR2(yRef, yPred, DEFAULT_METRIC_EPS);
+    }
+
+    /** Calculates canonical squared Pearson correlation coefficient r^2 with custom eps guard. */
+    public static double calculatePearsonR2(double[] yRef, double[] yPred, double eps) {
+        return computeSpectralMetrics(yRef, yPred, null, NormalizationMode.NONE, eps).pearsonR2();
+    }
+
+    /** Calculates canonical Mean Absolute Error (MAE). */
+    public static double calculateMAE(double[] yRef, double[] yPred) {
+        return computeSpectralMetrics(yRef, yPred).mae();
+    }
+
+    /** Calculates canonical cosine similarity (never NaN on zero-norm vectors). */
+    public static double calculateCosineSimilarity(double[] yRef, double[] yPred) {
+        return calculateCosineSimilarity(yRef, yPred, DEFAULT_METRIC_EPS);
+    }
+
+    /** Calculates canonical cosine similarity with custom zero-norm guard eps. */
+    public static double calculateCosineSimilarity(double[] yRef, double[] yPred, double eps) {
+        return computeSpectralMetrics(yRef, yPred, null, NormalizationMode.NONE, eps).cosineSimilarity();
+    }
+
     /**
      * Calculates Root Mean Square Error (RMSE) between two spectra.
+     * Preserves legacy Double.MAX_VALUE return on length mismatch or empty arrays.
      * @param spectrum1 First spectrum
      * @param spectrum2 Second spectrum
      * @return RMSE value
      */
     public double calculateRMSE(double[] spectrum1, double[] spectrum2) {
-        if (spectrum1.length != spectrum2.length || spectrum1.length == 0) {
+        if (spectrum1 == null || spectrum2 == null || spectrum1.length != spectrum2.length || spectrum1.length == 0) {
             return Double.MAX_VALUE;
         }
-
-        double sumSquaredError = 0;
-        for (int i = 0; i < spectrum1.length; i++) {
-            double diff = spectrum1[i] - spectrum2[i];
-            sumSquaredError += diff * diff;
-        }
-
-        return Math.sqrt(sumSquaredError / spectrum1.length);
+        return computeSpectralMetrics(spectrum1, spectrum2).rmse();
     }
 
     /**
-     * Calculates the square of the Pearson correlation coefficient between two spectra to compare their similarities
+     * Calculates the square of the Pearson correlation coefficient between two spectra to compare their similarities.
+     * Delegates to {@link #calculatePearsonR2(double[], double[])} for canonical zero-variance handling.
      * @param synthetic Array representing synthetic spectrum
      * @param measured Array representing real and measured LIBS spectrum
      * @return r^2
      */
     public double calculateSpectralSimilarity(double[] synthetic, double[] measured) {
-        PearsonsCorrelation pc = new PearsonsCorrelation();
-        double correlation = pc.correlation(synthetic, measured);
-
-        // Return r^2 (0 to 1)
-        return correlation * correlation;
+        return calculatePearsonR2(measured, synthetic);
     }
 
     /**

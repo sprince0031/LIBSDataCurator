@@ -224,6 +224,142 @@ public class SpectrumUtilsTest {
         }
     }
 
+    @Test
+    @DisplayName("computeSpectralMetrics (NONE, no variance) returns canonical payload matching metric_contract_v1")
+    void testComputeSpectralMetricsCanonicalNone() {
+        double[] yRef = {10.0, 20.0, 30.0, 40.0};
+        double[] yPred = {12.0, 18.0, 33.0, 37.0};
+
+        SpectrumUtils.SpectralMetrics m = SpectrumUtils.computeSpectralMetrics(yRef, yPred);
+        assertEquals(SpectrumUtils.NormalizationMode.NONE, m.normalization());
+        assertEquals(4, m.nValid());
+        assertNull(m.reducedChi2());
+
+        double expectedRmse = Math.sqrt((4.0 + 4.0 + 9.0 + 9.0) / 4.0);
+        assertEquals(expectedRmse, m.rmse(), 1e-12);
+        assertEquals(expectedRmse / 40.0, m.nrmseMax(), 1e-12);
+        assertEquals((2.0 + 2.0 + 3.0 + 3.0) / 4.0, m.mae(), 1e-12);
+        assertEquals(1.0 - 26.0 / 500.0, m.r2(), 1e-12);
+        assertTrue(m.pearsonR2() >= 0.0 && m.pearsonR2() <= 1.0);
+        assertEquals(m.r2(), SpectrumUtils.calculateR2(yRef, yPred), 1e-12);
+        assertEquals(m.pearsonR2(), SpectrumUtils.calculatePearsonR2(yRef, yPred), 1e-12);
+        assertEquals(m.mae(), SpectrumUtils.calculateMAE(yRef, yPred), 1e-12);
+        assertEquals(m.cosineSimilarity(), SpectrumUtils.calculateCosineSimilarity(yRef, yPred), 1e-12);
+        // Backward-compatible instance methods
+        assertEquals(m.rmse(), spectrumUtils.calculateRMSE(yRef, yPred), 1e-12);
+        assertEquals(m.pearsonR2(), spectrumUtils.calculateSpectralSimilarity(yPred, yRef), 1e-12);
+    }
+
+    @Test
+    @DisplayName("computeSpectralMetrics supports NONE, MAX, L2, SUM normalization and variance scaling")
+    void testComputeSpectralMetricsNormalizationModesAndVarianceScaling() {
+        double[] yRef = {-5.0, 10.0, 25.0, 15.0};
+        double[] yPred = {-4.0, 12.0, 20.0, 18.0};
+        double[] variance = {1.0, 4.0, 9.0, 16.0};
+
+        for (SpectrumUtils.NormalizationMode mode : SpectrumUtils.NormalizationMode.values()) {
+            SpectrumUtils.SpectralMetrics m = SpectrumUtils.computeSpectralMetrics(
+                    yRef, yPred, null, mode, variance, 1, SpectrumUtils.DEFAULT_METRIC_EPS
+            );
+            assertEquals(mode, m.normalization());
+            assertEquals(4, m.nValid());
+            assertNotNull(m.reducedChi2());
+
+            double sRef;
+            double sPred;
+            switch (mode) {
+                case NONE -> { sRef = 1.0; sPred = 1.0; }
+                case MAX -> { sRef = 25.0; sPred = 20.0; }
+                case L2 -> {
+                    sRef = Math.sqrt(25.0 + 100.0 + 625.0 + 225.0);
+                    sPred = Math.sqrt(16.0 + 144.0 + 400.0 + 324.0);
+                }
+                case SUM -> { sRef = 5.0 + 10.0 + 25.0 + 15.0; sPred = 4.0 + 12.0 + 20.0 + 18.0; }
+                default -> throw new IllegalStateException("Unexpected mode: " + mode);
+            }
+
+            double chi2Sum = 0.0;
+            double sqErrSum = 0.0;
+            for (int i = 0; i < yRef.length; i++) {
+                double diff = (yRef[i] / sRef) - (yPred[i] / sPred);
+                sqErrSum += diff * diff;
+                double vScaled = Math.max(variance[i] / (sRef * sRef), 1e-12);
+                chi2Sum += (diff * diff) / vScaled;
+            }
+            assertEquals(Math.sqrt(sqErrSum / 4.0), m.rmse(), 1e-12);
+            assertEquals(chi2Sum / 3.0, m.reducedChi2(), 1e-12);
+        }
+    }
+
+    @Test
+    @DisplayName("computeSpectralMetrics enforces ROI masking, wavelengthTol, and array-length validation")
+    void testComputeSpectralMetricsValidationAndMasking() {
+        double[] wlRef = {350.0, 351.0, 352.0, 353.0};
+        double[] wlOk = {350.0 + 5e-7, 351.0 + 5e-7, 352.0 + 5e-7, 353.0 + 5e-7};
+        double[] wlBad = {350.0 + 2e-6, 351.0, 352.0, 353.0};
+        double[] yRef = {100.0, 10.0, 20.0, 30.0};
+        double[] yPred = {9999.0, 10.0, 20.0, 30.0};
+        boolean[] mask = {false, true, true, true};
+
+        SpectrumUtils.SpectralMetrics masked = SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, wlRef, wlOk, null, mask,
+                SpectrumUtils.NormalizationMode.NONE, 0,
+                SpectrumUtils.DEFAULT_METRIC_EPS, SpectrumUtils.DEFAULT_WAVELENGTH_TOL
+        );
+        assertEquals(3, masked.nValid());
+        assertEquals(0.0, masked.rmse(), 1e-12);
+        assertEquals(1.0, masked.r2(), 1e-12);
+
+        // Wavelength mismatch -> IllegalArgumentException
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, wlRef, wlBad, null, mask,
+                SpectrumUtils.NormalizationMode.NONE, 0, 1e-12, 1e-6
+        ));
+        // Length mismatches -> IllegalArgumentException
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(yRef, new double[]{1.0, 2.0}));
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, new boolean[]{true, false}, SpectrumUtils.NormalizationMode.NONE, 1e-12));
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, null, SpectrumUtils.NormalizationMode.NONE, new double[]{1.0, 2.0}, 0, 1e-12));
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, new double[]{350.0}, wlRef, null, null,
+                SpectrumUtils.NormalizationMode.NONE, 0, 1e-12, 1e-6));
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, wlRef, new double[]{350.0}, null, null,
+                SpectrumUtils.NormalizationMode.NONE, 0, 1e-12, 1e-6));
+        // Empty valid mask & empty input -> IllegalArgumentException
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                yRef, yPred, new boolean[]{false, false, false, false}, SpectrumUtils.NormalizationMode.NONE, 1e-12));
+        assertThrows(IllegalArgumentException.class, () -> SpectrumUtils.computeSpectralMetrics(
+                new double[]{}, new double[]{}));
+    }
+
+    @Test
+    @DisplayName("computeSpectralMetrics handles zero-variance and zero-norm edge cases without NaN")
+    void testComputeSpectralMetricsZeroVarianceAndZeroNormNeverNaN() {
+        double[] constant = {5.0, 5.0, 5.0};
+        SpectrumUtils.SpectralMetrics eqConst = SpectrumUtils.computeSpectralMetrics(constant, new double[]{5.0, 5.0, 5.0});
+        assertEquals(1.0, eqConst.r2(), 1e-12);
+        assertEquals(1.0, eqConst.pearsonR2(), 1e-12);
+        assertEquals(1.0, eqConst.cosineSimilarity(), 1e-12);
+
+        SpectrumUtils.SpectralMetrics neqConst = SpectrumUtils.computeSpectralMetrics(constant, new double[]{6.0, 6.0, 6.0});
+        assertEquals(0.0, neqConst.r2(), 1e-12);
+        assertEquals(0.0, neqConst.pearsonR2(), 1e-12);
+        assertFalse(Double.isNaN(neqConst.pearsonR2()));
+
+        double[] zeros = {0.0, 0.0, 0.0, 0.0};
+        SpectrumUtils.SpectralMetrics eqZero = SpectrumUtils.computeSpectralMetrics(zeros, new double[]{0.0, 0.0, 0.0, 0.0});
+        assertEquals(1.0, eqZero.r2(), 1e-12);
+        assertEquals(1.0, eqZero.pearsonR2(), 1e-12);
+        assertEquals(1.0, eqZero.cosineSimilarity(), 1e-12);
+
+        SpectrumUtils.SpectralMetrics neqZero = SpectrumUtils.computeSpectralMetrics(zeros, new double[]{0.0, 1.0, 2.0, 3.0});
+        assertEquals(0.0, neqZero.r2(), 1e-12);
+        assertEquals(0.0, neqZero.pearsonR2(), 1e-12);
+        assertEquals(0.0, neqZero.cosineSimilarity(), 1e-12);
+    }
+
     private static double[] toDoubleArray(org.json.JSONArray arr) {
         double[] res = new double[arr.length()];
         for (int i = 0; i < arr.length(); i++) {
