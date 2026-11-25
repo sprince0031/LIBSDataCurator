@@ -180,3 +180,53 @@ def test_condition_real_lsa_measured_data():
     assert np.all(cond.sigma_mean > 0.0)
     assert len(cond.point_means) == len(p_469)
 
+
+def test_standardized_preprocessing_helpers_contract() -> None:
+    from scripts.measured_conditioning import (
+        apply_lit_and_saturation_mask,
+        apply_morphological_baseline,
+        dark_subtract,
+        trim_conditioning_shots,
+    )
+
+    n_shots, n_ch = 20, 120
+    shots = np.full((n_shots, n_ch), 400.0, dtype=np.float64)
+    shots[:, :10] = 40.0  # leading unlit margin
+    shots[:4, 30] = 5000.0  # conditioning anomaly on first 4 shots
+    shots[:, 60] = 3000.0  # stable emission line
+    shots[5:, 90] = 63000.0  # saturated pixel across majority of steady shots
+
+    lit_mask, valid_readings, channel_valid = apply_lit_and_saturation_mask(
+        shots, det_full_scale=65535.0, sat_factor=0.9
+    )
+    assert not np.any(lit_mask[:10])
+    assert np.all(lit_mask[10:])
+    assert not valid_readings[6, 90]
+    assert channel_valid[60]
+    assert not channel_valid[0]
+
+    subtracted, dark_level = dark_subtract(shots, lit_mask=lit_mask)
+    assert dark_level == pytest.approx(40.0, abs=1e-9)
+    assert np.allclose(subtracted[:, :10], 0.0, atol=1e-9)
+
+    steady, n_discarded = trim_conditioning_shots(subtracted, lit_mask)
+    assert 3 <= n_discarded <= 15
+    assert steady.shape[0] == n_shots - n_discarded
+
+    steady_override, n_ov = trim_conditioning_shots(subtracted, lit_mask, discard_override=5)
+    assert n_ov == 5
+    assert steady_override.shape[0] == n_shots - 5
+
+    # Post-average morphological baseline with default se_size=25 & non-negative clamp
+    x = np.linspace(340.0, 900.0, 400)
+    mean_spec = 300.0 + 100.0 * np.sin(x / 40.0)
+    mean_spec[150] += 4000.0
+    mean_spec[20] = -15.0  # negative artifact must be clamped to >= 0
+    baselined = apply_morphological_baseline(mean_spec)
+    assert baselined.shape == mean_spec.shape
+    assert np.all(baselined >= 0.0)
+    assert baselined[150] > 3000.0
+    # Idempotency check
+    baselined_twice = apply_morphological_baseline(baselined, se_size=25)
+    np.testing.assert_allclose(baselined, baselined_twice, atol=1e-5)
+
