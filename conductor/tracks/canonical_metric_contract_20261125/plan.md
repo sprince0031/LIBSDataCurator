@@ -20,7 +20,7 @@
 
 ---
 
-## Phase 2: Python Canonical Metric API & Conditioning Helpers
+## Phase 2: Python Canonical Metric API & Conditioning Helpers [checkpoint: 17a8e40]
 
 - [x] Task: Probe `paper-harness/scripts/run_parity_fixture.py` (read-only) before coding
   - [x] Inspect `paper-harness/scripts/run_parity_fixture.py` (read-only) to confirm the exact module path, function name, signature, and return keys it probes in `LIBSDataCurator/scripts/match_metrics.py` so Phase 4 resolves cleanly without `"fallback"`. *(Finding: `run_parity_fixture.py:39-59` probes `parity_bridge.py` / `scripts/parity_bridge.py` for `compute_spectral_metrics(y_ref, y_pred)` and reads `rmse`, `mae`, `r2`, `cosine_similarity`; we will expose a thin `scripts/parity_bridge.py` re-exporting `scripts/match_metrics.py:compute_spectral_metrics`.)*
@@ -46,13 +46,13 @@
   - [x] Export `apply_lit_and_saturation_mask`, `dark_subtract`, `trim_conditioning_shots`, and `apply_morphological_baseline` (preserving `preprocess` alias/compatibility and matching default `se_size=25`).
   - [x] Refactor `condition_material(...)` to orchestrate the exported helpers in the exact shot-level vs. post-average sequence documented in `metric_contract_v1.json`.
   - [x] Run `pytest scripts/test_measured_conditioning.py` and verify all existing and new tests pass with >93% coverage.
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (17a8e40)
 
 ---
 
 ## Phase 3: Java Canonical Metric API (`SpectrumUtils.java`)
 
-- [ ] Task: Write failing JUnit tests for Java `SpectralMetrics` contract in `SpectrumUtilsTest.java` (Red phase)
+- [~] Task: Write failing JUnit tests for Java `SpectralMetrics` contract in `SpectrumUtilsTest.java` (Red phase)
   - [ ] Add unit tests in `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` for:
     - `NormalizationMode` (`NONE`, `MAX`, `L2`, `SUM` with L1 norm).
     - `SpectralMetrics` record fields (`rmse`, `nrmseMax`, `mae`, `r2`, `pearsonR2`, `cosineSimilarity`, nullable `Double reducedChi2`, `NormalizationMode normalization`, `int nValid`).
