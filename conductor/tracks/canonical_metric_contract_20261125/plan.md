@@ -50,7 +50,7 @@
 
 ---
 
-## Phase 3: Java Canonical Metric API (`SpectrumUtils.java`)
+## Phase 3: Java Canonical Metric API (`SpectrumUtils.java`) [checkpoint: 5afe262]
 
 - [x] Task: Write failing JUnit tests for Java `SpectralMetrics` contract in `SpectrumUtilsTest.java` (Red phase) (9b3c87b)
   - [x] Add unit tests in `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` for:
@@ -69,13 +69,13 @@
   - [x] Enforce array-length mismatch, empty-mask, and strict wavelength grid checks raising `IllegalArgumentException`.
   - [x] Delegate existing public methods internally where appropriate without breaking existing method signatures or callers.
   - [x] Run `mvn test -Dtest=SpectrumUtilsTest` and full `mvn test` suite to verify zero regressions.
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (5afe262)
 
 ---
 
 ## Phase 4: Cross-Language Golden-Fixture Parity & Harness Verification
 
-- [ ] Task: Create committed golden-fixture parity dataset (`src/test/resources/metric_parity_golden_fixtures.json`)
+- [~] Task: Create committed golden-fixture parity dataset (`src/test/resources/metric_parity_golden_fixtures.json`)
   - [ ] Generate and commit `src/test/resources/metric_parity_golden_fixtures.json` containing deterministic synthetic edge cases plus paired vectors and reference expected outputs for all 5 golden materials (`SS469`, `SS551`, `SS465`, `SS405`, `EN AC-42000`) across normalization modes and variance configurations, so `mvn test` never depends on hardcoded external repository paths.
 - [ ] Task: Run cross-language parity unit tests (Python & Java)
   - [ ] Add parity test cases in `tests/test_match_metrics_parity.py` and `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` loading `src/test/resources/metric_parity_golden_fixtures.json`.
