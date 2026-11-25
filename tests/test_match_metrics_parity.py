@@ -78,5 +78,5 @@ def test_metric_contract_v1_edge_cases_and_preprocessing_order() -> None:
     assert pipeline["post_average_order"] == [
         "apply_morphological_baseline",
     ]
-    assert pipeline["morphological_baseline_defaults"]["se_size"] == 65
+    assert pipeline["morphological_baseline_defaults"]["se_size"] == 25
     assert pipeline["morphological_baseline_defaults"]["non_negative_clamp"] is True

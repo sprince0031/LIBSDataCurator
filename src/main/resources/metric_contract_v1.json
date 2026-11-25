@@ -105,7 +105,7 @@
       "apply_morphological_baseline"
     ],
     "morphological_baseline_defaults": {
-      "se_size": 65,
+      "se_size": 25,
       "non_negative_clamp": true,
       "idempotent": true
     },
