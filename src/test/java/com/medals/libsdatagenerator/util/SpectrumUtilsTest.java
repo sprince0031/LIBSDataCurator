@@ -360,6 +360,97 @@ public class SpectrumUtilsTest {
         assertEquals(0.0, neqZero.cosineSimilarity(), 1e-12);
     }
 
+    @Test
+    @DisplayName("SpectrumUtils.computeSpectralMetrics matches Python match_metrics.py within 1e-9 across synthetic and 5 golden materials")
+    void testGoldenFixturesPythonJavaParity() throws Exception {
+        try (java.io.InputStream is = getClass().getResourceAsStream("/metric_parity_golden_fixtures.json")) {
+            assertNotNull(is, "metric_parity_golden_fixtures.json must exist in test resources");
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(is);
+
+            assertEquals("metric_contract_v1", root.get("schema_version").asText());
+            double tol = root.get("parity_tolerance").asDouble();
+            assertEquals(1e-9, tol, 0.0);
+
+            JsonNode vectorsNode = root.get("material_vectors");
+            List<String> expectedMaterials = List.of("SS469", "SS551", "SS465", "SS405", "EN AC-42000");
+            for (String mat : expectedMaterials) {
+                assertTrue(vectorsNode.has(mat), "Missing golden material vectors for " + mat);
+            }
+
+            JsonNode casesNode = root.get("cases");
+            assertTrue(casesNode.size() >= 28, "Expected synthetic + 5x4 golden material cases");
+
+            for (JsonNode caseNode : casesNode) {
+                String caseId = caseNode.get("id").asText();
+                String kind = caseNode.get("kind").asText();
+                double[] yRef;
+                double[] yPred;
+                double[] variance;
+                if ("golden_material".equals(kind)) {
+                    JsonNode mv = vectorsNode.get(caseNode.get("material").asText());
+                    yRef = toDoubleArray(mv.get("y_ref"));
+                    yPred = toDoubleArray(mv.get("y_pred"));
+                    variance = caseNode.get("use_variance").asBoolean() ? toDoubleArray(mv.get("variance")) : null;
+                } else {
+                    yRef = toDoubleArray(caseNode.get("y_ref"));
+                    yPred = toDoubleArray(caseNode.get("y_pred"));
+                    variance = caseNode.get("variance").isNull() ? null : toDoubleArray(caseNode.get("variance"));
+                }
+                boolean[] mask = caseNode.get("mask").isNull() ? null : toBooleanArray(caseNode.get("mask"));
+                SpectrumUtils.NormalizationMode mode = SpectrumUtils.NormalizationMode.fromContractName(
+                        caseNode.get("normalization").asText());
+                int numParams = caseNode.get("num_params").asInt();
+
+                SpectrumUtils.SpectralMetrics actual = SpectrumUtils.computeSpectralMetrics(
+                        yRef, yPred, mask, mode, variance, numParams, SpectrumUtils.DEFAULT_METRIC_EPS);
+
+                JsonNode exp = caseNode.get("expected");
+                assertEquals(exp.get("normalization").asText(), actual.normalization().contractName(), caseId);
+                assertEquals(exp.get("n_valid").asInt(), actual.nValid(), caseId);
+
+                assertParityWithinTol(exp.get("rmse").asDouble(), actual.rmse(), tol, caseId + ":rmse");
+                assertParityWithinTol(exp.get("nrmse_max").asDouble(), actual.nrmseMax(), tol, caseId + ":nrmse_max");
+                assertParityWithinTol(exp.get("mae").asDouble(), actual.mae(), tol, caseId + ":mae");
+                assertParityWithinTol(exp.get("r2").asDouble(), actual.r2(), tol, caseId + ":r2");
+                assertParityWithinTol(exp.get("pearson_r2").asDouble(), actual.pearsonR2(), tol, caseId + ":pearson_r2");
+                assertParityWithinTol(exp.get("cosine_similarity").asDouble(), actual.cosineSimilarity(), tol, caseId + ":cosine_similarity");
+
+                if (exp.get("reduced_chi2").isNull()) {
+                    assertNull(actual.reducedChi2(), caseId + ":reduced_chi2 expected null");
+                } else {
+                    assertNotNull(actual.reducedChi2(), caseId + ":reduced_chi2 expected non-null");
+                    assertParityWithinTol(exp.get("reduced_chi2").asDouble(), actual.reducedChi2(), tol, caseId + ":reduced_chi2");
+                }
+            }
+        }
+    }
+
+    private static void assertParityWithinTol(double expected, double actual, double tol, String label) {
+        assertFalse(Double.isNaN(actual), label + " must not be NaN");
+        double delta = Math.abs(expected - actual);
+        // Check absolute tolerance <= 1e-9 (or relative 1e-9 for huge reduced_chi2 values > 1e6 where double ULP scales with magnitude)
+        double allowed = Math.max(tol, Math.abs(expected) * 1e-12);
+        assertTrue(delta <= allowed,
+                label + " parity mismatch: expected=" + expected + ", actual=" + actual + ", delta=" + delta);
+    }
+
+    private static double[] toDoubleArray(JsonNode arr) {
+        double[] res = new double[arr.size()];
+        for (int i = 0; i < arr.size(); i++) {
+            res[i] = arr.get(i).asDouble();
+        }
+        return res;
+    }
+
+    private static boolean[] toBooleanArray(JsonNode arr) {
+        boolean[] res = new boolean[arr.size()];
+        for (int i = 0; i < arr.size(); i++) {
+            res[i] = arr.get(i).asBoolean();
+        }
+        return res;
+    }
+
     private static double[] toDoubleArray(org.json.JSONArray arr) {
         double[] res = new double[arr.length()];
         for (int i = 0; i < arr.length(); i++) {

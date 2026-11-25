@@ -262,3 +262,49 @@ def test_parity_bridge_standalone_import_for_paper_harness() -> None:
     for key in ("rmse", "mae", "r2", "cosine_similarity"):
         assert key in out
         assert isinstance(out[key], float)
+
+
+def test_golden_fixtures_python_parity() -> None:
+    from scripts.match_metrics import compute_spectral_metrics
+
+    fixtures_path = REPO_ROOT / "src" / "test" / "resources" / "metric_parity_golden_fixtures.json"
+    assert fixtures_path.is_file(), f"Missing committed golden fixtures: {fixtures_path}"
+    data = json.loads(fixtures_path.read_text(encoding="utf-8"))
+
+    assert data["schema_version"] == "metric_contract_v1"
+    assert data["golden_materials"] == ["SS469", "SS551", "SS465", "SS405", "EN AC-42000"]
+    vectors = data["material_vectors"]
+    for mat in data["golden_materials"]:
+        assert mat in vectors
+
+    numeric_keys = ("rmse", "nrmse_max", "mae", "r2", "pearson_r2", "cosine_similarity")
+    for case in data["cases"]:
+        if case["kind"] == "golden_material":
+            mat_vec = vectors[case["material"]]
+            y_ref = mat_vec["y_ref"]
+            y_pred = mat_vec["y_pred"]
+            variance = mat_vec["variance"] if case["use_variance"] else None
+        else:
+            y_ref = case["y_ref"]
+            y_pred = case["y_pred"]
+            variance = case["variance"]
+
+        actual = compute_spectral_metrics(
+            y_ref,
+            y_pred,
+            variance=variance,
+            mask=case["mask"],
+            normalization=case["normalization"],
+            num_params=case["num_params"],
+        )
+        expected = case["expected"]
+        assert actual["normalization"] == expected["normalization"], case["id"]
+        assert actual["n_valid"] == expected["n_valid"], case["id"]
+        for k in numeric_keys:
+            assert actual[k] == pytest.approx(expected[k], abs=1e-12, rel=1e-12), f"{case['id']}:{k}"
+        if expected["reduced_chi2"] is None:
+            assert actual["reduced_chi2"] is None, case["id"]
+        else:
+            assert actual["reduced_chi2"] == pytest.approx(
+                expected["reduced_chi2"], abs=1e-12, rel=1e-12
+            ), f"{case['id']}:reduced_chi2"
