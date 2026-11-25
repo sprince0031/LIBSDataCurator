@@ -24,8 +24,8 @@
 
 - [x] Task: Probe `paper-harness/scripts/run_parity_fixture.py` (read-only) before coding
   - [x] Inspect `paper-harness/scripts/run_parity_fixture.py` (read-only) to confirm the exact module path, function name, signature, and return keys it probes in `LIBSDataCurator/scripts/match_metrics.py` so Phase 4 resolves cleanly without `"fallback"`. *(Finding: `run_parity_fixture.py:39-59` probes `parity_bridge.py` / `scripts/parity_bridge.py` for `compute_spectral_metrics(y_ref, y_pred)` and reads `rmse`, `mae`, `r2`, `cosine_similarity`; we will expose a thin `scripts/parity_bridge.py` re-exporting `scripts/match_metrics.py:compute_spectral_metrics`.)*
-- [~] Task: Write failing unit tests for `compute_spectral_metrics` in `scripts/match_metrics.py` (Red phase)
-  - [ ] Expand `tests/test_match_metrics_parity.py` and `scripts/test_match_metrics.py` to cover:
+- [x] Task: Write failing unit tests for `compute_spectral_metrics` in `scripts/match_metrics.py` (Red phase) (7457060)
+  - [x] Expand `tests/test_match_metrics_parity.py` and `scripts/test_match_metrics.py` to cover:
     - All normalization modes (`none`, `max`, `l2`, `sum` with L1 norm).
     - Array-length mismatch checks (`y_ref`, `y_pred`, `mask`, `variance`, `wavelengths_ref`, `wavelengths_pred`) raising `ValueError`.
     - Strict wavelength grid validation (`wavelength_tol = 1e-6` pass vs. mismatch `ValueError`).
@@ -33,20 +33,20 @@
     - `variance=None` returning `reduced_chi2: None` (no silent `1.0` substitution) vs. empirical `variance` with `1 / max(scale_ref, eps)^2` scaling under normalization and `dof = max(n_valid - num_params, 1)`.
     - Zero-variance `r2` (`1.0` iff `ss_res < eps`, else `0.0`), zero-variance `pearson_r2` and zero-norm `cosine_similarity` (`1.0` if equal within `eps`, else `0.0`, never `NaN`).
     - Return payload completeness (`normalization`, `n_valid`, and all 7 metric keys) and backward compatibility of existing `match_metrics.py` helpers.
-  - [ ] Run `pytest tests/test_match_metrics_parity.py scripts/test_match_metrics.py` to confirm Red failure.
-- [ ] Task: Implement `compute_spectral_metrics` in `scripts/match_metrics.py` (Green & Refactor phase)
-  - [ ] Implement pure, stateless `float64` `compute_spectral_metrics(y_ref, y_pred, *, wavelengths_ref=None, wavelengths_pred=None, variance=None, mask=None, normalization="none", num_params=0, eps=1e-12, wavelength_tol=1e-6) -> dict`.
-  - [ ] Enforce input array-length consistency, strict wavelength equality within `wavelength_tol`, empty-mask `ValueError`, variance scaling under normalization, and zero-variance / zero-norm rules matching `metric_contract_v1.json`.
-  - [ ] Ensure existing functions (`calculate_reduced_chi2`, `calculate_roi_metrics`, `calculate_whole_spectrum_metrics`, `calculate_sub_bin_residuals`) remain backward-compatible.
-  - [ ] Run `pytest tests/test_match_metrics_parity.py scripts/test_match_metrics.py` and verify >95% coverage on `scripts/match_metrics.py`.
-- [ ] Task: Write failing unit tests for standardized preprocessing helpers in `scripts/measured_conditioning.py` (Red phase)
-  - [ ] Add unit tests in `scripts/test_measured_conditioning.py` for standalone `apply_lit_and_saturation_mask`, `dark_subtract`, `trim_conditioning_shots`, and `apply_morphological_baseline(spectrum, se_size=65)` (including non-negative clamp and contract call order).
-  - [ ] Run `pytest scripts/test_measured_conditioning.py` to confirm Red failure.
-- [ ] Task: Extract and standardize preprocessing helpers in `scripts/measured_conditioning.py` (Green & Refactor phase)
-  - [ ] Export `apply_lit_and_saturation_mask`, `dark_subtract`, `trim_conditioning_shots`, and `apply_morphological_baseline` (preserving `preprocess` alias/compatibility).
-  - [ ] Refactor `condition_material(...)` to orchestrate the exported helpers in the exact shot-level vs. post-average sequence documented in `metric_contract_v1.json`.
-  - [ ] Run `pytest scripts/test_measured_conditioning.py` and verify all existing and new tests pass with >95% coverage.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Run `pytest tests/test_match_metrics_parity.py scripts/test_match_metrics.py` to confirm Red failure.
+- [x] Task: Implement `compute_spectral_metrics` in `scripts/match_metrics.py` (Green & Refactor phase) (7457060)
+  - [x] Implement pure, stateless `float64` `compute_spectral_metrics(y_ref, y_pred, *, wavelengths_ref=None, wavelengths_pred=None, variance=None, mask=None, normalization="none", num_params=0, eps=1e-12, wavelength_tol=1e-6) -> dict` (plus `scripts/parity_bridge.py` delegating to it for `paper-harness`).
+  - [x] Enforce input array-length consistency, strict wavelength equality within `wavelength_tol`, empty-mask `ValueError`, variance scaling under normalization, and zero-variance / zero-norm rules matching `metric_contract_v1.json`.
+  - [x] Ensure existing functions (`calculate_reduced_chi2`, `calculate_roi_metrics`, `calculate_whole_spectrum_metrics`, `calculate_sub_bin_residuals`) remain backward-compatible.
+  - [x] Run `pytest tests/test_match_metrics_parity.py scripts/test_match_metrics.py` and verify >95% coverage on `scripts/match_metrics.py`.
+- [x] Task: Write failing unit tests for standardized preprocessing helpers in `scripts/measured_conditioning.py` (Red phase) (00b415b)
+  - [x] Add unit tests in `scripts/test_measured_conditioning.py` for standalone `apply_lit_and_saturation_mask`, `dark_subtract`, `trim_conditioning_shots`, and `apply_morphological_baseline(spectrum, se_size=25)` (including non-negative clamp and contract call order).
+  - [x] Run `pytest scripts/test_measured_conditioning.py` to confirm Red failure.
+- [x] Task: Extract and standardize preprocessing helpers in `scripts/measured_conditioning.py` (Green & Refactor phase) (00b415b)
+  - [x] Export `apply_lit_and_saturation_mask`, `dark_subtract`, `trim_conditioning_shots`, and `apply_morphological_baseline` (preserving `preprocess` alias/compatibility and matching default `se_size=25`).
+  - [x] Refactor `condition_material(...)` to orchestrate the exported helpers in the exact shot-level vs. post-average sequence documented in `metric_contract_v1.json`.
+  - [x] Run `pytest scripts/test_measured_conditioning.py` and verify all existing and new tests pass with >93% coverage.
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
