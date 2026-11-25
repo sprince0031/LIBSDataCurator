@@ -1,5 +1,7 @@
 package com.medals.libsdatagenerator.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.medals.libsdatagenerator.model.PlasmaZone;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -198,6 +200,27 @@ public class SpectrumUtilsTest {
         for (int i = 0; i < finalNormExp.length; i++) {
             assertEquals(finalNormExp[i], finalNormActual[i], Math.abs(finalNormExp[i]) * 1e-9 + 1e-12,
                     "Final max-normalised channel " + i + " mismatch");
+        }
+    }
+
+    @Test
+    @DisplayName("metric_contract_v1.json loads from classpath and exposes canonical contract schema")
+    void testMetricContractV1ClasspathLoading() throws Exception {
+        try (java.io.InputStream is = getClass().getResourceAsStream("/metric_contract_v1.json")) {
+            assertNotNull(is, "metric_contract_v1.json must be available on the classpath");
+            ObjectMapper mapper = new ObjectMapper();
+            JsonNode root = mapper.readTree(is);
+
+            assertEquals("metric_contract_v1", root.get("schema_version").asText());
+            assertEquals(1e-12, root.get("tolerances").get("eps").asDouble(), 0.0);
+            assertEquals(1e-6, root.get("tolerances").get("wavelength_tol").asDouble(), 0.0);
+            assertTrue(root.get("normalization_modes").has("none"));
+            assertTrue(root.get("normalization_modes").has("max"));
+            assertTrue(root.get("normalization_modes").has("l2"));
+            assertTrue(root.get("normalization_modes").has("sum"));
+            assertEquals(9, root.get("canonical_metric_keys").size());
+            assertEquals(4, root.get("preprocessing_pipeline").get("shot_level_order").size());
+            assertEquals(1, root.get("preprocessing_pipeline").get("post_average_order").size());
         }
     }
 

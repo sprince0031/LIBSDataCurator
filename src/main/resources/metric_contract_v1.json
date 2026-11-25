@@ -1,0 +1,120 @@
+{
+  "schema_version": "metric_contract_v1",
+  "description": "Canonical cross-language (Python/Java) spectral metric and measured LIBS conditioning contract for LIBSDataCurator (TRACK-CORE-01).",
+  "precision": "float64",
+  "tolerances": {
+    "eps": 1e-12,
+    "wavelength_tol": 1e-6,
+    "wavelength_tol_unit": "nm",
+    "python_java_parity_tol": 1e-9,
+    "cross_repo_parity_tol": 1e-6
+  },
+  "canonical_metric_keys": [
+    "rmse",
+    "nrmse_max",
+    "mae",
+    "r2",
+    "pearson_r2",
+    "cosine_similarity",
+    "reduced_chi2",
+    "normalization",
+    "n_valid"
+  ],
+  "metric_definitions": {
+    "rmse": "sqrt(mean((y_ref_norm - y_pred_norm)^2))",
+    "nrmse_max": "rmse / max(max(abs(y_ref_norm)), eps)",
+    "mae": "mean(abs(y_ref_norm - y_pred_norm))",
+    "r2": "1.0 - sum((y_ref_norm - y_pred_norm)^2) / sum((y_ref_norm - mean(y_ref_norm))^2)",
+    "pearson_r2": "corr(y_ref_norm, y_pred_norm)^2",
+    "cosine_similarity": "dot(y_ref_norm, y_pred_norm) / (||y_ref_norm||_2 * ||y_pred_norm||_2)",
+    "reduced_chi2": "(1 / max(n_valid - num_params, 1)) * sum((y_ref_norm - y_pred_norm)^2 / max(var_scaled, eps))"
+  },
+  "normalization_modes": {
+    "none": {
+      "scale_formula": "1.0",
+      "applied_to": ["y_ref", "y_pred"]
+    },
+    "max": {
+      "scale_formula": "max(max(abs(y)), eps)",
+      "applied_to": ["y_ref", "y_pred"]
+    },
+    "l2": {
+      "scale_formula": "max(sqrt(sum(y^2)), eps)",
+      "applied_to": ["y_ref", "y_pred"]
+    },
+    "sum": {
+      "scale_formula": "max(sum(abs(y)), eps)",
+      "applied_to": ["y_ref", "y_pred"]
+    }
+  },
+  "variance_scaling": {
+    "applies_when": "normalization != 'none'",
+    "formula": "variance_scaled = variance / (max(scale_ref, eps) ** 2)",
+    "notes": "scale_ref is the normalization denominator computed on masked y_ref; each scaled variance entry is floored by eps before reduced_chi2 summation."
+  },
+  "edge_cases": {
+    "array_length_mismatch": {
+      "python_exception": "ValueError",
+      "java_exception": "IllegalArgumentException",
+      "description": "Raised when y_ref, y_pred, or any provided optional array (mask, variance, wavelengths_ref, wavelengths_pred) do not share identical 1D lengths."
+    },
+    "empty_valid_mask": {
+      "python_exception": "ValueError",
+      "java_exception": "IllegalArgumentException",
+      "description": "Raised when n_valid == 0 after applying optional boolean mask or when input arrays are empty."
+    },
+    "wavelength_mismatch": {
+      "python_exception": "ValueError",
+      "java_exception": "IllegalArgumentException",
+      "description": "Raised when both wavelengths_ref and wavelengths_pred are supplied and max(abs(wavelengths_ref - wavelengths_pred)) > wavelength_tol."
+    },
+    "missing_variance": {
+      "reduced_chi2_value": null,
+      "description": "When variance is None/null, reduced_chi2 MUST be None/null (never silently substituting 1.0)."
+    },
+    "zero_variance_r2": {
+      "condition": "ss_tot <= eps",
+      "equal_within_eps": 1.0,
+      "equal_criterion": "ss_res < eps",
+      "not_equal": 0.0,
+      "allow_nan": false
+    },
+    "zero_variance_pearson_r2": {
+      "condition": "ss_ref <= eps or ss_pred <= eps",
+      "equal_within_eps": 1.0,
+      "equal_criterion": "max(abs(y_ref_norm - y_pred_norm)) <= eps",
+      "not_equal": 0.0,
+      "allow_nan": false
+    },
+    "zero_norm_cosine_similarity": {
+      "condition": "norm_ref <= eps or norm_pred <= eps",
+      "equal_within_eps": 1.0,
+      "equal_criterion": "max(abs(y_ref_norm - y_pred_norm)) <= eps",
+      "not_equal": 0.0,
+      "allow_nan": false
+    }
+  },
+  "preprocessing_pipeline": {
+    "shot_level_order": [
+      "apply_lit_and_saturation_mask",
+      "dark_subtract",
+      "trim_conditioning_shots",
+      "shot_scale_normalize_and_average"
+    ],
+    "post_average_order": [
+      "apply_morphological_baseline"
+    ],
+    "morphological_baseline_defaults": {
+      "se_size": 65,
+      "non_negative_clamp": true,
+      "idempotent": true
+    },
+    "stage_details": {
+      "apply_lit_and_saturation_mask": "Identifies leading unlit detector margin via 3*m0 rule on initial raw mean and masks saturated pixels (>= saturationThresholdFactor * detectorFullScale) without zeroing.",
+      "dark_subtract": "Computes dark_level as median of unlit raw channels (or 0.0 if all lit) and subtracts dark_level from each shot.",
+      "trim_conditioning_shots": "Discards leading laser-conditioning shots per measurement point via Pearson correlation against stable tail mean (clamped to [3, 15], or manifest override).",
+      "shot_scale_normalize_and_average": "Two-pass shot-scale normalization across valid channels to produce mean_spectrum, point_means, and standard error of the mean sigma_mean.",
+      "apply_morphological_baseline": "Post-average morphological grey opening baseline subtraction with configurable se_size followed by max(spectrum - opening, 0.0) clamp."
+    }
+  }
+}
