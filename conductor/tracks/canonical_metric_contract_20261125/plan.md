@@ -7,16 +7,16 @@
 
 ## Phase 1: Shared Metric & Preprocessing Contract Schema (`metric_contract_v1.json`)
 
-- [ ] Task: Create contract schema validation tests (Red phase)
-  - [ ] Create `tests/test_match_metrics_parity.py` with initial tests loading `src/main/resources/metric_contract_v1.json` and asserting presence of `schema_version` (`metric_contract_v1`), canonical metric keys, normalization modes (`none`, `max`, `l2`, `sum`), `eps` (`1e-12`), `wavelength_tol` (`1e-6`), variance-scaling rule, edge-case rules, and shot-level vs. post-average preprocessing stages.
-  - [ ] Add a JUnit test in `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` verifying `metric_contract_v1.json` is loadable from the classpath and parses cleanly with Jackson.
-  - [ ] Run `pytest tests/test_match_metrics_parity.py` and `mvn test -Dtest=SpectrumUtilsTest` to confirm Red failure.
-- [ ] Task: Author `src/main/resources/metric_contract_v1.json` (Green phase)
-  - [ ] Define canonical metric keys (`rmse`, `nrmse_max`, `mae`, `r2`, `pearson_r2`, `cosine_similarity`, `reduced_chi2`, `normalization`, `n_valid`).
-  - [ ] Document `eps = 1e-12`, `wavelength_tol = 1e-6`, normalization formulas (`none`, `max`, `l2`, `sum` via L1 `sum(abs(y))`), variance scaling (`variance / max(scale_ref, eps)^2`), array-length mismatch and empty-mask error contracts, and zero-variance / zero-norm rules (never `NaN`).
-  - [ ] Document exact shot-level (`apply_lit_and_saturation_mask` → `dark_subtract` → `trim_conditioning_shots` → shot-scale normalization / averaging) and post-average (`apply_morphological_baseline`) call order.
-  - [ ] Verify Phase 1 contract tests pass in both Python and Java.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Create contract schema validation tests (Red phase) (ccb1526)
+  - [x] Create `tests/test_match_metrics_parity.py` with initial tests loading `src/main/resources/metric_contract_v1.json` and asserting presence of `schema_version` (`metric_contract_v1`), canonical metric keys, normalization modes (`none`, `max`, `l2`, `sum`), `eps` (`1e-12`), `wavelength_tol` (`1e-6`), variance-scaling rule, edge-case rules, and shot-level vs. post-average preprocessing stages.
+  - [x] Add a JUnit test in `src/test/java/com/medals/libsdatagenerator/util/SpectrumUtilsTest.java` verifying `metric_contract_v1.json` is loadable from the classpath and parses cleanly with Jackson.
+  - [x] Run `pytest tests/test_match_metrics_parity.py` and `mvn test -Dtest=SpectrumUtilsTest` to confirm Red failure.
+- [x] Task: Author `src/main/resources/metric_contract_v1.json` (Green phase) (ccb1526)
+  - [x] Define canonical metric keys (`rmse`, `nrmse_max`, `mae`, `r2`, `pearson_r2`, `cosine_similarity`, `reduced_chi2`, `normalization`, `n_valid`).
+  - [x] Document `eps = 1e-12`, `wavelength_tol = 1e-6`, normalization formulas (`none`, `max`, `l2`, `sum` via L1 `sum(abs(y))`), variance scaling (`variance / max(scale_ref, eps)^2`), array-length mismatch and empty-mask error contracts, and zero-variance / zero-norm rules (never `NaN`).
+  - [x] Document exact shot-level (`apply_lit_and_saturation_mask` → `dark_subtract` → `trim_conditioning_shots` → shot-scale normalization / averaging) and post-average (`apply_morphological_baseline`) call order.
+  - [x] Verify Phase 1 contract tests pass in both Python and Java.
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
