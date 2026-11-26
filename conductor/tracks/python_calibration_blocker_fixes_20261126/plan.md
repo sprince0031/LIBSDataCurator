@@ -7,28 +7,28 @@
 
 ---
 
-## Phase 1: State-Column Alignment, Broadening Guard, Multi-Family ROI Survival & Masking (`C1`, `C2`, `C5`, `H1`, `H2`, `H3`, `H4`)
+## Phase 1: State-Column Alignment, Broadening Guard, Multi-Family ROI Survival & Masking (`C1`, `C2`, `C5`, `H1`, `H2`, `H3`, `H4`) [checkpoint: 3177735]
 
-- [ ] Task: Fix numerical `(Te, Ne)` state-column ordering (`C1`) and opt-in broadening guard (`H1`) in `scripts/gpu_calibration_engine.py`
-  - [ ] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` covering lexicographically adversarial `(Te, Ne)` manifest keys (`"0.5_1.0E+17"`, `"0.5_5.0E+16"`, `"1.0_1.0E+17"`, `"1.0_5.0E+16"`), `KeyError` on missing grid states, and `compute_line_spread_add_sigma` returning zeros unless `enableLineSpreadBroadening: true`
-  - [ ] Implement explicit nested `(self.te_grid, self.ne_grid)` state-key resolution helper in `scripts/gpu_calibration_engine.py` (supporting `f"{te}_{ne:.1E}"`, `f"{te:.1f}_{ne:.1E}"`, lowercase `e`, raw `f"{te}_{ne}"`, and numerical key fallback within `rtol=1e-6`, raising `KeyError` on missing states)
-  - [ ] Gate `compute_line_spread_add_sigma` behind `bool(self.manifest.get("enableLineSpreadBroadening", False))` (default `False` -> zero vector)
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Fix numerical `(Te, Ne)` state-column ordering (`C1`) and opt-in broadening guard (`H1`) in `scripts/gpu_calibration_engine.py` (d32e11a)
+  - [x] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` covering lexicographically adversarial `(Te, Ne)` manifest keys (`"0.5_1.0E+17"`, `"0.5_5.0E+16"`, `"1.0_1.0E+17"`, `"1.0_5.0E+16"`), `KeyError` on missing grid states, and `compute_line_spread_add_sigma` returning zeros unless `enableLineSpreadBroadening: true`
+  - [x] Implement explicit nested `(self.te_grid, self.ne_grid)` state-key resolution helper in `scripts/gpu_calibration_engine.py` (supporting `f"{te}_{ne:.1E}"`, `f"{te:.1f}_{ne:.1E}"`, lowercase `e`, raw `f"{te}_{ne}"`, and numerical key fallback within `rtol=1e-6`, raising `KeyError` on missing states)
+  - [x] Gate `compute_line_spread_add_sigma` behind `bool(self.manifest.get("enableLineSpreadBroadening", False))` (default `False` -> zero vector)
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Eliminate `.head(1500)` line starvation (`C2`), scope `cond_map` per family (`C5`), and enforce baseline-subtracted $5\sigma$ & saturation masking (`C5`, `H2`)
-  - [ ] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` covering (a) >1,500 high-`Aki` trace `V` lines + `Al`/`Si` lines retaining `Al`/`Si` ROIs, (b) multi-family `cond_map` (Steel + Aluminum) not rejecting Aluminum ROIs, (c) `build_catalogue` evaluating $5\sigma$ detectability on `preprocessed_mean` and excluding windows with any `~valid_mask` (saturated) channel, and (d) `compute_family_calibration_stats` intersecting `roi_mask` and `lit_mask` with `valid_mask`
-  - [ ] Remove `.sort_values("Aki", ascending=False).head(1500)` and pass family-scoped `{m: cond_map[m] for m in fam_mats}` to `build_catalogue(...)` in `scripts/gpu_calibration_engine.py:run()`
-  - [ ] Update `scripts/roi_catalogue.py:build_catalogue` to evaluate $5\sigma$ detectability on `cond.preprocessed_mean` (falling back to `cond.mean_spectrum` only when `None`) and reject any candidate window where `cond.valid_mask is not None` and `not np.all(cond.valid_mask[chan_mask])`
-  - [ ] Intersect `roi_mask` and `lit_mask` with `cond.valid_mask` in `scripts/gpu_calibration_engine.py:compute_family_calibration_stats`
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Eliminate `.head(1500)` line starvation (`C2`), scope `cond_map` per family (`C5`), and enforce baseline-subtracted $5\sigma$ & saturation masking (`C5`, `H2`) (1d21f01)
+  - [x] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` covering (a) >1,500 high-`Aki` trace `V` lines + `Al`/`Si` lines retaining `Al`/`Si` ROIs, (b) multi-family `cond_map` (Steel + Aluminum) not rejecting Aluminum ROIs, (c) `build_catalogue` evaluating $5\sigma$ detectability on `preprocessed_mean` and excluding windows with any `~valid_mask` (saturated) channel, and (d) `compute_family_calibration_stats` intersecting `roi_mask` and `lit_mask` with `valid_mask`
+  - [x] Remove `.sort_values("Aki", ascending=False).head(1500)` and pass family-scoped `{m: cond_map[m] for m in fam_mats}` to `build_catalogue(...)` in `scripts/gpu_calibration_engine.py:run()`
+  - [x] Update `scripts/roi_catalogue.py:build_catalogue` to evaluate $5\sigma$ detectability on `cond.preprocessed_mean` (falling back to `cond.mean_spectrum` only when `None`) and reject any candidate window where `cond.valid_mask is not None` and `not np.all(cond.valid_mask[chan_mask])`
+  - [x] Intersect `roi_mask` and `lit_mask` with `cond.valid_mask` in `scripts/gpu_calibration_engine.py:compute_family_calibration_stats`
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Align morphological structuring element (`25` px) (`H3`) and persist `unionChannelIndices` (`H4`)
-  - [ ] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` asserting `condition_material` reads `baselineCorrectionParams.structuringElementSize` before top-level `structuringElementSize` and default `25`, `GpuCalibrationEngine.struct_size` defaults to `25` with no `55` floor, and `upsert_family_profile` writes `"unionChannelIndices"` into `regionsOfInterest.json`
-  - [ ] Update `scripts/measured_conditioning.py:condition_material` to resolve `baselineCorrectionParams.structuringElementSize` -> top-level `structuringElementSize` -> `DEFAULT_MORPHOLOGICAL_SE_SIZE` (`25`)
-  - [ ] Set `DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25`, remove the `max(..., 55)` floor, and persist `"unionChannelIndices"` inside `upsert_family_profile` (both `materialFamilyRois[family]` and `families[family]`) in `scripts/gpu_calibration_engine.py`
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Align morphological structuring element (`25` px) (`H3`) and persist `unionChannelIndices` (`H4`) (3177735)
+  - [x] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` asserting `condition_material` reads `baselineCorrectionParams.structuringElementSize` before top-level `structuringElementSize` and default `25`, `GpuCalibrationEngine.struct_size` defaults to `25` with no `55` floor, and `upsert_family_profile` writes `"unionChannelIndices"` into `regionsOfInterest.json`
+  - [x] Update `scripts/measured_conditioning.py:condition_material` to resolve `baselineCorrectionParams.structuringElementSize` -> top-level `structuringElementSize` -> `DEFAULT_MORPHOLOGICAL_SE_SIZE` (`25`)
+  - [x] Set `DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25`, remove the `max(..., 55)` floor, and persist `"unionChannelIndices"` inside `upsert_family_profile` (both `materialFamilyRois[family]` and `families[family]`) in `scripts/gpu_calibration_engine.py`
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to `workflow.md`)
+- [x] Task: Phase Verification & Checkpoint (Refer to `workflow.md`) — 59 passed, 0 failed (`tests/ scripts/test_measured_conditioning.py scripts/test_roi_catalogue.py scripts/test_gpu*`)
 
 ---
 
