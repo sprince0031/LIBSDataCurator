@@ -68,17 +68,17 @@
 
 ---
 
-## Phase 4: Joint Solver Planted-Truth Math Fixes & Full Python Test-Suite Green Gate (`FR-9`)
+## Phase 4: Joint Solver Planted-Truth Math Fixes & Full Python Test-Suite Green Gate (`FR-9`) [checkpoint: 7ae26b0]
 
-- [ ] Task: Fix modeled-emission `TE_GRID_EDGE`, Huber-IRLS Block A (`block_a_ridge=0.02`), chain-rule Block B (`M_mb > 0.05 * Y_mb` for `iter >= 2`), and `[2%, 98%]` weight-domain `family_group_response_rms_diff`
-  - [ ] Verify existing failures in `scripts/test_planted_truth_recovery.py` (`Clean`, `Harsh`, `Split`) and write targeted unit tests in `tests/test_roi_joint_calibration_math.py` for modeled-emission `TE_GRID_EDGE` and iteration-gated Block B outlier protection
-  - [ ] Update `scripts/roi_joint_calibration.py:evaluate_diagnostics` to compute `TE_GRID_EDGE` fractions on modeled column emission ($\Phi_j = w_j \sum_p D_{m,p,j}$) when `dictionary` is supplied (falling back to $w_j$ when omitted)
-  - [ ] Update `scripts/roi_joint_calibration.py:run_joint_solver` to filter active per-material Block A rows (`Y_mb > 3 * sig_meas` & `max_j A_m[b, j] > 1e-12`), solve 4-step Huber IRLS with `block_a_ridge: float = 0.02` (`[M_scaled; sqrt(block_a_ridge) * I]`, leaving standalone `solve_block_a` exact at `0.0`), compute Block B weights as `(1 / n_f) * (min(Y_mb, M_mb) / sig_mb)^2 * h_weight` with `M_mb > 0.05 * Y_mb` enforced for `iteration >= 2`, and restrict `family_group_response_rms_diff` to the intersection of each group's `[2%, 98%]` cumulative Block B weight domain (`>= 60 nm`)
-  - [ ] Run `pytest scripts/test_planted_truth_recovery.py tests/test_roi_joint_calibration_math.py scripts/test_roi_joint_calibration.py` and verify 100% pass with zero tolerance relaxation
+- [x] Task: Fix modeled-emission `TE_GRID_EDGE`, Huber-IRLS Block A (`block_a_ridge=0.02`), chain-rule Block B (`M_mb > 0.05 * Y_mb` for `iter >= 2`), and `[2%, 98%]` weight-domain `family_group_response_rms_diff` (503204a)
+  - [x] Verify existing failures in `scripts/test_planted_truth_recovery.py` (`Clean`, `Harsh`, `Split`) and write targeted unit tests in `tests/test_roi_joint_calibration_math.py` for modeled-emission `TE_GRID_EDGE` and iteration-gated Block B outlier protection
+  - [x] Update `scripts/roi_joint_calibration.py:evaluate_diagnostics` to compute `TE_GRID_EDGE` fractions on modeled column emission ($\Phi_j = w_j \sum_p D_{m,p,j}$) when `dictionary` is supplied (falling back to $w_j$ when omitted)
+  - [x] Update `scripts/roi_joint_calibration.py:run_joint_solver` to filter active per-material Block A rows (`Y_mb > 3 * sig_meas` & `max_j A_m[b, j] > 1e-12`), solve 4-step Huber IRLS with `block_a_ridge: float = 0.02` (`[M_scaled; sqrt(block_a_ridge) * I]`, leaving standalone `solve_block_a` exact at `0.0`), compute Block B weights as `(1 / n_f) * (min(Y_mb, M_mb) / sig_mb)^2 * h_weight` with `M_mb > 0.05 * Y_mb` enforced for `iteration >= 2`, and restrict `family_group_response_rms_diff` to the intersection of each group's `[2%, 98%]` cumulative Block B weight domain (`>= 60 nm`)
+  - [x] Run `pytest scripts/test_planted_truth_recovery.py tests/test_roi_joint_calibration_math.py scripts/test_roi_joint_calibration.py` and verify 100% pass with zero tolerance relaxation
 
-- [ ] Task: Add missing-resource & optional-dependency skip guards and run full Python regression gate
-  - [ ] Add `if not Path(DEFAULT_JSON_PATH).exists(): self.skipTest(...)` in `scripts/test_batch_instrument_calibration.py` and `scripts/test_batch_nist_pull.py`, and `pytest.importorskip("ipywidgets")` in `scripts/test_calibration_inspector.py`
-  - [ ] Run full `/home/puser/Work/PhD/Code/Medals_classifier/.venv/bin/python -m pytest tests/ scripts/` and confirm 0 failures
-  - [ ] Verify `git status` and `git diff --name-only` confirm zero changes to `TRACK-CORE-01` contract files, `.java` files, synthetic `.csv` outputs, or untracked user files
+- [x] Task: Add missing-resource & optional-dependency skip guards and run full Python regression gate (7ae26b0)
+  - [x] Add `if not Path(DEFAULT_JSON_PATH).exists(): self.skipTest(...)` in `scripts/test_batch_instrument_calibration.py` and `scripts/test_batch_nist_pull.py`, and `pytest.importorskip("ipywidgets")` in `scripts/test_calibration_inspector.py`
+  - [x] Run full `/home/puser/Work/PhD/Code/Medals_classifier/.venv/bin/python -m pytest tests/ scripts/` and confirm 0 failures
+  - [x] Verify `git status` and `git diff --name-only` confirm zero changes to `TRACK-CORE-01` contract files, `.java` files, synthetic `.csv` outputs, or untracked user files
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to `workflow.md`)
+- [x] Task: Phase Verification & Checkpoint (Refer to `workflow.md`) — 139 passed, 7 skipped, 0 failed (`tests/ scripts/`)
