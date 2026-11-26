@@ -7,7 +7,7 @@
 
 ---
 
-## Phase 1: DTO Bindings & Default Configuration Alignment (`M1`, `H3`)
+## Phase 1: DTO Bindings & Default Configuration Alignment (`M1`, `H3`) [checkpoint: d188a1a]
 
 - [x] Task: Complete `CalibrationStats.java` Jackson & `org.json` bindings (`M1`, FR-3) (856b208)
   - [x] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/model/CalibrationStatsTest.java` covering: (a) Jackson `ObjectMapper` and `org.json` `toJson()`/`fromJson()` lossless round-trip of all 11 new fields (`roiChi2Reduced`, `roiRSquared`, `roiRmse`, `roiRmseRaw`, `wholeSpectrumRSquared`, `wholeSpectrumRmse`, `wholeSpectrumRmseRaw`, `zoneReductionPenalty`, `familySharingPenalty`, `elementParity`, `perMaterialStats`) alongside legacy fields (`rSquared`, `rmse`, `weightedCorrelationCost`, `numCalibratedMaterials`, `calibratedMaterials`), (b) absence of duplicate lowercased Jackson keys (e.g., no `"rsquared"` alongside `"rSquared"`), and (c) backward-compatible deserialization of legacy JSON containing only `rSquared` and `rmse`
@@ -21,13 +21,13 @@
   - [x] Update `InstrumentProfileService.DEFAULT_MORPHOLOGICAL_STRUCT_SIZE` (`InstrumentProfileService.java:69`) and `BaselineCorrectionParams.DEFAULT_STRUCTURING_ELEMENT_SIZE` (`BaselineCorrectionParams.java:11`) from `65` to `25`
   - [x] Run `mvn test -Dtest=BaselineCorrectionParamsTest,InstrumentProfileServiceRefactoringTest,InstrumentProfileServiceTest` and verify Green
 
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) — 36 passed, 0 failed (`CalibrationStatsTest`, `InstrumentProfileTest`, `ModelRefactoringTest`, `BaselineCorrectionParamsTest`, `InstrumentProfileServiceRefactoringTest`, `InstrumentProfileServiceTest`)
 
 ---
 
 ## Phase 2: Compositional Sampling & Coating Immutability / NPE Fixes (`SH-03`, `SH-06`)
 
-- [ ] Task: Fix Dirichlet algebraic cancellation & sentinel exclusion in `ConcentrationParameterEstimator.java` (FR-5)
+- [~] Task: Fix Dirichlet algebraic cancellation & sentinel exclusion in `ConcentrationParameterEstimator.java` (FR-5)
   - [ ] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/service/ConcentrationParameterEstimatorTest.java` covering: (a) strict monotonic increase in total concentration $\alpha_0$ as empirical alloy `[min, max]` spread narrows (holding means and `gradeCount` constant, proving no $\sqrt{\text{gradeCount}} - 1$ collapse), (b) sentinel `[0.0, 100.0]` balance element (`Fe: 80%`) excluded from the pooled Dirichlet sum whenever alloying elements (`Cr`, `Mn`) have tight explicit ranges so $\alpha_0$ is not collapsed, (c) all-sentinel `[0.0, 100.0]` fallback remaining non-cancelling and valid, (d) `min == max` fixed-composition handling and `gradeCount < 2` $R/4$ fallback, and (e) trace-element `MIN_ALPHA` flooring keeping `sum(alphas) <= MAX_TOTAL_CONCENTRATION` so `validateParameters(alphas)` returns `true`
   - [ ] Confirm failing tests via `mvn test -Dtest=ConcentrationParameterEstimatorTest` (Red)
   - [ ] Implement Wan et al. (2014) range-to-SD variance (`NormalDistribution.inverseCumulativeProbability`, $d_n \in [2.0, 6.0]$, $R/4$ for $n < 2$), explicit-range-filtered pooled Dirichlet method-of-moments $\alpha_0 = \sum \mu_i(1-\mu_i) / \sum \text{Var}(X_i) - 1$ (with sentinel fallback only when zero elements have explicit ranges), and `MAX_TOTAL_CONCENTRATION`-preserving `MIN_ALPHA` adjustment in `src/main/java/com/medals/libsdatagenerator/service/ConcentrationParameterEstimator.java`
