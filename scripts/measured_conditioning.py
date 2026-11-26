@@ -210,7 +210,12 @@ def condition_material(
     manifest = manifest or {}
     det_full_scale = float(manifest.get("detectorFullScale", 65535.0))
     sat_factor = float(manifest.get("saturationThresholdFactor", 0.9))
-    struct_size = int(manifest.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_SE_SIZE))
+    bc_params = manifest.get("baselineCorrectionParams") or {}
+    raw_se = bc_params.get(
+        "structuringElementSize",
+        manifest.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_SE_SIZE),
+    )
+    struct_size = max(int(raw_se), 1)
     discard_override = manifest.get("discardLeadingShots")
     
     if not csv_paths:

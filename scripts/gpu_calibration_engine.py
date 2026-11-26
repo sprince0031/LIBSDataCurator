@@ -52,7 +52,7 @@ from nist_lines import (  # noqa: E402
     ACCURACY_UNCERTAINTY,
 )
 
-DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 65
+DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25
 DEFAULT_NIST_LINES_DIR = SCRIPT_DIR.parent / "data" / "nist_lines"
 
 logger = logging.getLogger("gpu_calibration_engine")
@@ -262,8 +262,12 @@ class GpuLibsCalibrationEngine:
             self.device = None
             logger.info("[GPU Engine] Active Device: CPU (torch not installed)")
 
-        bc_params = self.manifest.get("baselineCorrectionParams", {})
-        self.struct_size = max(int(bc_params.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_STRUCT_SIZE)), 55)
+        bc_params = self.manifest.get("baselineCorrectionParams") or {}
+        raw_se = bc_params.get(
+            "structuringElementSize",
+            self.manifest.get("structuringElementSize", DEFAULT_MORPHOLOGICAL_STRUCT_SIZE),
+        )
+        self.struct_size = max(int(raw_se), 1)
 
         default_te_grid = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5, 1.7, 2.0]
         default_ne_grid = [1.0e16, 5.0e16, 1.0e17, 5.0e17]
@@ -343,7 +347,8 @@ class GpuLibsCalibrationEngine:
         self,
         family: str,
         family_profile: dict,
-        family_rois: Union[List[dict], dict]
+        family_rois: Union[List[dict], dict],
+        union_channel_indices: Optional[List[int]] = None,
     ) -> None:
         """R10.3, R13.2: Calibrating a single family upserts instrument_profile.json and regionsOfInterest.json without wiping existing families."""
         out_profile_path = Path(self.manifest.get("outputProfilePath", "conf/instrument_profile.json"))
@@ -377,22 +382,52 @@ class GpuLibsCalibrationEngine:
             rois_json["materialFamilyRois"] = {}
             has_mat_fam_key = True
 
+        def _extract_union_channels(rois_obj: Union[List[dict], dict]) -> List[int]:
+            if union_channel_indices is not None:
+                return sorted({int(c) for c in union_channel_indices})
+            if isinstance(rois_obj, dict):
+                if "unionChannelIndices" in rois_obj and rois_obj["unionChannelIndices"] is not None:
+                    return sorted({int(c) for c in rois_obj["unionChannelIndices"]})
+                roi_items = rois_obj.get("rois") or rois_obj.get("regionsOfInterest") or []
+            else:
+                roi_items = rois_obj
+            ch_set = set()
+            for r in roi_items:
+                if not isinstance(r, dict):
+                    continue
+                sbs = r.get("subBins") or r.get("sub_bins") or []
+                if sbs:
+                    for sb in sbs:
+                        for c in sb:
+                            ch_set.add(int(c))
+                for c in (r.get("channelIndices") or r.get("channel_indices") or []):
+                    ch_set.add(int(c))
+            return sorted(ch_set)
+
+        resolved_union = _extract_union_channels(family_rois)
+
         if has_mat_fam_key:
             if isinstance(family_rois, dict):
-                rois_json["materialFamilyRois"][family] = family_rois
+                fam_entry = dict(family_rois)
+                fam_entry.setdefault("unionChannelIndices", resolved_union)
+                rois_json["materialFamilyRois"][family] = fam_entry
             else:
                 rois_json["materialFamilyRois"][family] = {
                     "calibratedMaterials": self.get_calibrated_materials(family),
                     "rois": family_rois,
+                    "unionChannelIndices": resolved_union,
                 }
 
         if has_families_key:
             if isinstance(family_rois, dict):
-                rois_json["families"][family] = family_rois
+                fam_entry = dict(family_rois)
+                fam_entry.setdefault("unionChannelIndices", resolved_union)
+                rois_json["families"][family] = fam_entry
             else:
                 rois_json["families"][family] = {
                     "regionsOfInterest": family_rois,
                     "rois": family_rois,
+                    "unionChannelIndices": resolved_union,
                 }
 
         out_rois_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1421,7 +1456,12 @@ class GpuLibsCalibrationEngine:
                 }
 
                 fam_rois_json = [r.to_dict() if hasattr(r, "to_dict") else r for r in fam_rois]
-                self.upsert_family_profile(family_name, fam_profile, fam_rois_json)
+                self.upsert_family_profile(
+                    family_name,
+                    fam_profile,
+                    fam_rois_json,
+                    union_channel_indices=union_chans,
+                )
 
                 self.export_debug_json(
                     family=family_name,

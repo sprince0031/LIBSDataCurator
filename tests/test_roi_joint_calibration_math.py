@@ -926,3 +926,81 @@ def test_compute_family_calibration_stats_masks_saturated_channels(tmp_path: Pat
     assert stats["roiRmseRaw"] == pytest.approx(0.0, abs=1e-6)
 
 
+def test_structuring_element_alignment_and_manifest_resolution(tmp_path: Path) -> None:
+    """H3: Default SE=25 without 55 floor, and condition_material checks baselineCorrectionParams first."""
+    import json
+    import scripts.gpu_calibration_engine as gce
+    from scripts.measured_conditioning import apply_morphological_baseline, condition_material
+
+    assert gce.DEFAULT_MORPHOLOGICAL_STRUCT_SIZE == 25
+
+    mpath_def = tmp_path / "m_def.json"
+    mpath_def.write_text(json.dumps({}), encoding="utf-8")
+    assert gce.GpuLibsCalibrationEngine(str(mpath_def)).struct_size == 25
+
+    mpath_small = tmp_path / "m_small.json"
+    mpath_small.write_text(
+        json.dumps({"baselineCorrectionParams": {"structuringElementSize": 15}}),
+        encoding="utf-8",
+    )
+    assert gce.GpuLibsCalibrationEngine(str(mpath_small)).struct_size == 15
+
+    # Construct a spectrum with a medium-width hump (width ~17 channels) where SE=7 vs SE=45 differ strongly
+    n_ch = 120
+    wl = np.linspace(350.0, 470.0, n_ch)
+    x = np.arange(n_ch, dtype=np.float64)
+    spec = 500.0 * np.exp(-0.5 * ((x - 60.0) / 8.0) ** 2) + 50.0
+    spec[:10] = 0.0
+    csv_p = tmp_path / "pt1.csv"
+    pd.DataFrame(np.tile(spec, (8, 1)), columns=[f"{w:.3f}" for w in wl]).to_csv(csv_p, index=False)
+
+    cond_nested = condition_material(
+        [csv_p],
+        manifest={
+            "discardLeadingShots": 0,
+            "baselineCorrectionParams": {"structuringElementSize": 7},
+            "structuringElementSize": 45,
+        },
+    )
+    expected_7 = apply_morphological_baseline(cond_nested.mean_spectrum, se_size=7)
+    expected_45 = apply_morphological_baseline(cond_nested.mean_spectrum, se_size=45)
+    assert not np.allclose(expected_7, expected_45, atol=1.0)
+    np.testing.assert_allclose(cond_nested.preprocessed_mean, expected_7, rtol=1e-12, atol=1e-12)
+
+
+def test_upsert_family_profile_persists_union_channel_indices(tmp_path: Path) -> None:
+    """H4: upsert_family_profile must persist unionChannelIndices in regionsOfInterest.json."""
+    import json
+    import scripts.gpu_calibration_engine as gce
+
+    out_prof = tmp_path / "instrument_profile.json"
+    out_rois = tmp_path / "regionsOfInterest.json"
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(
+        json.dumps(
+            {
+                "outputProfilePath": str(out_prof),
+                "outputRoisPath": str(out_rois),
+                "materialFamilies": {"Steel": [{"materialName": "469"}]},
+            }
+        ),
+        encoding="utf-8",
+    )
+    engine = gce.GpuLibsCalibrationEngine(str(mpath))
+    fam_rois = [
+        {"roiId": "R1", "channelIndices": [10, 11, 12], "subBins": [[10, 11], [11, 12]]},
+        {"roiId": "R2", "channelIndices": [20, 21], "subBins": [[20, 21]]},
+    ]
+    engine.upsert_family_profile("Steel", {"scaleFactor": 1.0}, fam_rois)
+
+    rois_data = json.loads(out_rois.read_text(encoding="utf-8"))
+    assert rois_data["materialFamilyRois"]["Steel"]["unionChannelIndices"] == [10, 11, 12, 20, 21]
+
+    # Also verify legacy 'families' schema branch receives unionChannelIndices
+    out_rois.write_text(json.dumps({"schemaVersion": "2.0", "families": {}}), encoding="utf-8")
+    engine.upsert_family_profile("Steel", {"scaleFactor": 1.0}, fam_rois)
+    rois_legacy = json.loads(out_rois.read_text(encoding="utf-8"))
+    assert rois_legacy["families"]["Steel"]["unionChannelIndices"] == [10, 11, 12, 20, 21]
+
+
+
