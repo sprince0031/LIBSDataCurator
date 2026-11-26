@@ -78,7 +78,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 
 DEFAULT_JSON_PATH = REPO_ROOT / "data" / "reference" / "reference_compositions.json"
 DEFAULT_DATA_DIR = REPO_ROOT / "data" / "LSA" / "Medals_Samples_Feb26"
-DEFAULT_CALIBRATE_BAT = REPO_ROOT / "build" / "release-package" / "bin" / "calibrate.bat"
+DEFAULT_CALIBRATE_BAT = REPO_ROOT / "build" / "release-package" / "bin" / f"calibrate.{'bat' if os.name == 'nt' else 'sh'}"
 
 
 # ==============================================================================

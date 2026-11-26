@@ -85,7 +85,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 
 DEFAULT_JSON_PATH = REPO_ROOT / "data" / "reference" / "reference_compositions.json"
-DEFAULT_RUN_BAT = REPO_ROOT / "build" / "release-package" / "bin" / "run.bat"
+DEFAULT_RUN_BAT = REPO_ROOT / "build" / "release-package" / "bin" / f"run.{'bat' if os.name == 'nt' else 'sh'}"
 
 
 # ==============================================================================
