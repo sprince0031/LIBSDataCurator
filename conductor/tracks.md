@@ -19,6 +19,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: TRACK-CORE-02A — Fix Critical Python Calibration, Radiative-Transfer & Uncertainty Math Bugs in LIBSDataCurator**
+- [x] **Track: TRACK-CORE-02A — Fix Critical Python Calibration, Radiative-Transfer & Uncertainty Math Bugs in LIBSDataCurator**
 *Link: [./tracks/python_calibration_rte_fixes_20261126/index.md](./tracks/python_calibration_rte_fixes_20261126/index.md)*
 
