@@ -733,9 +733,260 @@ class GpuLibsCalibrationEngine:
             "rmse": best_rmse
         }
 
+    def compute_line_spread_add_sigma(
+        self,
+        det_wl: np.ndarray,
+        r_nist: float,
+    ) -> np.ndarray:
+        """Compute per-channel additional Gaussian broadening sigma (nm) from manifest FWHM / R_nist.
+
+        Uses spectral_resampling.calculate_add_sigma_nm when instrumentFwhmNm or
+        instrumentResolvingPower is configured; defaults to 0.0 when absent or narrower than R_nist.
+        """
+        from spectral_resampling import calculate_add_sigma_nm
+
+        det = np.asarray(det_wl, dtype=np.float64)
+        inst_fwhm_cfg = self.manifest.get("instrumentFwhmNm")
+        inst_r_cfg = self.manifest.get("instrumentResolvingPower")
+
+        if inst_fwhm_cfg is not None:
+            if np.isscalar(inst_fwhm_cfg):
+                fwhm_inst = np.full(len(det), float(inst_fwhm_cfg), dtype=np.float64)
+            else:
+                fwhm_inst = np.asarray(inst_fwhm_cfg, dtype=np.float64)
+                if len(fwhm_inst) != len(det):
+                    raise ValueError(
+                        f"instrumentFwhmNm length {len(fwhm_inst)} != detector channels {len(det)}"
+                    )
+        elif inst_r_cfg is not None and float(inst_r_cfg) > 0.0:
+            fwhm_inst = det / float(inst_r_cfg)
+        else:
+            return np.zeros(len(det), dtype=np.float64)
+
+        fwhm_src = det / max(float(r_nist), 1.0)
+        return np.asarray(calculate_add_sigma_nm(fwhm_inst, fwhm_src), dtype=np.float64)
+
+    def verify_gate_g1(
+        self,
+        fam_mats: List[str],
+        dictionary: Dict[str, np.ndarray],
+        comp_map: Dict[str, Dict[str, float]],
+        fam_rois: List[Any],
+    ) -> Tuple[bool, Optional[Dict[str, Any]]]:
+        """Execute Gate G1 composition-scale check across two materials in a family."""
+        from forward_model import composition_scale_check
+
+        if len(fam_mats) < 2 or not fam_rois:
+            return False, None
+
+        m1, m2 = fam_mats[0], fam_mats[1]
+        if m1 not in dictionary or m2 not in dictionary:
+            return False, None
+        c1 = comp_map.get(m1, {})
+        c2 = comp_map.get(m2, {})
+        D1 = dictionary[m1]
+        D2 = dictionary[m2]
+        if D1.shape[1] == 0 or D2.shape[1] == 0:
+            return False, None
+
+        n_cols = min(D1.shape[1], D2.shape[1])
+        mid_col = n_cols // 2
+        col_order = [mid_col] + [c for c in range(n_cols) if c != mid_col]
+        for r in fam_rois:
+            if getattr(r, "self_absorption_prone", False):
+                continue
+            el = getattr(r, "dominant_element", "")
+            f1 = float(c1.get(el, 0.0))
+            f2 = float(c2.get(el, 0.0))
+            if f1 <= 0.0 or f2 <= 0.0:
+                continue
+            chans = getattr(r, "channel_indices", [])
+            if not chans:
+                continue
+            ch_arr = np.asarray(chans, dtype=np.int64)
+            for state_idx in col_order:
+                peak_1 = float(np.max(D1[ch_arr, state_idx]))
+                peak_2 = float(np.max(D2[ch_arr, state_idx]))
+                if peak_1 > 0.0 and peak_2 > 0.0:
+                    res = composition_scale_check(
+                        peak_1=peak_1,
+                        species_frac_1=1.0,
+                        at_frac_1=f1,
+                        peak_2=peak_2,
+                        species_frac_2=1.0,
+                        at_frac_2=f2,
+                    )
+                    return bool(res["passed"]), res
+
+        return False, None
+
+    def compute_family_calibration_stats(
+        self,
+        fam_mats: List[str],
+        dictionary: Dict[str, np.ndarray],
+        cond_map: Dict[str, Any],
+        fam_rois: List[Any],
+        union_chans: List[int],
+        plasma_zones_json: List[Dict[str, Any]],
+        nz_indices: List[int],
+        scale_factor_final: float,
+        spectral_response: np.ndarray,
+        red_penalty: float,
+        sharing_penalty: float,
+        element_parity: Dict[str, float],
+        n_params: int = 2,
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Compute family-wide and per-material calibrationStats using canonical RTE and metrics."""
+        from forward_model import (
+            PlasmaZoneSpec,
+            apply_multi_zone_rte,
+            apply_response_and_scale,
+        )
+        from match_metrics import compute_spectral_metrics
+        from roi_joint_calibration import compute_sub_bin_variances
+
+        zone_specs = [PlasmaZoneSpec.from_dict(z) for z in plasma_zones_json]
+        thin_roi_sbs = [
+            (r, sb) for r in fam_rois if not getattr(r, "self_absorption_prone", False) for sb in getattr(r, "sub_bins", [])
+        ]
+        if not thin_roi_sbs:
+            thin_roi_sbs = [
+                (r, sb) for r in fam_rois for sb in getattr(r, "sub_bins", [])
+            ]
+
+        per_material_stats: Dict[str, Any] = {}
+        fit_comparison: Dict[str, Any] = {}
+
+        chi2_list: List[float] = []
+        roi_r2_list: List[float] = []
+        roi_rmse_list: List[float] = []
+        roi_rmse_raw_list: List[float] = []
+        whole_r2_list: List[float] = []
+        whole_rmse_list: List[float] = []
+        whole_rmse_raw_list: List[float] = []
+
+        for m in fam_mats:
+            D_m = dictionary[m]
+            cond = cond_map[m]
+            y_meas_m = cond.preprocessed_mean
+            n_ch = len(y_meas_m)
+
+            if zone_specs and nz_indices:
+                zone_spectra = [D_m[:, nz_indices[z["zoneIndex"]]] for z in plasma_zones_json]
+                i_rad_m = apply_multi_zone_rte(zone_spectra, zone_specs)
+                y_synth_m = apply_response_and_scale(
+                    i_rad_m, spectral_response, scale_factor_final, emission_scale="absolute"
+                )
+            else:
+                y_synth_m = np.zeros(n_ch, dtype=np.float64)
+
+            if cond.lit_mask is not None and not np.all(cond.lit_mask):
+                unlit_sig = cond.sigma_mean[~cond.lit_mask]
+                dark_std = float(np.median(unlit_sig)) if len(unlit_sig) > 0 else 30.0
+            else:
+                dark_std = 30.0
+
+            y_meas_sb: List[float] = []
+            y_pred_sb: List[float] = []
+            var_sb: List[float] = []
+            for r, sb in thin_roi_sbs:
+                sb_idx = np.asarray(sb, dtype=np.int64)
+                var_info = compute_sub_bin_variances(
+                    channels=list(sb),
+                    mean_spectrum=y_meas_m,
+                    sigma_mean=cond.sigma_mean,
+                    model_lines=getattr(r, "model_lines", []),
+                    model_error_fraction=0.10,
+                    dark_std=dark_std,
+                )
+                y_meas_sb.append(float(var_info["Y"]))
+                y_pred_sb.append(float(np.sum(y_synth_m[sb_idx])))
+                var_sb.append(float(var_info.get("sigma_sq", float(var_info["sigma"]) ** 2)))
+
+            if y_meas_sb:
+                chi2_m = float(
+                    compute_spectral_metrics(
+                        np.asarray(y_meas_sb, dtype=np.float64),
+                        np.asarray(y_pred_sb, dtype=np.float64),
+                        variance=np.asarray(var_sb, dtype=np.float64),
+                        normalization="none",
+                        num_params=max(int(n_params), 1),
+                    )["reduced_chi2"]
+                )
+            else:
+                chi2_m = 0.0
+
+            roi_mask = np.zeros(n_ch, dtype=bool)
+            if union_chans:
+                roi_mask[np.asarray(union_chans, dtype=np.int64)] = True
+            if np.any(roi_mask):
+                roi_met = compute_spectral_metrics(
+                    y_meas_m, y_synth_m, mask=roi_mask, normalization="none"
+                )
+                roi_r2_m = float(roi_met["r2"])
+                roi_rmse_m = float(roi_met["nrmse_max"])
+                roi_rmse_raw_m = float(roi_met["rmse"])
+            else:
+                roi_r2_m, roi_rmse_m, roi_rmse_raw_m = 0.0, 0.0, 0.0
+
+            lit_mask = np.asarray(cond.lit_mask, dtype=bool)
+            if np.any(lit_mask):
+                whole_met = compute_spectral_metrics(
+                    y_meas_m, y_synth_m, mask=lit_mask, normalization="none"
+                )
+                whole_r2_m = float(whole_met["r2"])
+                whole_rmse_m = float(whole_met["nrmse_max"])
+                whole_rmse_raw_m = float(whole_met["rmse"])
+            else:
+                whole_r2_m, whole_rmse_m, whole_rmse_raw_m = 0.0, 0.0, 0.0
+
+            chi2_list.append(chi2_m)
+            roi_r2_list.append(roi_r2_m)
+            roi_rmse_list.append(roi_rmse_m)
+            roi_rmse_raw_list.append(roi_rmse_raw_m)
+            whole_r2_list.append(whole_r2_m)
+            whole_rmse_list.append(whole_rmse_m)
+            whole_rmse_raw_list.append(whole_rmse_raw_m)
+
+            per_material_stats[m] = {
+                "roiChi2Reduced": round(chi2_m, 4),
+                "roiRSquared": round(roi_r2_m, 6),
+                "roiRmse": round(roi_rmse_m, 6),
+                "roiRmseRaw": round(roi_rmse_raw_m, 6),
+                "wholeSpectrumRSquared": round(whole_r2_m, 6),
+                "wholeSpectrumRmse": round(whole_rmse_m, 6),
+                "wholeSpectrumRmseRaw": round(whole_rmse_raw_m, 6),
+                "numSteadyShots": int(getattr(cond, "num_steady_shots", 0)),
+            }
+            fit_comparison[m] = {
+                "roiChi2Reduced": chi2_m,
+                "roiRSquared": roi_r2_m,
+                "roiRmse": roi_rmse_m,
+                "roiRmseRaw": roi_rmse_raw_m,
+                "elementParity": element_parity,
+                "synthetic_spectrum": y_synth_m.tolist(),
+            }
+
+        stats = {
+            "roiChi2Reduced": round(float(np.mean(chi2_list)) if chi2_list else 0.0, 4),
+            "roiRSquared": round(float(np.mean(roi_r2_list)) if roi_r2_list else 0.0, 6),
+            "roiRmse": round(float(np.mean(roi_rmse_list)) if roi_rmse_list else 0.0, 6),
+            "roiRmseRaw": round(float(np.mean(roi_rmse_raw_list)) if roi_rmse_raw_list else 0.0, 6),
+            "wholeSpectrumRSquared": round(float(np.mean(whole_r2_list)) if whole_r2_list else 0.0, 6),
+            "wholeSpectrumRmse": round(float(np.mean(whole_rmse_list)) if whole_rmse_list else 0.0, 6),
+            "wholeSpectrumRmseRaw": round(float(np.mean(whole_rmse_raw_list)) if whole_rmse_raw_list else 0.0, 6),
+            "zoneReductionPenalty": round(red_penalty, 4),
+            "familySharingPenalty": round(sharing_penalty, 4),
+            "elementParity": element_parity,
+            "numCalibratedMaterials": len(fam_mats),
+            "calibratedMaterials": fam_mats,
+            "perMaterialStats": per_material_stats,
+        }
+        return stats, fit_comparison
+
     def run(self) -> None:
         from measured_conditioning import condition_material
-        from forward_model import resample_to_detector
+        from forward_model import NIST_UNIT_SCALE, resample_to_detector
         from roi_catalogue import build_catalogue
         from roi_joint_calibration import (
             run_joint_solver,
@@ -745,12 +996,8 @@ class GpuLibsCalibrationEngine:
             compute_family_scales_and_sharing_penalty,
             compute_plasma_dispersion,
             compute_element_parity,
+            compute_sub_bin_variances,
             evaluate_diagnostics,
-        )
-        from match_metrics import (
-            calculate_reduced_chi2,
-            calculate_roi_metrics,
-            calculate_whole_spectrum_metrics,
         )
 
         families_dict = self.manifest.get("materialFamilies", {})
@@ -763,7 +1010,6 @@ class GpuLibsCalibrationEngine:
         fam_map = {}
         mat_meta = []
         det_wl = None
-        total_shots = 40
 
         conditioned_debug_all = {}
         for family_name, mat_list in families_dict.items():
@@ -780,7 +1026,6 @@ class GpuLibsCalibrationEngine:
                 cond_map[mat_name] = cond
                 if det_wl is None:
                     det_wl = cond.wavelengths
-                total_shots = max(total_shots, sum(len(p) for p in cond.point_means.values()) if cond.point_means else 40)
 
                 raw_c = mat.get("composition") or mat.get("compositionMap") or {}
                 parsed_c = parse_composition_dict(raw_c)
@@ -795,11 +1040,15 @@ class GpuLibsCalibrationEngine:
                     "sigma_mean": cond.sigma_mean.tolist(),
                     "dark_level": float(cond.dark_level),
                     "lit_mask": cond.lit_mask.tolist(),
+                    "num_steady_shots": int(cond.num_steady_shots),
                 }
 
         if not cond_map or det_wl is None:
             logger.warning("[Engine] No calibrated materials found with valid measured CSVs.")
             return
+
+        total_shots = int(sum(cond.num_steady_shots for cond in cond_map.values()))
+        add_sigma_nm = self.compute_line_spread_add_sigma(det_wl, r_nist=float(r_nist_int))
 
         # 2. Load NIST ASD lines
         all_elements = sorted({el for comp in comp_map.values() for el, pct in comp.items() if pct > 0.0})
@@ -838,11 +1087,11 @@ class GpuLibsCalibrationEngine:
                 w_col = df.columns[0]
                 i_col = df.columns[1]
                 w_src = df[w_col].to_numpy(dtype=np.float64)
-                i_src = df[i_col].to_numpy(dtype=np.float64)
-                if len(w_src) == len(det_wl) and np.allclose(w_src, det_wl):
+                i_src = df[i_col].to_numpy(dtype=np.float64) * NIST_UNIT_SCALE
+                if len(w_src) == len(det_wl) and np.allclose(w_src, det_wl) and not np.any(add_sigma_nm > 1e-9):
                     D[:, i] = i_src
                 else:
-                    D[:, i] = resample_to_detector(w_src, i_src, det_wl, add_sigma_nm=0.0)
+                    D[:, i] = resample_to_detector(w_src, i_src, det_wl, add_sigma_nm=add_sigma_nm)
             dictionary[mat_name] = D
 
         # 4. Build ROI Catalogue across families
@@ -891,27 +1140,52 @@ class GpuLibsCalibrationEngine:
                     continue
 
                 fam_rois = rois_by_family.get(family_name, [])
-                thin_sub_bins = [sb for r in fam_rois if not r.self_absorption_prone for sb in r.sub_bins]
-                if not thin_sub_bins:
-                    thin_sub_bins = [sb for r in fam_rois for sb in r.sub_bins]
+                thin_roi_sbs = [(r, sb) for r in fam_rois if not r.self_absorption_prone for sb in r.sub_bins]
+                if not thin_roi_sbs:
+                    thin_roi_sbs = [(r, sb) for r in fam_rois for sb in r.sub_bins]
+                thin_sub_bins = [sb for _, sb in thin_roi_sbs]
+
+                # Gate G1 verification across materials in this family
+                g1_passed, _ = self.verify_gate_g1(fam_mats, dictionary, comp_map, fam_rois)
+                if not g1_passed:
+                    all_flags.append(f"COMPOSITION_SCALE_UNVERIFIED:{family_name}")
 
                 A_dict = {}
                 y_dict = {}
+                sigma_dict = {}
                 for m in fam_mats:
                     D_m = dictionary[m]
-                    y_m_vec = cond_map[m].preprocessed_mean
-                    A_m = np.zeros((len(thin_sub_bins), D_m.shape[1]), dtype=np.float64)
-                    y_m_sb = np.zeros(len(thin_sub_bins), dtype=np.float64)
-                    for b_idx, sb in enumerate(thin_sub_bins):
+                    cond_m = cond_map[m]
+                    y_m_vec = cond_m.preprocessed_mean
+                    if cond_m.lit_mask is not None and not np.all(cond_m.lit_mask):
+                        unlit_sig = cond_m.sigma_mean[~cond_m.lit_mask]
+                        dark_std = float(np.median(unlit_sig)) if len(unlit_sig) > 0 else 30.0
+                    else:
+                        dark_std = 30.0
+
+                    A_m = np.zeros((len(thin_roi_sbs), D_m.shape[1]), dtype=np.float64)
+                    y_m_sb = np.zeros(len(thin_roi_sbs), dtype=np.float64)
+                    sig_m_sb = np.zeros(len(thin_roi_sbs), dtype=np.float64)
+                    for b_idx, (r_obj, sb) in enumerate(thin_roi_sbs):
                         sb_idx = np.array(sb, dtype=np.int64)
                         A_m[b_idx, :] = np.sum(D_m[sb_idx, :] * spectral_response[sb_idx, None], axis=0)
-                        y_m_sb[b_idx] = np.sum(y_m_vec[sb_idx])
+                        var_info = compute_sub_bin_variances(
+                            channels=list(sb),
+                            mean_spectrum=y_m_vec,
+                            sigma_mean=cond_m.sigma_mean,
+                            model_lines=getattr(r_obj, "model_lines", []),
+                            model_error_fraction=0.10,
+                            dark_std=dark_std,
+                        )
+                        y_m_sb[b_idx] = float(var_info["Y"])
+                        sig_m_sb[b_idx] = float(var_info["sigma"])
                     A_dict[m] = A_m
                     y_dict[m] = y_m_sb
+                    sigma_dict[m] = sig_m_sb
 
-                w_family, scales = solve_family_plasma(A_dict, y_dict)
+                w_family, scales = solve_family_plasma(A_dict, y_dict, sigma_dict=sigma_dict)
                 reduced_weights, red_penalty = reduce_zones_to_num_zones(
-                    A_dict, y_dict, w_family, num_zones=n_zones
+                    A_dict, y_dict, w_family, num_zones=n_zones, sigma_dict=sigma_dict
                 )
 
                 non_zero_states = np.where(reduced_weights > 0)[0]
@@ -921,26 +1195,55 @@ class GpuLibsCalibrationEngine:
                     coolest_local_idx = int(np.argmin(te_vals))
                     coolest_state_idx = non_zero_states[coolest_local_idx]
 
-                    all_sb = [sb for r in fam_rois for sb in r.sub_bins]
-                    prone_mask_list = [r.self_absorption_prone for r in fam_rois for _ in r.sub_bins]
+                    all_roi_sbs = [(r, sb) for r in fam_rois for sb in r.sub_bins]
+                    prone_mask_list = [r.self_absorption_prone for r, _ in all_roi_sbs]
                     if any(prone_mask_list):
                         A_all = {}
                         y_all_sb = {}
+                        sigma_all_sb = {}
+                        d_tilde_cool_all = {}
                         for m in fam_mats:
                             D_m = dictionary[m]
-                            y_m_vec = cond_map[m].preprocessed_mean
-                            A_m_full = np.zeros((len(all_sb), D_m.shape[1]), dtype=np.float64)
-                            y_m_full = np.zeros(len(all_sb), dtype=np.float64)
-                            for b_idx, sb in enumerate(all_sb):
+                            cond_m = cond_map[m]
+                            y_m_vec = cond_m.preprocessed_mean
+                            if cond_m.lit_mask is not None and not np.all(cond_m.lit_mask):
+                                unlit_sig = cond_m.sigma_mean[~cond_m.lit_mask]
+                                dark_std = float(np.median(unlit_sig)) if len(unlit_sig) > 0 else 30.0
+                            else:
+                                dark_std = 30.0
+
+                            cool_full = D_m[:, coolest_state_idx]
+                            cool_full_max = max(float(np.max(cool_full)), 1e-12)
+
+                            A_m_full = np.zeros((len(all_roi_sbs), D_m.shape[1]), dtype=np.float64)
+                            y_m_full = np.zeros(len(all_roi_sbs), dtype=np.float64)
+                            sig_m_full = np.zeros(len(all_roi_sbs), dtype=np.float64)
+                            d_tilde_m = np.zeros(len(all_roi_sbs), dtype=np.float64)
+                            for b_idx, (r_obj, sb) in enumerate(all_roi_sbs):
                                 sb_idx = np.array(sb, dtype=np.int64)
                                 A_m_full[b_idx, :] = np.sum(D_m[sb_idx, :] * spectral_response[sb_idx, None], axis=0)
-                                y_m_full[b_idx] = np.sum(y_m_vec[sb_idx])
+                                var_info = compute_sub_bin_variances(
+                                    channels=list(sb),
+                                    mean_spectrum=y_m_vec,
+                                    sigma_mean=cond_m.sigma_mean,
+                                    model_lines=getattr(r_obj, "model_lines", []),
+                                    model_error_fraction=0.10,
+                                    dark_std=dark_std,
+                                )
+                                y_m_full[b_idx] = float(var_info["Y"])
+                                sig_m_full[b_idx] = float(var_info["sigma"])
+                                # Effective cool-zone normalized opacity matching apply_multi_zone_rte
+                                d_tilde_m[b_idx] = float(np.mean(cool_full[sb_idx]) / cool_full_max)
                             A_all[m] = A_m_full
                             y_all_sb[m] = y_m_full
+                            sigma_all_sb[m] = sig_m_full
+                            d_tilde_cool_all[m] = d_tilde_m
 
                         k_absorption, k_flag = scan_absorption(
                             A_dict=A_all,
                             y_dict=y_all_sb,
+                            sigma_dict=sigma_all_sb,
+                            d_tilde_cool_dict=d_tilde_cool_all,
                             reduced_weights=reduced_weights,
                             coolest_state_idx=coolest_state_idx,
                             prone_mask=prone_mask_list,
@@ -954,9 +1257,12 @@ class GpuLibsCalibrationEngine:
 
                 point_solutions = []
                 for m in fam_mats:
-                    for pt_name, pt_spec in cond_map[m].point_means.items():
+                    pt_dict = cond_map[m].preprocessed_point_means or cond_map[m].point_means
+                    for pt_name, pt_spec in pt_dict.items():
                         y_pt_sb = np.array([np.sum(pt_spec[np.array(sb, dtype=np.int64)]) for sb in thin_sub_bins])
-                        w_pt, _ = solve_family_plasma({m: A_dict[m]}, {m: y_pt_sb})
+                        w_pt, _ = solve_family_plasma(
+                            {m: A_dict[m]}, {m: y_pt_sb}, sigma_dict={m: sigma_dict[m]}
+                        )
                         point_solutions.append(w_pt)
 
                 te_std, ne_log_std = compute_plasma_dispersion(
@@ -994,28 +1300,30 @@ class GpuLibsCalibrationEngine:
                     plasma_zones=plasma_zones_json,
                     scale_factor=scale_factor_final,
                     spectral_response=spectral_response,
+                    nz_indices=nz_indices,
+                    te_grid=self.te_grid.tolist(),
+                    ne_grid=self.ne_grid.tolist(),
                 )
                 if bias_flag:
                     all_flags.append(f"ELEMENT_BIAS:{family_name}")
 
                 union_chans = sorted(list({c for r in fam_rois for sb in r.sub_bins for c in sb}))
-                ref_m = fam_mats[0]
-                D_ref = dictionary[ref_m]
-                y_synth_ref = np.zeros(len(det_wl), dtype=np.float64)
-                for z in plasma_zones_json:
-                    idx = nz_indices[z["zoneIndex"]]
-                    s_z = D_ref[:, idx]
-                    kz = z["kAbsorption"]
-                    vz = z["volumeFraction"]
-                    if kz > 0.0:
-                        y_synth_ref = y_synth_ref * np.exp(-kz * s_z) + vz * s_z
-                    else:
-                        y_synth_ref = y_synth_ref + vz * s_z
-                y_synth_ref = scale_factor_final * y_synth_ref * spectral_response
-
-                roi_r2, roi_rmse = calculate_roi_metrics(cond_map[ref_m].preprocessed_mean, y_synth_ref, union_chans)
-                whole_r2, whole_rmse = calculate_whole_spectrum_metrics(cond_map[ref_m].preprocessed_mean, y_synth_ref, cond_map[ref_m].lit_mask)
-                chi2_red = calculate_reduced_chi2(y_dict[ref_m], A_dict[ref_m] @ reduced_weights, np.ones_like(y_dict[ref_m]))
+                n_fitted_params = max(len(nz_indices) + (1 if k_absorption > 0.0 else 0) + 1, 1)
+                cal_stats, fit_comparison = self.compute_family_calibration_stats(
+                    fam_mats=fam_mats,
+                    dictionary=dictionary,
+                    cond_map=cond_map,
+                    fam_rois=fam_rois,
+                    union_chans=union_chans,
+                    plasma_zones_json=plasma_zones_json,
+                    nz_indices=nz_indices,
+                    scale_factor_final=scale_factor_final,
+                    spectral_response=spectral_response,
+                    red_penalty=red_penalty,
+                    sharing_penalty=sharing_penalty,
+                    element_parity=element_parity,
+                    n_params=n_fitted_params,
+                )
 
                 holdout_map = {m: [mat[3] for mat in mat_meta if mat[1] == m][0] for m in fam_mats if [mat[3] for mat in mat_meta if mat[1] == m and mat[3]]}
 
@@ -1025,33 +1333,13 @@ class GpuLibsCalibrationEngine:
                     "scaleFactor": round(scale_factor_final, 8),
                     "materialScaleFactors": {m: round(float(sc), 8) for m, sc in mat_scales_final.items()},
                     "plasmaZones": plasma_zones_json,
-                    "calibrationStats": {
-                        "roiChi2Reduced": round(chi2_red, 4),
-                        "roiRSquared": round(roi_r2, 6),
-                        "roiRmse": round(roi_rmse, 6),
-                        "wholeSpectrumRSquared": round(whole_r2, 6),
-                        "wholeSpectrumRmse": round(whole_rmse, 6),
-                        "zoneReductionPenalty": round(red_penalty, 4),
-                        "familySharingPenalty": round(sharing_penalty, 4),
-                        "elementParity": element_parity,
-                        "numCalibratedMaterials": len(fam_mats),
-                        "calibratedMaterials": fam_mats,
-                    },
+                    "calibrationStats": cal_stats,
                     "validationHoldoutCsvs": holdout_map,
                 }
 
                 fam_rois_json = [r.to_dict() if hasattr(r, "to_dict") else r for r in fam_rois]
                 self.upsert_family_profile(family_name, fam_profile, fam_rois_json)
 
-                fit_comparison = {
-                    ref_m: {
-                        "roiChi2Reduced": chi2_red,
-                        "roiRSquared": roi_r2,
-                        "roiRmse": roi_rmse,
-                        "elementParity": element_parity,
-                        "synthetic_spectrum": y_synth_ref.tolist(),
-                    }
-                }
                 self.export_debug_json(
                     family=family_name,
                     conditioned_data=conditioned_debug_all.get(family_name, {}),
@@ -1071,7 +1359,7 @@ class GpuLibsCalibrationEngine:
             prof_json["spectralResponse"] = [round(float(r), 6) for r in spectral_response]
             prof_json["spectralResponseValidRangeNm"] = [round(float(det_wl[0]), 2), round(float(det_wl[-1]), 2)]
             prof_json["validChannelRangeNm"] = [round(float(det_wl[0]), 4), round(float(det_wl[-1]), 4)]
-            prof_json["lineSpreadAddSigmaNm"] = [0.0] * len(det_wl)
+            prof_json["lineSpreadAddSigmaNm"] = [round(float(s), 6) for s in add_sigma_nm]
             prof_json["calibrationDiagnostics"] = {
                 "flags": all_flags,
                 "iterations": int(result.iterations),

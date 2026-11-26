@@ -336,3 +336,271 @@ def test_run_joint_solver_uses_preprocessed_mean_and_real_family_group_rms_diff(
     assert "RESPONSE_FAMILY_INCONSISTENT" in res.flags
     # And weights must reflect y_clean (~1.0), NOT y_clean + 50000 (~250.0)!
     assert float(np.sum(res.plasma_weights["SS469"])) < 10.0
+
+
+def test_gpu_engine_dynamic_add_sigma_nm_and_gate_g1(tmp_path: Path) -> None:
+    import json
+    from scripts.gpu_calibration_engine import GpuLibsCalibrationEngine
+    from scripts.roi_catalogue import RoiWindow
+    from scripts.spectral_resampling import calculate_add_sigma_nm
+
+    manifest = {
+        "outputProfilePath": str(tmp_path / "instrument_profile.json"),
+        "nistResolvingPower": 5000.0,
+        "instrumentFwhmNm": 0.35,
+        "materialFamilies": {},
+    }
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps(manifest), encoding="utf-8")
+    engine = GpuLibsCalibrationEngine(str(mpath))
+
+    det_wl = np.linspace(350.0, 850.0, 50)
+    add_sigma = engine.compute_line_spread_add_sigma(det_wl, r_nist=5000.0)
+    expected_sigma = calculate_add_sigma_nm(0.35, det_wl / 5000.0)
+    np.testing.assert_allclose(add_sigma, expected_sigma, rtol=1e-12, atol=1e-12)
+    assert np.all(add_sigma > 0.0)
+
+    # Gate G1 pass when peak scales linearly with atomic/composition fraction across two materials
+    D1 = np.zeros((50, 2), dtype=np.float64)
+    D2 = np.zeros((50, 2), dtype=np.float64)
+    D1[10, 0] = 800.0  # Fe 80%
+    D2[10, 0] = 600.0  # Fe 60% -> ratio 800/80 == 600/60 == 10.0
+    roi = RoiWindow(
+        roi_id="ROI_Fe",
+        min_nm=float(det_wl[9]),
+        max_nm=float(det_wl[11]),
+        channel_indices=[9, 10, 11],
+        sub_bins=[[9, 10, 11]],
+        dominant_element="Fe",
+        used_in_response_fit=True,
+        self_absorption_prone=False,
+    )
+    passed, detail = engine.verify_gate_g1(
+        fam_mats=["M1", "M2"],
+        dictionary={"M1": D1, "M2": D2},
+        comp_map={"M1": {"Fe": 80.0, "Cr": 20.0}, "M2": {"Fe": 60.0, "Cr": 40.0}},
+        fam_rois=[roi],
+    )
+    assert passed is True
+    assert detail is not None and detail["maxRelativeDifference"] < 0.05
+
+    # Gate G1 fails when composition scaling is broken (e.g., 50% mismatch)
+    D2_bad = D2.copy()
+    D2_bad[10, 0] = 900.0
+    passed_bad, _ = engine.verify_gate_g1(
+        fam_mats=["M1", "M2"],
+        dictionary={"M1": D1, "M2": D2_bad},
+        comp_map={"M1": {"Fe": 80.0, "Cr": 20.0}, "M2": {"Fe": 60.0, "Cr": 40.0}},
+        fam_rois=[roi],
+    )
+    assert passed_bad is False
+
+
+def test_gpu_engine_multi_material_stats_o1_chi2_and_true_num_shots(tmp_path: Path) -> None:
+    import json
+    from scripts.forward_model import (
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+    )
+    from scripts.gpu_calibration_engine import GpuLibsCalibrationEngine
+    from scripts.measured_conditioning import ConditionedMaterial
+    from scripts.roi_catalogue import RoiWindow
+
+    manifest = {
+        "outputProfilePath": str(tmp_path / "instrument_profile.json"),
+        "nistResolvingPower": 5000.0,
+        "materialFamilies": {},
+    }
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps(manifest), encoding="utf-8")
+    engine = GpuLibsCalibrationEngine(str(mpath))
+
+    rng = np.random.default_rng(42)
+    n_ch = 80
+    det_wl = np.linspace(350.0, 750.0, n_ch)
+    resp = np.linspace(0.9, 1.1, n_ch)
+    scale = 2.0
+    nz_indices = [2, 5]
+    plasma_zones_json = [
+        {"zoneIndex": 0, "Te": 1.2, "Ne": 1e17, "volumeFraction": 0.7, "kAbsorption": 0.0},
+        {"zoneIndex": 1, "Te": 0.6, "Ne": 5e16, "volumeFraction": 0.3, "kAbsorption": 1.2},
+    ]
+    zone_specs = [PlasmaZoneSpec.from_dict(z) for z in plasma_zones_json]
+
+    rois = [
+        RoiWindow(
+            roi_id=f"ROI_{i}",
+            min_nm=float(det_wl[c]),
+            max_nm=float(det_wl[c + 2]),
+            channel_indices=[c, c + 1, c + 2],
+            sub_bins=[[c, c + 1, c + 2]],
+            dominant_element="Fe",
+            used_in_response_fit=True,
+            self_absorption_prone=False,
+        )
+        for i, c in enumerate(range(5, 65, 5))
+    ]
+    union_chans = sorted({ch for r in rois for sb in r.sub_bins for ch in sb})
+
+    dictionary = {}
+    cond_map = {}
+    for mat_idx, mat_name in enumerate(["SS469", "SS551"]):
+        D_m = rng.uniform(500.0, 4000.0, size=(n_ch, 8))
+        i_rad = apply_multi_zone_rte([D_m[:, 2], D_m[:, 5]], zone_specs)
+        y_true = apply_response_and_scale(i_rad, resp, scale, "absolute")
+        # Plant realistic combined measurement + 10% model noise so reduced_chi2 is O(1)
+        sigma_ch = np.full(n_ch, 50.0, dtype=np.float64)
+        noise_total = rng.normal(0.0, np.sqrt(sigma_ch ** 2 + (0.10 * y_true) ** 2))
+        y_noisy = np.maximum(y_true + noise_total, 0.0)
+        dictionary[mat_name] = D_m
+        cond_map[mat_name] = ConditionedMaterial(
+            wavelengths=det_wl,
+            mean_spectrum=y_noisy,
+            preprocessed_mean=y_noisy,
+            sigma_mean=sigma_ch,
+            valid_mask=np.ones(n_ch, dtype=bool),
+            lit_mask=np.ones(n_ch, dtype=bool),
+            dark_level=10.0,
+            point_means={"p1": y_noisy},
+            discarded_shots_per_point={"p1": 4},
+            preprocessed_point_means={"p1": y_noisy},
+            num_steady_shots=36 + mat_idx * 4,  # 36 and 40 -> total 76
+        )
+
+    stats, fit_cmp = engine.compute_family_calibration_stats(
+        fam_mats=["SS469", "SS551"],
+        dictionary=dictionary,
+        cond_map=cond_map,
+        fam_rois=rois,
+        union_chans=union_chans,
+        plasma_zones_json=plasma_zones_json,
+        nz_indices=nz_indices,
+        scale_factor_final=scale,
+        spectral_response=resp,
+        red_penalty=1.02,
+        sharing_penalty=1.05,
+        element_parity={"Fe": 0.01},
+        n_params=4,
+    )
+
+    # Reduced chi2 must be O(1), NEVER O(1e8)!
+    assert 0.2 <= stats["roiChi2Reduced"] <= 5.0
+    assert stats["roiRSquared"] > 0.80
+    assert "roiRmseRaw" in stats and "wholeSpectrumRmseRaw" in stats
+    # Must aggregate across ALL materials in family, not just fam_mats[0]
+    assert set(stats["perMaterialStats"].keys()) == {"SS469", "SS551"}
+    assert set(fit_cmp.keys()) == {"SS469", "SS551"}
+    assert stats["perMaterialStats"]["SS469"]["numSteadyShots"] == 36
+    assert stats["perMaterialStats"]["SS551"]["numSteadyShots"] == 40
+    # Family mean must equal average of per-material values
+    mean_chi2 = 0.5 * (
+        stats["perMaterialStats"]["SS469"]["roiChi2Reduced"]
+        + stats["perMaterialStats"]["SS551"]["roiChi2Reduced"]
+    )
+    assert stats["roiChi2Reduced"] == pytest.approx(mean_chi2, abs=1e-3)
+
+
+def test_gpu_engine_run_writes_true_summed_num_shots_and_line_spread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import json
+    import scripts.gpu_calibration_engine as gce
+    from scripts.roi_catalogue import RoiWindow
+
+    n_ch = 60
+    det_wl = np.linspace(350.0, 650.0, n_ch)
+    peaks = [10, 20, 30, 40, 50]
+
+    # Create 2 materials with 20 raw shots each (discardLeadingShots=4 -> 16 steady shots each -> sum = 32)
+    mat_entries = []
+    for mat_name, fe_pct in [("M1", 80.0), ("M2", 60.0)]:
+        base = np.full(n_ch, 100.0, dtype=np.float64)
+        base[:6] = 20.0
+        for p in peaks:
+            base[p] += 100.0 * fe_pct
+        meas_csv = tmp_path / f"{mat_name}_pt1.csv"
+        pd.DataFrame(np.tile(base, (20, 1)), columns=[f"{w:.3f}" for w in det_wl]).to_csv(
+            meas_csv, index=False
+        )
+
+        nist_paths = {}
+        for te in [0.8, 1.0]:
+            for ne in [1.0e17]:
+                s = np.zeros(n_ch, dtype=np.float64)
+                for p in peaks:
+                    s[p] = 50.0 * fe_pct * te
+                ncsv = tmp_path / f"{mat_name}_Te{te}_Ne{ne:.1E}.csv"
+                pd.DataFrame({"Wavelength (nm)": det_wl, "Sum(calc)": s}).to_csv(ncsv, index=False)
+                nist_paths[f"{te}_{ne:.1E}"] = str(ncsv)
+
+        mat_entries.append(
+            {
+                "materialName": mat_name,
+                "composition": {"Fe": fe_pct, "Cr": 100.0 - fe_pct},
+                "measuredCsvPaths": [str(meas_csv)],
+                "nistGridCsvPaths": nist_paths,
+            }
+        )
+
+    out_profile = tmp_path / "instrument_profile.json"
+    manifest = {
+        "outputProfilePath": str(out_profile),
+        "outputRoisPath": str(tmp_path / "regionsOfInterest.json"),
+        "nistResolvingPower": 5000.0,
+        "instrumentFwhmNm": 0.35,
+        "discardLeadingShots": 4,
+        "numZones": 2,
+        "teAnchorGridEv": [0.8, 1.0],
+        "neAnchorGridCm3": [1.0e17],
+        "materialFamilies": {"Steel": mat_entries},
+    }
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps(manifest), encoding="utf-8")
+
+    # Mock ASD cache & ROI catalogue cleanly so test is hermetic and fast
+    fake_lines = pd.DataFrame(
+        {
+            "element": ["Fe"] * len(peaks),
+            "wavelength_nm": [float(det_wl[p]) for p in peaks],
+            "Aki": [1e7] * len(peaks),
+            "Ek_eV": [4.0] * len(peaks),
+            "g_k": [5.0] * len(peaks),
+            "accuracy": ["B"] * len(peaks),
+        }
+    )
+    monkeypatch.setattr(gce, "build_cache", lambda *a, **kw: None)
+    monkeypatch.setattr(gce, "load_lines", lambda *a, **kw: fake_lines.copy())
+
+    import roi_catalogue
+
+    fake_rois = [
+        RoiWindow(
+            roi_id=f"ROI_{i}",
+            min_nm=float(det_wl[p - 1]),
+            max_nm=float(det_wl[p + 1]),
+            channel_indices=[p - 1, p, p + 1],
+            sub_bins=[[p - 1, p, p + 1]],
+            dominant_element="Fe",
+            used_in_response_fit=True,
+            self_absorption_prone=False,
+        )
+        for i, p in enumerate(peaks)
+    ]
+    monkeypatch.setattr(roi_catalogue, "build_catalogue", lambda *a, **kw: fake_rois)
+
+    engine = gce.GpuLibsCalibrationEngine(str(mpath))
+    engine.run()
+
+    assert out_profile.is_file()
+    prof = json.loads(out_profile.read_text(encoding="utf-8"))
+    # True summed steady shots across M1 (16) + M2 (16) = 32 (NOT 60+60=120 or 8192!)
+    assert prof["numShots"] == 32
+    assert len(prof["lineSpreadAddSigmaNm"]) == n_ch
+    assert all(s > 0.0 for s in prof["lineSpreadAddSigmaNm"])
+    fam_stats = prof["materialFamilyProfiles"]["Steel"]["calibrationStats"]
+    assert set(fam_stats["perMaterialStats"].keys()) == {"M1", "M2"}
+    assert fam_stats["perMaterialStats"]["M1"]["numSteadyShots"] == 16
+    assert fam_stats["perMaterialStats"]["M2"]["numSteadyShots"] == 16
+    # Gate G1 passed cleanly for linear Fe 80% vs 60% peaks
+    assert not any("COMPOSITION_SCALE_UNVERIFIED" in f for f in prof["calibrationDiagnostics"]["flags"])
