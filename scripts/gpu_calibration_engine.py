@@ -740,12 +740,16 @@ class GpuLibsCalibrationEngine:
     ) -> np.ndarray:
         """Compute per-channel additional Gaussian broadening sigma (nm) from manifest FWHM / R_nist.
 
-        Uses spectral_resampling.calculate_add_sigma_nm when instrumentFwhmNm or
-        instrumentResolvingPower is configured; defaults to 0.0 when absent or narrower than R_nist.
+        Returns zeros by default to prevent double-broadening of NIST R=3000 spectra;
+        additional broadening is strictly opt-in via manifest key ``enableLineSpreadBroadening: true``
+        alongside ``instrumentFwhmNm`` or ``instrumentResolvingPower``.
         """
         from spectral_resampling import calculate_add_sigma_nm
 
         det = np.asarray(det_wl, dtype=np.float64)
+        if not bool(self.manifest.get("enableLineSpreadBroadening", False)):
+            return np.zeros(len(det), dtype=np.float64)
+
         inst_fwhm_cfg = self.manifest.get("instrumentFwhmNm")
         inst_r_cfg = self.manifest.get("instrumentResolvingPower")
 
@@ -765,6 +769,86 @@ class GpuLibsCalibrationEngine:
 
         fwhm_src = det / max(float(r_nist), 1.0)
         return np.asarray(calculate_add_sigma_nm(fwhm_inst, fwhm_src), dtype=np.float64)
+
+    def _resolve_nist_state_path(
+        self,
+        mat_name: str,
+        nist_paths: Dict[str, str],
+        te: float,
+        ne: float,
+    ) -> str:
+        """Resolve a NIST grid CSV path for a specific numerical (Te, Ne) pair."""
+        candidates = (
+            f"{te}_{ne:.1E}",
+            f"{te:.1f}_{ne:.1E}",
+            f"{te}_{ne:.1e}",
+            f"{te:.1f}_{ne:.1e}",
+            f"{te}_{ne}",
+            f"{te:.2f}_{ne:.1E}",
+        )
+        for cand in candidates:
+            if cand in nist_paths:
+                return nist_paths[cand]
+
+        for raw_key, path in nist_paths.items():
+            parts = str(raw_key).split("_")
+            if len(parts) != 2:
+                continue
+            try:
+                k_te = float(parts[0])
+                k_ne = float(parts[1])
+            except ValueError:
+                continue
+            if np.isclose(k_te, te, rtol=1e-6, atol=1e-9) and np.isclose(
+                k_ne, ne, rtol=1e-6, atol=1e-9
+            ):
+                return path
+
+        raise KeyError(
+            f"Missing NIST grid state (Te={te}, Ne={ne:.1E}) for material '{mat_name}'"
+        )
+
+    def load_material_dictionary(
+        self,
+        mat_name: str,
+        nist_paths: Dict[str, str],
+        det_wl: np.ndarray,
+        add_sigma_nm: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """Load and resample NIST state spectra in strict numerical (te_grid, ne_grid) column order."""
+        from forward_model import NIST_UNIT_SCALE, resample_to_detector
+
+        det = np.asarray(det_wl, dtype=np.float64)
+        sigma_arr = (
+            np.zeros(len(det), dtype=np.float64)
+            if add_sigma_nm is None
+            else np.asarray(add_sigma_nm, dtype=np.float64)
+        )
+        n_states = len(self.te_grid) * len(self.ne_grid)
+        D = np.zeros((len(det), n_states), dtype=np.float64)
+
+        col_idx = 0
+        for te in self.te_grid:
+            for ne in self.ne_grid:
+                p = self._resolve_nist_state_path(mat_name, nist_paths, float(te), float(ne))
+                df = pd.read_csv(p)
+                w_col = df.columns[0]
+                i_col = df.columns[1]
+                w_src = df[w_col].to_numpy(dtype=np.float64)
+                i_src = df[i_col].to_numpy(dtype=np.float64) * NIST_UNIT_SCALE
+                if (
+                    len(w_src) == len(det)
+                    and np.allclose(w_src, det)
+                    and not np.any(sigma_arr > 1e-9)
+                ):
+                    D[:, col_idx] = i_src
+                else:
+                    D[:, col_idx] = resample_to_detector(
+                        w_src, i_src, det, add_sigma_nm=sigma_arr
+                    )
+                col_idx += 1
+
+        return D
 
     def verify_gate_g1(
         self,
@@ -1074,25 +1158,17 @@ class GpuLibsCalibrationEngine:
             logger.warning(f"[Engine] Could not load ASD lines: {e}")
             model_lines = pd.DataFrame()
 
-        # 3. Load and resample NIST dictionaries (N_det, N_states)
+        # 3. Load and resample NIST dictionaries (N_det, N_states) in strict numerical (te_grid, ne_grid) order
         dictionary = {}
         for family_name, mat_name, nist_paths, _ in mat_meta:
-            state_keys = sorted(nist_paths.keys())
-            if not state_keys:
+            if not nist_paths:
                 continue
-            D = np.zeros((len(det_wl), len(state_keys)), dtype=np.float64)
-            for i, k in enumerate(state_keys):
-                p = nist_paths[k]
-                df = pd.read_csv(p)
-                w_col = df.columns[0]
-                i_col = df.columns[1]
-                w_src = df[w_col].to_numpy(dtype=np.float64)
-                i_src = df[i_col].to_numpy(dtype=np.float64) * NIST_UNIT_SCALE
-                if len(w_src) == len(det_wl) and np.allclose(w_src, det_wl) and not np.any(add_sigma_nm > 1e-9):
-                    D[:, i] = i_src
-                else:
-                    D[:, i] = resample_to_detector(w_src, i_src, det_wl, add_sigma_nm=add_sigma_nm)
-            dictionary[mat_name] = D
+            dictionary[mat_name] = self.load_material_dictionary(
+                mat_name=mat_name,
+                nist_paths=nist_paths,
+                det_wl=det_wl,
+                add_sigma_nm=add_sigma_nm,
+            )
 
         # 4. Build ROI Catalogue across families
         all_rois = []

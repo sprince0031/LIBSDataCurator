@@ -348,6 +348,7 @@ def test_gpu_engine_dynamic_add_sigma_nm_and_gate_g1(tmp_path: Path) -> None:
         "outputProfilePath": str(tmp_path / "instrument_profile.json"),
         "nistResolvingPower": 5000.0,
         "instrumentFwhmNm": 0.35,
+        "enableLineSpreadBroadening": True,
         "materialFamilies": {},
     }
     mpath = tmp_path / "manifest.json"
@@ -549,6 +550,7 @@ def test_gpu_engine_run_writes_true_summed_num_shots_and_line_spread(
         "outputRoisPath": str(tmp_path / "regionsOfInterest.json"),
         "nistResolvingPower": 5000.0,
         "instrumentFwhmNm": 0.35,
+        "enableLineSpreadBroadening": True,
         "discardLeadingShots": 4,
         "numZones": 2,
         "teAnchorGridEv": [0.8, 1.0],
@@ -604,3 +606,80 @@ def test_gpu_engine_run_writes_true_summed_num_shots_and_line_spread(
     assert fam_stats["perMaterialStats"]["M2"]["numSteadyShots"] == 16
     # Gate G1 passed cleanly for linear Fe 80% vs 60% peaks
     assert not any("COMPOSITION_SCALE_UNVERIFIED" in f for f in prof["calibrationDiagnostics"]["flags"])
+
+
+def test_gpu_engine_resolves_nist_states_in_numerical_te_ne_order_and_raises_on_missing(
+    tmp_path: Path,
+) -> None:
+    """C1: Must iterate (te_grid, ne_grid) numerically, NEVER lexicographical sorted(keys)."""
+    import json
+    import scripts.gpu_calibration_engine as gce
+
+    det_wl = np.linspace(400.0, 500.0, 20)
+    te_grid = [0.5, 1.0]
+    ne_grid = [1.0e16, 5.0e16, 1.0e17]
+
+    # Insert in adversarial lexicographical order where "1.0E+17" sorts before "5.0E+16"
+    nist_paths = {}
+    for te in te_grid:
+        for ne in [1.0e17, 5.0e16, 1.0e16]:
+            sig_val = 1000.0 * te + np.log10(ne)
+            csv_p = tmp_path / f"M1_Te{te}_Ne{ne:.1E}.csv"
+            pd.DataFrame({"Wavelength (nm)": det_wl, "Sum(calc)": np.full(len(det_wl), sig_val)}).to_csv(
+                csv_p, index=False
+            )
+            nist_paths[f"{te}_{ne:.1E}"] = str(csv_p)
+
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(
+        json.dumps({"teAnchorGridEv": te_grid, "neAnchorGridCm3": ne_grid}),
+        encoding="utf-8",
+    )
+    engine = gce.GpuLibsCalibrationEngine(str(mpath))
+
+    D = engine.load_material_dictionary("M1", nist_paths, det_wl, add_sigma_nm=np.zeros_like(det_wl))
+    assert D.shape == (len(det_wl), len(te_grid) * len(ne_grid))
+
+    col = 0
+    for te in te_grid:
+        for ne in ne_grid:
+            expected_val = 1000.0 * te + np.log10(ne)
+            assert np.allclose(D[:, col], expected_val, atol=1e-9), (
+                f"Column {col} expected (Te={te}, Ne={ne:.1E}) -> {expected_val}, got {D[0, col]}"
+            )
+            col += 1
+
+    # Missing required state must raise KeyError rather than silently shifting columns
+    incomplete = dict(nist_paths)
+    del incomplete["1.0_5.0E+16"]
+    with pytest.raises(KeyError):
+        engine.load_material_dictionary("M1", incomplete, det_wl, add_sigma_nm=np.zeros_like(det_wl))
+
+
+def test_line_spread_add_sigma_disabled_by_default_and_opt_in_gated(tmp_path: Path) -> None:
+    """H1: compute_line_spread_add_sigma returns zeros unless enableLineSpreadBroadening is True."""
+    import json
+    import scripts.gpu_calibration_engine as gce
+
+    det_wl = np.linspace(350.0, 850.0, 30)
+
+    # Even with instrumentFwhmNm / instrumentResolvingPower present, default must be 0.0
+    mpath_default = tmp_path / "m_default.json"
+    mpath_default.write_text(
+        json.dumps({"instrumentFwhmNm": 0.35, "instrumentResolvingPower": 1500.0}),
+        encoding="utf-8",
+    )
+    eng_default = gce.GpuLibsCalibrationEngine(str(mpath_default))
+    sig_default = eng_default.compute_line_spread_add_sigma(det_wl, r_nist=5000.0)
+    assert np.all(sig_default == 0.0)
+
+    # Explicit opt-in enables additional Gaussian broadening
+    mpath_optin = tmp_path / "m_optin.json"
+    mpath_optin.write_text(
+        json.dumps({"instrumentFwhmNm": 0.35, "enableLineSpreadBroadening": True}),
+        encoding="utf-8",
+    )
+    eng_optin = gce.GpuLibsCalibrationEngine(str(mpath_optin))
+    sig_optin = eng_optin.compute_line_spread_add_sigma(det_wl, r_nist=5000.0)
+    assert np.all(sig_optin > 0.0)
+
