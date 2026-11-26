@@ -480,24 +480,32 @@ public class InputCompositionProcessor {
         for (List<Element> baseComposition : baseCompositions) {
 
             List<Element> coatedComposition = new ArrayList<>();
+            if (baseComposition == null || baseComposition.isEmpty()) {
+                coatedCompositions.add(coatedComposition);
+                continue;
+            }
 
             if (!scaleCoating) {
                 // Subtract coating element percentage from dominant element and add coating element to composition
+                for (Element element : baseComposition) {
+                    coatedComposition.add(copyElement(element));
+                }
 
-                coatedComposition.addAll(baseComposition);
-                Element maxPercentElement = coatedComposition.getFirst();
+                int indexOfMaxElement = 0;
+                Element maxPercentElement = coatedComposition.get(0);
                 int indexOfCoatingElement = -1;
-                for (Element element : coatedComposition) {
+                for (int i = 0; i < coatedComposition.size(); i++) {
+                    Element element = coatedComposition.get(i);
                     if (element.getPercentageComposition() > maxPercentElement.getPercentageComposition()) {
                         maxPercentElement = element;
+                        indexOfMaxElement = i;
                     }
 
                     if (element.getSymbol().equals(coatingElement.getSymbol())) {
-                        indexOfCoatingElement = coatedComposition.indexOf(element);
+                        indexOfCoatingElement = i;
                     }
                 }
 
-                int indexOfMaxElement = coatedComposition.indexOf(maxPercentElement);
                 Double reducedPercentage = maxPercentElement.getPercentageComposition() - coatingPercentage;
                 maxPercentElement.setPercentageComposition(reducedPercentage);
                 if (maxPercentElement.getMax() != null && maxPercentElement.getMin() != null) {
@@ -510,13 +518,13 @@ public class InputCompositionProcessor {
                     Element coatedElement = coatedComposition.get(indexOfCoatingElement);
                     Double increasedPercentage = coatedElement.getPercentageComposition() + coatingPercentage;
                     coatedElement.setPercentageComposition(increasedPercentage);
-                    if (maxPercentElement.getMax() != null && maxPercentElement.getMin() != null) {
+                    if (coatedElement.getMax() != null && coatedElement.getMin() != null) {
                         coatedElement.setMax(coatedElement.getMax() < increasedPercentage ? increasedPercentage : coatedElement.getMax());
                         coatedElement.setMin(coatedElement.getMin() + coatingPercentage);
                     }
                     coatedComposition.set(indexOfCoatingElement, coatedElement);
                 } else {
-                    coatedComposition.add(coatingElement);
+                    coatedComposition.add(copyElement(coatingElement));
                 }
                 logger.info("Coated composition created: " + CommonUtils.getInstance().buildCompositionString(coatedComposition));
 
@@ -529,10 +537,17 @@ public class InputCompositionProcessor {
                 boolean coatingElementExists = false;
                 for (Element element : baseComposition) {
                     if (element.getSymbol().equals(coatingElement.getSymbol())) {
-                        // Coating element exists, add coating percentage to it and scale
+                        // Coating element exists, add coating percentage to a fresh Element copy without mutating coatingElement
                         double newPercentage = (element.getPercentageComposition() * scaleFactor) + coatingPercentage;
-                        coatingElement.setPercentageComposition(newPercentage);
-                        coatedComposition.add(coatingElement);
+                        Element scaledCoatingElement = new Element(
+                                element.getName(),
+                                element.getSymbol(),
+                                newPercentage,
+                                element.getMin(),
+                                element.getMax(),
+                                element.getAverageComposition()
+                        );
+                        coatedComposition.add(scaledCoatingElement);
                         coatingElementExists = true;
                     } else {
                         // Scale down other elements
@@ -549,9 +564,9 @@ public class InputCompositionProcessor {
                     }
                 }
 
-                // If coating element doesn't exist in base composition, add it as new element
+                // If coating element doesn't exist in base composition, add a fresh copy as new element
                 if (!coatingElementExists) {
-                    coatedComposition.add(coatingElement);
+                    coatedComposition.add(copyElement(coatingElement));
                 }
             }
             coatedCompositions.add(coatedComposition);
@@ -566,6 +581,17 @@ public class InputCompositionProcessor {
         }
 
         return coatedCompositions;
+    }
+
+    private Element copyElement(Element src) {
+        return new Element(
+                src.getName(),
+                src.getSymbol(),
+                src.getPercentageComposition(),
+                src.getMin(),
+                src.getMax(),
+                src.getAverageComposition()
+        );
     }
 
 }

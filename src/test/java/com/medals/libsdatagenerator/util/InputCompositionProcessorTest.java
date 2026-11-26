@@ -24,9 +24,11 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -613,5 +615,132 @@ class InputCompositionProcessorTest {
         @SuppressWarnings("unchecked")
         List<List<Element>> result3 = (List<List<Element>>) applyCoatingMethod.invoke(processor, baseCompositions, coatingElement, false);
         assertEquals(baseCompositions, result3); // Should return original composition
+    }
+
+    @Test
+    void testApplyCoating_subtractStrategy_doesNotMutateInputsOrShareReferences() {
+        Element fe1 = new Element("Iron", "Fe", 80.0, 75.0, 85.0, 80.0);
+        Element c1 = new Element("Carbon", "C", 18.0, 15.0, 20.0, 18.0);
+        Element zn1 = new Element("Zinc", "Zn", 2.0, 1.0, 3.0, 2.0);
+        List<Element> comp1 = List.of(fe1, c1, zn1);
+
+        Element fe2 = new Element("Iron", "Fe", 85.0, 80.0, 90.0, 85.0);
+        Element c2 = new Element("Carbon", "C", 15.0, 10.0, 20.0, 15.0);
+        List<Element> comp2 = List.of(fe2, c2);
+
+        Element coatingElement = new Element("Zinc", "Zn", 5.0, null, null, null);
+
+        List<List<Element>> result = processor.applyCoating(List.of(comp1, comp2), coatingElement, false);
+        assertEquals(2, result.size());
+
+        // Caller inputs and coatingElement must remain completely unmutated
+        assertEquals(80.0, fe1.getPercentageComposition(), 1e-6);
+        assertEquals(75.0, fe1.getMin(), 1e-6);
+        assertEquals(85.0, fe1.getMax(), 1e-6);
+        assertEquals(2.0, zn1.getPercentageComposition(), 1e-6);
+        assertEquals(1.0, zn1.getMin(), 1e-6);
+        assertEquals(3.0, zn1.getMax(), 1e-6);
+        assertEquals(85.0, fe2.getPercentageComposition(), 1e-6);
+        assertEquals(5.0, coatingElement.getPercentageComposition(), 1e-6);
+
+        // Output composition 1 (existing Zn)
+        List<Element> out1 = result.get(0);
+        Element outFe1 = out1.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElseThrow();
+        Element outZn1 = out1.stream().filter(e -> e.getSymbol().equals("Zn")).findFirst().orElseThrow();
+        assertNotSame(fe1, outFe1);
+        assertNotSame(zn1, outZn1);
+        assertEquals(75.0, outFe1.getPercentageComposition(), 1e-6);
+        assertEquals(75.0, outFe1.getMin(), 1e-6);
+        assertEquals(80.0, outFe1.getMax(), 1e-6);
+        assertEquals(7.0, outZn1.getPercentageComposition(), 1e-6);
+        assertEquals(6.0, outZn1.getMin(), 1e-6);
+        assertEquals(7.0, outZn1.getMax(), 1e-6);
+
+        // Output composition 2 (newly added Zn) must not share coatingElement reference
+        List<Element> out2 = result.get(1);
+        Element outFe2 = out2.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElseThrow();
+        Element outZn2 = out2.stream().filter(e -> e.getSymbol().equals("Zn")).findFirst().orElseThrow();
+        assertNotSame(fe2, outFe2);
+        assertNotSame(coatingElement, outZn2);
+        assertNotSame(outZn1, outZn2);
+        assertEquals(80.0, outFe2.getPercentageComposition(), 1e-6);
+        assertEquals(5.0, outZn2.getPercentageComposition(), 1e-6);
+    }
+
+    @Test
+    void testApplyCoating_scaleStrategy_doesNotMutateCoatingElementAcrossIterations() {
+        Element fe1 = new Element("Iron", "Fe", 80.0, null, null, null);
+        Element cr1 = new Element("Chromium", "Cr", 20.0, 18.0, 22.0, 20.0);
+
+        Element fe2 = new Element("Iron", "Fe", 90.0, null, null, null);
+        Element cr2 = new Element("Chromium", "Cr", 10.0, 8.0, 12.0, 10.0);
+
+        Element fe3 = new Element("Iron", "Fe", 95.0, null, null, null);
+        Element c3 = new Element("Carbon", "C", 5.0, null, null, null);
+
+        Element coatingElement = new Element("Chromium", "Cr", 5.0, null, null, null);
+
+        List<List<Element>> result = processor.applyCoating(
+                List.of(List.of(fe1, cr1), List.of(fe2, cr2), List.of(fe3, c3)),
+                coatingElement,
+                true
+        );
+
+        assertEquals(3, result.size());
+        // coatingElement must not be mutated
+        assertEquals(5.0, coatingElement.getPercentageComposition(), 1e-6);
+        assertEquals(20.0, cr1.getPercentageComposition(), 1e-6);
+        assertEquals(10.0, cr2.getPercentageComposition(), 1e-6);
+
+        Element outCr1 = result.get(0).stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElseThrow();
+        Element outCr2 = result.get(1).stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElseThrow();
+        Element outCr3 = result.get(2).stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElseThrow();
+
+        // Distinct instances with independent percentages
+        assertNotSame(coatingElement, outCr1);
+        assertNotSame(coatingElement, outCr2);
+        assertNotSame(coatingElement, outCr3);
+        assertNotSame(outCr1, outCr2);
+        assertNotSame(outCr2, outCr3);
+
+        assertEquals(24.0, outCr1.getPercentageComposition(), 1e-6); // 20 * 0.95 + 5
+        assertEquals(14.5, outCr2.getPercentageComposition(), 1e-6); // 10 * 0.95 + 5
+        assertEquals(5.0, outCr3.getPercentageComposition(), 1e-6);
+    }
+
+    @Test
+    void testApplyCoating_subtractStrategy_noNpeWhenMaxHasBoundsAndCoatedHasNullBounds() {
+        Element fe = new Element("Iron", "Fe", 90.0, 85.0, 95.0, 90.0);
+        Element cr = new Element("Chromium", "Cr", 10.0, null, null, null);
+        Element coatingElement = new Element("Chromium", "Cr", 2.0, null, null, null);
+
+        List<List<Element>> result = assertDoesNotThrow(() ->
+                processor.applyCoating(List.of(List.of(fe, cr)), coatingElement, false));
+
+        List<Element> out = result.get(0);
+        Element outFe = out.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElseThrow();
+        Element outCr = out.stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElseThrow();
+        assertEquals(88.0, outFe.getPercentageComposition(), 1e-6);
+        assertEquals(12.0, outCr.getPercentageComposition(), 1e-6);
+        assertNull(outCr.getMin());
+        assertNull(outCr.getMax());
+    }
+
+    @Test
+    void testApplyCoating_subtractStrategy_updatesCoatedBoundsWhenMaxHasNullBounds() {
+        Element fe = new Element("Iron", "Fe", 90.0, null, null, null);
+        Element cr = new Element("Chromium", "Cr", 10.0, 8.0, 11.0, 10.0);
+        Element coatingElement = new Element("Chromium", "Cr", 2.0, null, null, null);
+
+        List<List<Element>> result = processor.applyCoating(List.of(List.of(fe, cr)), coatingElement, false);
+
+        List<Element> out = result.get(0);
+        Element outCr = out.stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElseThrow();
+        assertEquals(12.0, outCr.getPercentageComposition(), 1e-6);
+        assertEquals(10.0, outCr.getMin(), 1e-6);
+        assertEquals(12.0, outCr.getMax(), 1e-6);
+        // Original caller bounds remain untouched
+        assertEquals(8.0, cr.getMin(), 1e-6);
+        assertEquals(11.0, cr.getMax(), 1e-6);
     }
 }
