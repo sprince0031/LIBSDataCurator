@@ -33,13 +33,13 @@
   - [x] Implement Wan et al. (2014) range-to-SD variance (`NormalDistribution.inverseCumulativeProbability`, $d_n \in [2.0, 6.0]$, $R/4$ for $n < 2$), explicit-range-filtered pooled Dirichlet method-of-moments $\alpha_0 = \sum \mu_i(1-\mu_i) / \sum \text{Var}(X_i) - 1$ (with sentinel fallback only when zero elements have explicit ranges), and `MAX_TOTAL_CONCENTRATION`-preserving `MIN_ALPHA` adjustment in `src/main/java/com/medals/libsdatagenerator/service/ConcentrationParameterEstimator.java`
   - [x] Run `mvn test -Dtest=ConcentrationParameterEstimatorTest,CompositionalVariationsTest,SeriesStatisticsExtractorTest` and verify Green
 
-- [~] Task: Deep-copy `Element` objects & fix latent NPE in `InputCompositionProcessor.applyCoating` (FR-6)
-  - [ ] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/util/InputCompositionProcessorTest.java` covering: (a) multi-composition non-mutation of caller `baseCompositions`, contained `Element`s, and `coatingElement` across both `scaleCoating == false` and `scaleCoating == true` (for both new and pre-existing coating elements), (b) no shared mutable `Element` object references across output compositions, (c) latent NPE regression in `scaleCoating == false` when `maxPercentElement` has non-null `[min, max]` while pre-existing `coatedElement` has `null` `[min, max]`, and (d) accurate `coatedElement` `[min, max]` update when `coatedElement` has non-null bounds (even when `maxPercentElement` has `null` bounds)
-  - [ ] Confirm failing tests via `mvn test -Dtest=InputCompositionProcessorTest` (Red)
-  - [ ] Implement `copyElement(Element)` deep-copy helper, empty-composition guard, deep copies in both `scaleCoating == false` and `scaleCoating == true` branches, and line-513 `coatedElement.getMax() != null && coatedElement.getMin() != null` fix in `src/main/java/com/medals/libsdatagenerator/util/InputCompositionProcessor.java`
-  - [ ] Run `mvn test -Dtest=InputCompositionProcessorTest` and verify Green
+- [x] Task: Deep-copy `Element` objects & fix latent NPE in `InputCompositionProcessor.applyCoating` (FR-6) (699ce9e)
+  - [x] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/util/InputCompositionProcessorTest.java` covering: (a) multi-composition non-mutation of caller `baseCompositions`, contained `Element`s, and `coatingElement` across both `scaleCoating == false` and `scaleCoating == true` (for both new and pre-existing coating elements), (b) no shared mutable `Element` object references across output compositions, (c) latent NPE regression in `scaleCoating == false` when `maxPercentElement` has non-null `[min, max]` while pre-existing `coatedElement` has `null` `[min, max]`, and (d) accurate `coatedElement` `[min, max]` update when `coatedElement` has non-null bounds (even when `maxPercentElement` has `null` bounds)
+  - [x] Confirm failing tests via `mvn test -Dtest=InputCompositionProcessorTest` (Red)
+  - [x] Implement `copyElement(Element)` deep-copy helper, empty-composition guard, deep copies in both `scaleCoating == false` and `scaleCoating == true` branches, and line-513 `coatedElement.getMax() != null && coatedElement.getMin() != null` fix in `src/main/java/com/medals/libsdatagenerator/util/InputCompositionProcessor.java`
+  - [x] Run `mvn test -Dtest=InputCompositionProcessorTest` and verify Green
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
