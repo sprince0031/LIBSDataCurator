@@ -683,3 +683,246 @@ def test_line_spread_add_sigma_disabled_by_default_and_opt_in_gated(tmp_path: Pa
     sig_optin = eng_optin.compute_line_spread_add_sigma(det_wl, r_nist=5000.0)
     assert np.all(sig_optin > 0.0)
 
+
+def test_build_catalogue_uses_preprocessed_mean_and_excludes_saturated_windows() -> None:
+    """H2 & C5: build_catalogue checks 5-sigma detectability on preprocessed_mean and rejects saturated windows."""
+    from scripts.measured_conditioning import ConditionedMaterial
+    from scripts.roi_catalogue import build_catalogue
+
+    det_wl = np.linspace(380.0, 500.0, 241)  # 0.5 nm step
+    n_ch = len(det_wl)
+
+    # 3 candidate Al I lines:
+    # 1) 400.0 nm: clean peak in preprocessed_mean, valid_mask all True -> MUST survive
+    # 2) 430.0 nm: zero in preprocessed_mean, huge raw continuum in mean_spectrum -> MUST be rejected (H2)
+    # 3) 460.0 nm: strong peak in preprocessed_mean, but 1 pixel saturated (valid_mask=False) -> MUST be rejected (C5)
+    model_lines = pd.DataFrame(
+        {
+            "element": ["Al", "Al", "Al"],
+            "species": ["Al I", "Al I", "Al I"],
+            "wavelength_nm": [400.0, 430.0, 460.0],
+            "Aki": [1.0e8, 1.0e8, 1.0e8],
+            "Ek_eV": [3.5, 3.5, 3.5],
+            "Ei_eV": [2.5, 2.5, 2.5],
+            "g_k": [4.0, 4.0, 4.0],
+            "accuracy": ["B", "B", "B"],
+            "unc": [0.10, 0.10, 0.10],
+            "boltzmann_ok": [True, True, True],
+        }
+    )
+
+    D_ref = np.zeros((n_ch, 2), dtype=np.float64)
+    y_pre = np.zeros(n_ch, dtype=np.float64)
+    y_raw = np.zeros(n_ch, dtype=np.float64)
+    valid_mask = np.ones(n_ch, dtype=bool)
+    lit_mask = np.ones(n_ch, dtype=bool)
+    lit_mask[:5] = False  # dark channels with sigma_dark=5.0
+
+    for wl_c in [400.0, 430.0, 460.0]:
+        idx = int(np.argmin(np.abs(det_wl - wl_c)))
+        D_ref[idx - 1 : idx + 2, :] = 5000.0
+
+    idx_clean = int(np.argmin(np.abs(det_wl - 400.0)))
+    y_pre[idx_clean - 1 : idx_clean + 2] = 5000.0
+    y_raw[idx_clean - 1 : idx_clean + 2] = 5000.0
+
+    idx_continuum = int(np.argmin(np.abs(det_wl - 430.0)))
+    y_pre[idx_continuum - 1 : idx_continuum + 2] = 0.0
+    y_raw[idx_continuum - 1 : idx_continuum + 2] = 50000.0  # un-baselined continuum only
+
+    idx_sat = int(np.argmin(np.abs(det_wl - 460.0)))
+    y_pre[idx_sat - 1 : idx_sat + 2] = 5000.0
+    y_raw[idx_sat - 1 : idx_sat + 2] = 65000.0
+    valid_mask[idx_sat] = False  # saturated channel inside window
+
+    cond = ConditionedMaterial(
+        wavelengths=det_wl,
+        mean_spectrum=y_raw,
+        preprocessed_mean=y_pre,
+        sigma_mean=np.full(n_ch, 5.0, dtype=np.float64),
+        valid_mask=valid_mask,
+        lit_mask=lit_mask,
+        dark_level=0.0,
+        point_means={"p1": y_raw},
+        discarded_shots_per_point={"p1": 0},
+        preprocessed_point_means={"p1": y_pre},
+        num_steady_shots=10,
+    )
+
+    rois = build_catalogue(
+        family="Aluminum",
+        compositions={"AL1": {"Al": 98.0, "Si": 2.0}},
+        model_lines=model_lines,
+        dictionary_ref=D_ref,
+        conditioned={"AL1": cond},
+        detector_wavelengths=det_wl,
+    )
+    assert len(rois) == 1
+    assert rois[0].min_nm <= 400.0 <= rois[0].max_nm
+    assert not any(r.min_nm <= 430.0 <= r.max_nm for r in rois)
+    assert not any(r.min_nm <= 460.0 <= r.max_nm for r in rois)
+
+
+def test_gpu_engine_multi_family_roi_survival_without_head1500_or_cross_family_leak(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C2 & C5: >1500 high-Aki V lines and Steel cond_map must NOT starve Aluminum Al/Si ROIs."""
+    import json
+    import scripts.gpu_calibration_engine as gce
+
+    det_wl = np.linspace(380.0, 580.0, 401)  # 0.5 nm step
+    n_ch = len(det_wl)
+    fe_wls = [400.0, 440.0, 480.0, 520.0]
+    al_wls = [415.0, 460.0, 505.0]
+    si_wls = [430.0, 540.0]
+
+    def _make_mat_entry(mat_name: str, comp: dict, peak_wls: list) -> dict:
+        spec = np.zeros(n_ch, dtype=np.float64)
+        for w in peak_wls:
+            idx = int(np.argmin(np.abs(det_wl - w)))
+            spec[idx - 1 : idx + 2] = 8000.0
+        spec[:10] = 5.0  # dark
+        meas_csv = tmp_path / f"{mat_name}_meas.csv"
+        pd.DataFrame(np.tile(spec, (12, 1)), columns=[f"{w:.3f}" for w in det_wl]).to_csv(
+            meas_csv, index=False
+        )
+        nist_paths = {}
+        for te in [0.8, 1.0]:
+            for ne in [1.0e17]:
+                ncsv = tmp_path / f"{mat_name}_Te{te}_Ne{ne:.1E}.csv"
+                pd.DataFrame({"Wavelength (nm)": det_wl, "Sum(calc)": spec * 0.5 * te}).to_csv(
+                    ncsv, index=False
+                )
+                nist_paths[f"{te}_{ne:.1E}"] = str(ncsv)
+        return {
+            "materialName": mat_name,
+            "composition": comp,
+            "measuredCsvPaths": [str(meas_csv)],
+            "nistGridCsvPaths": nist_paths,
+        }
+
+    # Build >1550 high-Aki trace V lines that would starve Al/Si under .head(1500)
+    rows = []
+    for k in range(1550):
+        rows.append(
+            {
+                "element": "V",
+                "species": "V I",
+                "wavelength_nm": 385.0 + (k % 180) * 1.0,
+                "Aki": 1.0e9 + k,
+                "Ek_eV": 4.0,
+                "Ei_eV": 2.5,
+                "g_k": 6.0,
+                "accuracy": "B",
+                "boltzmann_ok": True,
+            }
+        )
+    for w in fe_wls:
+        rows.append({"element": "Fe", "species": "Fe I", "wavelength_nm": w, "Aki": 5.0e7, "Ek_eV": 4.0, "Ei_eV": 2.5, "g_k": 5.0, "accuracy": "B", "boltzmann_ok": True})
+    for w in al_wls:
+        rows.append({"element": "Al", "species": "Al I", "wavelength_nm": w, "Aki": 1.0e6, "Ek_eV": 3.5, "Ei_eV": 2.5, "g_k": 4.0, "accuracy": "B", "boltzmann_ok": True})
+    for w in si_wls:
+        rows.append({"element": "Si", "species": "Si I", "wavelength_nm": w, "Aki": 1.0e6, "Ek_eV": 4.5, "Ei_eV": 2.5, "g_k": 4.0, "accuracy": "B", "boltzmann_ok": True})
+    fake_lines = pd.DataFrame(rows)
+
+    out_profile = tmp_path / "instrument_profile.json"
+    out_rois = tmp_path / "regionsOfInterest.json"
+    manifest = {
+        "outputProfilePath": str(out_profile),
+        "outputRoisPath": str(out_rois),
+        "nistResolvingPower": 3000.0,
+        "discardLeadingShots": 2,
+        "numZones": 2,
+        "teAnchorGridEv": [0.8, 1.0],
+        "neAnchorGridCm3": [1.0e17],
+        "materialFamilies": {
+            "Steel": [_make_mat_entry("ST1", {"Fe": 99.0, "V": 1.0}, fe_wls)],
+            "Aluminum": [_make_mat_entry("AL1", {"Al": 90.0, "Si": 10.0}, al_wls + si_wls)],
+        },
+    }
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps(manifest), encoding="utf-8")
+
+    monkeypatch.setattr(gce, "build_cache", lambda *a, **kw: None)
+    monkeypatch.setattr(gce, "load_lines", lambda *a, **kw: fake_lines.copy())
+
+    engine = gce.GpuLibsCalibrationEngine(str(mpath))
+    engine.run()
+
+    assert out_rois.is_file()
+    rois_json = json.loads(out_rois.read_text(encoding="utf-8"))
+    al_fam = rois_json["materialFamilyRois"]["Aluminum"]
+    al_elements = {r["dominantElement"] for r in al_fam["rois"]}
+    assert "Al" in al_elements, f"Al ROIs starved or leaked out! Got: {al_elements}"
+    assert "Si" in al_elements, f"Si ROIs starved or leaked out! Got: {al_elements}"
+
+
+def test_compute_family_calibration_stats_masks_saturated_channels(tmp_path: Path) -> None:
+    """C5: compute_family_calibration_stats must intersect roi_mask and lit_mask with valid_mask."""
+    import json
+    from scripts.gpu_calibration_engine import GpuLibsCalibrationEngine
+    from scripts.measured_conditioning import ConditionedMaterial
+    from scripts.roi_catalogue import RoiWindow
+
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps({"materialFamilies": {}}), encoding="utf-8")
+    engine = GpuLibsCalibrationEngine(str(mpath))
+
+    n_ch = 40
+    det_wl = np.linspace(400.0, 500.0, n_ch)
+    D = np.zeros((n_ch, 1), dtype=np.float64)
+    D[10:30, 0] = np.linspace(100.0, 1000.0, 20)
+    resp = np.ones(n_ch, dtype=np.float64)
+
+    y_meas = D[:, 0].copy()
+    valid_mask = np.ones(n_ch, dtype=bool)
+    lit_mask = np.ones(n_ch, dtype=bool)
+    # Corrupt one saturated channel inside both ROI and lit masks
+    y_meas[15] = 1.0e7
+    valid_mask[15] = False
+
+    cond = ConditionedMaterial(
+        wavelengths=det_wl,
+        mean_spectrum=y_meas,
+        preprocessed_mean=y_meas,
+        sigma_mean=np.full(n_ch, 5.0),
+        valid_mask=valid_mask,
+        lit_mask=lit_mask,
+        dark_level=0.0,
+        point_means={"p1": y_meas},
+        discarded_shots_per_point={"p1": 0},
+        preprocessed_point_means={"p1": y_meas},
+        num_steady_shots=10,
+    )
+    roi = RoiWindow(
+        roi_id="R1",
+        min_nm=float(det_wl[10]),
+        max_nm=float(det_wl[20]),
+        channel_indices=list(range(10, 21)),
+        sub_bins=[list(range(10, 14)), list(range(16, 20))],
+        dominant_element="Fe",
+        used_in_response_fit=True,
+        self_absorption_prone=False,
+    )
+    zones = [{"zoneIndex": 0, "Te": 1.0, "Ne": 1e17, "volumeFraction": 1.0, "kAbsorption": 0.0}]
+
+    stats, _ = engine.compute_family_calibration_stats(
+        fam_mats=["M1"],
+        dictionary={"M1": D},
+        cond_map={"M1": cond},
+        fam_rois=[roi],
+        union_chans=list(range(10, 21)),
+        plasma_zones_json=zones,
+        nz_indices=[0],
+        scale_factor_final=1.0,
+        spectral_response=resp,
+        red_penalty=1.0,
+        sharing_penalty=1.0,
+        element_parity={"Fe": 0.0},
+        n_params=1,
+    )
+    assert stats["roiRSquared"] == pytest.approx(1.0, abs=1e-6)
+    assert stats["wholeSpectrumRSquared"] == pytest.approx(1.0, abs=1e-6)
+    assert stats["roiRmseRaw"] == pytest.approx(0.0, abs=1e-6)
+
+

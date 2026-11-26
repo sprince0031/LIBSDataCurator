@@ -1000,9 +1000,16 @@ class GpuLibsCalibrationEngine:
             else:
                 chi2_m = 0.0
 
+            valid_mask = (
+                np.asarray(cond.valid_mask, dtype=bool)
+                if getattr(cond, "valid_mask", None) is not None
+                else np.ones(n_ch, dtype=bool)
+            )
+
             roi_mask = np.zeros(n_ch, dtype=bool)
             if union_chans:
                 roi_mask[np.asarray(union_chans, dtype=np.int64)] = True
+            roi_mask &= valid_mask
             if np.any(roi_mask):
                 roi_met = compute_spectral_metrics(
                     y_meas_m, y_synth_m, mask=roi_mask, normalization="none"
@@ -1013,7 +1020,7 @@ class GpuLibsCalibrationEngine:
             else:
                 roi_r2_m, roi_rmse_m, roi_rmse_raw_m = 0.0, 0.0, 0.0
 
-            lit_mask = np.asarray(cond.lit_mask, dtype=bool)
+            lit_mask = np.asarray(cond.lit_mask, dtype=bool) & valid_mask
             if np.any(lit_mask):
                 whole_met = compute_spectral_metrics(
                     y_meas_m, y_synth_m, mask=lit_mask, normalization="none"
@@ -1150,7 +1157,7 @@ class GpuLibsCalibrationEngine:
             )
             lines_df = load_lines([], wl_range=(float(det_wl[0]), float(det_wl[-1])), cache_dir=self.nist_lines_dir, elements=all_elements)
             valid_l = (lines_df["Aki"] > 0) & (lines_df["Ek_eV"] > 0) & (lines_df["g_k"] > 0) & lines_df["wavelength_nm"].notna()
-            model_lines = lines_df[valid_l].copy().sort_values("Aki", ascending=False).head(1500).reset_index(drop=True)
+            model_lines = lines_df[valid_l].copy().reset_index(drop=True)
             model_lines["wl_nm"] = model_lines["wavelength_nm"]
             model_lines["unc"] = model_lines["accuracy"].apply(accuracy_to_uncertainty)
             model_lines["gA"] = model_lines["g_k"] * model_lines["Aki"]
@@ -1184,7 +1191,7 @@ class GpuLibsCalibrationEngine:
                     compositions={m: comp_map[m] for m in fam_mats},
                     model_lines=model_lines,
                     dictionary_ref=dictionary[ref_mat],
-                    conditioned=cond_map,
+                    conditioned={m: cond_map[m] for m in fam_mats},
                     detector_wavelengths=det_wl,
                 )
                 rois_by_family[fam] = fam_rois

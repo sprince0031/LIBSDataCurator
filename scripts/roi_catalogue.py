@@ -322,7 +322,16 @@ def build_catalogue(
 
         measured_ok = True
         for cond in conditioned.values():
-            y_win = float(np.sum(cond.mean_spectrum[chan_mask]))
+            if getattr(cond, "valid_mask", None) is not None:
+                if not bool(np.all(np.asarray(cond.valid_mask, dtype=bool)[chan_mask])):
+                    measured_ok = False
+                    break
+            y_src = (
+                cond.preprocessed_mean
+                if getattr(cond, "preprocessed_mean", None) is not None
+                else cond.mean_spectrum
+            )
+            y_win = float(np.sum(y_src[chan_mask]))
             sig_win = float(np.sqrt(np.sum(cond.sigma_mean[chan_mask] ** 2)))
             if cond.lit_mask is not None and not np.all(cond.lit_mask):
                 unlit_sig = cond.sigma_mean[~cond.lit_mask]
