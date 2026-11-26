@@ -297,12 +297,17 @@ def evaluate_diagnostics(
     min_te_indices = set(range(0, n_ne))  # first Te row
     max_te_indices = set(range((n_te - 1) * n_ne, n_te * n_ne))  # last Te row
 
+    r_arr = np.asarray(response_curve, dtype=np.float64)
     for mat_name, w in weights_by_mat.items():
         w_arr = np.asarray(w, dtype=np.float64)
         if dictionary is not None and mat_name in dictionary:
             D_m = np.asarray(dictionary[mat_name], dtype=np.float64)
             n_cols = min(len(w_arr), D_m.shape[1])
-            contrib = np.sum(D_m[:, :n_cols], axis=0) * w_arr[:n_cols]
+            if len(r_arr) == D_m.shape[0]:
+                # True modeled detector emission M^(j)_p = R_p * D_{m, p, j} * w_{m, j}
+                contrib = np.sum(D_m[:, :n_cols] * r_arr[:, np.newaxis], axis=0) * w_arr[:n_cols]
+            else:
+                contrib = np.sum(D_m[:, :n_cols], axis=0) * w_arr[:n_cols]
         else:
             contrib = w_arr
         total_c = float(np.sum(contrib))

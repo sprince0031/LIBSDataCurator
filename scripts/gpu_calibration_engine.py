@@ -7,7 +7,7 @@ Key Features:
   1. Complete removal of post-NIST Voigt broadening & voigtProfile JSON objects.
   2. Automatic NIST ASD line acquisition & caching into data/nist_lines/ via scripts/nist_lines.py
      based on the material compositions passed via -c during calibrate.sh.
-  3. Morphological Opening continuum removal (default structuringElementSize = 65 channels).
+  3. Morphological Opening continuum removal (default structuringElementSize = 25 channels).
   4. 1:1 Normalized 2-Zone Radiative Transfer Equation (RTE) matching Java SpectrumUtils.
   5. ASD-Anchored Peak-Envelope P-Spline Spectral Response R(lambda) with Inverse-Family-Size
      Balanced Pooling, Huber Loss, and 2-Pass Alternating RTE Synchronization across all families.
@@ -1051,11 +1051,19 @@ class GpuLibsCalibrationEngine:
             else:
                 dark_std = 30.0
 
+            valid_mask = (
+                np.asarray(cond.valid_mask, dtype=bool)
+                if getattr(cond, "valid_mask", None) is not None
+                else np.ones(n_ch, dtype=bool)
+            )
+
             y_meas_sb: List[float] = []
             y_pred_sb: List[float] = []
             var_sb: List[float] = []
             for r, sb in thin_roi_sbs:
                 sb_idx = np.asarray(sb, dtype=np.int64)
+                if not bool(np.all(valid_mask[sb_idx])):
+                    continue
                 var_info = compute_sub_bin_variances(
                     channels=list(sb),
                     mean_spectrum=y_meas_m,
@@ -1080,12 +1088,6 @@ class GpuLibsCalibrationEngine:
                 )
             else:
                 chi2_m = 0.0
-
-            valid_mask = (
-                np.asarray(cond.valid_mask, dtype=bool)
-                if getattr(cond, "valid_mask", None) is not None
-                else np.ones(n_ch, dtype=bool)
-            )
 
             roi_mask = np.zeros(n_ch, dtype=bool)
             if union_chans:

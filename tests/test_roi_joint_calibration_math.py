@@ -1446,6 +1446,28 @@ def test_evaluate_diagnostics_te_grid_edge_uses_modeled_emission_when_dictionary
     )
     assert "TE_GRID_EDGE:M1" in diag_edge["flags"]
 
+    # When response_curve matches detector channels, TE_GRID_EDGE uses R(lambda)-weighted modeled emission:
+    # Edge state 0 emits only in low-response NIR channels (R=0.1), interior state 1 emits in high-response visible (R=5.0)
+    D_resp = np.zeros((10, 3), dtype=np.float64)
+    D_resp[8:10, 0] = 100.0  # sum_raw = 200 (10% unweighted), sum_R = 20
+    D_resp[2:4, 1] = 900.0   # sum_raw = 1800 (90% unweighted), sum_R = 9000
+    resp_full = np.array([1.0, 1.0, 5.0, 5.0, 1.0, 1.0, 1.0, 1.0, 0.1, 0.1], dtype=np.float64)
+    diag_r = evaluate_diagnostics(
+        weights_by_mat={"M1": np.array([1.0, 1.0, 0.0])},
+        te_grid=[0.5, 1.0, 1.5],
+        ne_grid=[1e17],
+        response_curve=resp_full,
+        response_restart_spread=0.01,
+        iterations=5,
+        gap_flag=False,
+        reduced_chi2_by_mat={"M1": 1.0},
+        composition_scale_verified=True,
+        dictionary={"M1": D_resp},
+    )
+    # Unweighted would be 200/2000 = 10% (>5%), but R-weighted modeled emission is 20/9020 = 0.22% (<5%)
+    assert not any("TE_GRID_EDGE" in f for f in diag_r["flags"])
+
+
 
 
 
