@@ -884,21 +884,184 @@ def scan_absorption(
     sub_data: Any = None,
     k_grid: np.ndarray = np.linspace(0.0, 8.0, 81),
     c_huber: float = 1.345,
+    return_weights: bool = False,
     **kwargs: Any,
-) -> Tuple[float, Any]:
+) -> Tuple[Any, ...]:
     """R8.3: Scan self-absorption k in [0, 8] for the coolest zone across prone sub-bins.
-    
-    Returns chosen k and any diagnostic flags (e.g. K_ABSORPTION_AT_BOUND).
-    Keeps k = 0 if the improvement over k = 0 is under 2%.
+
+    Supports three invocation modes:
+    1. Channel-exact RTE mode (preferred): pass ``dictionary``, ``sub_bins``, ``spectral_response``,
+       ``y_dict``, ``reduced_weights``, and ``coolest_state_idx`` (optional ``sigma_dict``, ``prone_mask``).
+       Evaluates channel-wise ``exp(-k * d_tilde_cool_p)`` before multiplying by ``spectral_response``
+       and summing into sub-bins, matching ``apply_multi_zone_rte`` 1:1.
+    2. Legacy ``A_dict`` sub-bin dict mode.
+    3. Standalone ``sub_data`` list mode.
+
+    Skips any trial ``k > 0`` where NNLS collapses ``V_hot <= 0``, ``V_cool <= 0``, or any active
+    zone volume fraction below ``1e-3`` (preventing unphysical zero-volume absorbing ghost zones).
+    Keeps ``k = 0`` if the improvement over ``k = 0`` is under 2%.
+
+    When ``return_weights=True``, returns a 3-tuple ``(best_k, flags_or_bool, updated_weights)``;
+    otherwise preserves backward-compatible 2-tuple ``(best_k, flags_or_bool)``.
     """
+    min_zone_vf = 1e-3
+
+    def _apply_v_to_weights(base_w: np.ndarray, v_vec: np.ndarray, cool_idx: int) -> np.ndarray:
+        out = np.asarray(base_w, dtype=np.float64).copy()
+        v_hot = float(v_vec[0])
+        v_cool = float(v_vec[1])
+        for j in range(len(out)):
+            if j == cool_idx:
+                out[j] = out[j] * v_cool
+            elif out[j] > 0.0:
+                out[j] = out[j] * v_hot
+        return out
+
+    def _is_valid_absorbing_zones(
+        v_vec: np.ndarray,
+        base_w: Optional[np.ndarray] = None,
+        cool_idx: Optional[int] = None,
+    ) -> bool:
+        if float(v_vec[0]) <= 0.0 or float(v_vec[1]) <= 0.0:
+            return False
+        if base_w is not None and cool_idx is not None:
+            cand_w = _apply_v_to_weights(base_w, v_vec, cool_idx)
+            w_tot = float(np.sum(cand_w))
+            if w_tot <= 1e-12:
+                return False
+            cool_vf = float(cand_w[cool_idx]) / w_tot
+            hot_vf = float(w_tot - cand_w[cool_idx]) / w_tot
+            if cool_vf < min_zone_vf or hot_vf < min_zone_vf:
+                return False
+            for j in range(len(base_w)):
+                if float(base_w[j]) > 0.0 and (float(cand_w[j]) / w_tot) < min_zone_vf:
+                    return False
+            return True
+        v_sum = float(v_vec[0]) + float(v_vec[1])
+        if v_sum <= 1e-12:
+            return False
+        return (float(v_vec[0]) / v_sum >= min_zone_vf) and (float(v_vec[1]) / v_sum >= min_zone_vf)
+
+    # Mode 1: Channel-exact RTE evaluation directly from full-spectrum dictionary & sub_bins
+    if "dictionary" in kwargs and kwargs.get("dictionary") is not None and kwargs.get("sub_bins") is not None:
+        dictionary = kwargs["dictionary"]
+        sub_bins_arg = kwargs["sub_bins"]
+        y_dict = kwargs.get("y_dict", {})
+        sigma_dict = kwargs.get("sigma_dict")
+        spectral_response = kwargs.get("spectral_response")
+        reduced_weights = np.asarray(kwargs["reduced_weights"], dtype=np.float64)
+        coolest_idx = int(kwargs.get("coolest_state_idx", 0))
+        prone_mask = kwargs.get("prone_mask", [])
+
+        mat_order = sorted(dictionary.keys())
+        mat_cache: List[Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, List[np.ndarray]]] = []
+        y_list: List[float] = []
+        sig_list: List[float] = []
+        prone_list: List[bool] = []
+
+        for m in mat_order:
+            D_m = np.asarray(dictionary[m], dtype=np.float64)
+            n_ch, n_st = D_m.shape
+            resp_m = (
+                np.asarray(spectral_response, dtype=np.float64)
+                if spectral_response is not None
+                else np.ones(n_ch, dtype=np.float64)
+            )
+            cool_raw = D_m[:, coolest_idx]
+            cool_max = max(float(np.max(cool_raw)), 1e-12)
+            d_tilde_cool_ch = cool_raw / cool_max
+            cool_ch = cool_raw * float(reduced_weights[coolest_idx])
+            hot_ch = np.zeros(n_ch, dtype=np.float64)
+            for j in range(n_st):
+                if j != coolest_idx and reduced_weights[j] > 0.0:
+                    hot_ch += D_m[:, j] * float(reduced_weights[j])
+
+            sbs_m = sub_bins_arg[m] if isinstance(sub_bins_arg, dict) else sub_bins_arg
+            sb_arrays = [np.asarray(sb, dtype=np.int64) for sb in sbs_m]
+            mat_cache.append((hot_ch, cool_ch, d_tilde_cool_ch, resp_m, sb_arrays))
+
+            y_m = y_dict[m]
+            for b_idx in range(len(sb_arrays)):
+                y_list.append(float(y_m[b_idx]))
+                sig_val = float(sigma_dict[m][b_idx]) if (sigma_dict is not None and m in sigma_dict) else 1.0
+                sig_list.append(max(sig_val, 1e-6))
+                prone_list.append(bool(prone_mask[b_idx]) if b_idx < len(prone_mask) else False)
+
+        Y_all = np.asarray(y_list, dtype=np.float64)
+        sig_all = np.asarray(sig_list, dtype=np.float64)
+        is_prone = np.asarray(prone_list, dtype=bool)
+        eval_mask = is_prone if np.any(is_prone) else np.ones(len(Y_all), dtype=bool)
+
+        if len(Y_all) == 0:
+            if return_weights:
+                return 0.0, False, reduced_weights.copy()
+            return 0.0, False
+
+        # Precompute static cool sub-bin column once (independent of k)
+        cool_sb_list: List[float] = []
+        for _, cool_ch, _, resp_m, sb_arrays in mat_cache:
+            rc = resp_m * cool_ch
+            for sb_idx in sb_arrays:
+                cool_sb_list.append(float(np.sum(rc[sb_idx])))
+        cool_sb_all = np.asarray(cool_sb_list, dtype=np.float64)
+        cool_col_w = cool_sb_all / sig_all
+        y_w = Y_all / sig_all
+
+        def _eval_k_exact(k_val: float) -> Tuple[float, np.ndarray]:
+            hot_sb_list: List[float] = []
+            kf = float(k_val)
+            for hot_ch, _, d_tilde_cool_ch, resp_m, sb_arrays in mat_cache:
+                att_hot = resp_m * hot_ch * np.exp(-kf * d_tilde_cool_ch)
+                for sb_idx in sb_arrays:
+                    hot_sb_list.append(float(np.sum(att_hot[sb_idx])))
+            hot_sb_all = np.asarray(hot_sb_list, dtype=np.float64)
+            X = np.column_stack([hot_sb_all / sig_all, cool_col_w])
+            v_sol, _ = nnls(X, y_w)
+            pred = hot_sb_all * v_sol[0] + cool_sb_all * v_sol[1]
+            u = np.abs((Y_all - pred) / sig_all)
+            u_eval = u[eval_mask]
+            phi = float(
+                np.sum(np.where(u_eval <= c_huber, 0.5 * u_eval ** 2, c_huber * u_eval - 0.5 * c_huber ** 2))
+            )
+            return phi, v_sol
+
+        phi_zero, v_zero = _eval_k_exact(0.0)
+        best_k = 0.0
+        min_phi = phi_zero
+        best_v = v_zero
+
+        for k in k_grid:
+            kf = float(k)
+            if kf <= 0.0:
+                continue
+            phi_k, v_k = _eval_k_exact(kf)
+            if not _is_valid_absorbing_zones(v_k, reduced_weights, coolest_idx):
+                continue
+            if phi_k < min_phi:
+                min_phi = phi_k
+                best_k = kf
+                best_v = v_k
+
+        if best_k <= 0.0 or (phi_zero - min_phi) < 0.02 * phi_zero:
+            best_k = 0.0
+            updated_weights = reduced_weights.copy()
+        else:
+            updated_weights = _apply_v_to_weights(reduced_weights, best_v, coolest_idx)
+
+        k_flag = bool(abs(best_k - 8.0) < 1e-2 or best_k >= 7.95)
+        if return_weights:
+            return best_k, k_flag, updated_weights
+        return best_k, k_flag
+
+    # Mode 2: Legacy A_dict sub-bin wrapper
     if sub_data is None or isinstance(sub_data, dict) or "A_dict" in kwargs:
         A_dict = sub_data if isinstance(sub_data, dict) else kwargs.get("A_dict", {})
         y_dict = kwargs.get("y_dict", {})
         sigma_dict = kwargs.get("sigma_dict")
         cool_zone_max_dict = kwargs.get("cool_zone_max_dict")
         d_tilde_cool_dict = kwargs.get("d_tilde_cool_dict")
-        reduced_weights = kwargs.get("reduced_weights")
-        coolest_idx = kwargs.get("coolest_state_idx", 0)
+        reduced_weights = np.asarray(kwargs.get("reduced_weights", []), dtype=np.float64)
+        coolest_idx = int(kwargs.get("coolest_state_idx", 0))
         prone_mask = kwargs.get("prone_mask", [])
 
         flat_sub_data = []
@@ -922,9 +1085,26 @@ def scan_absorption(
                 elif cool_zone_max_dict is not None and m in cool_zone_max_dict:
                     entry["cool_zone_max"] = float(cool_zone_max_dict[m])
                 flat_sub_data.append(entry)
-        best_k, flags = scan_absorption(flat_sub_data, k_grid=k_grid, c_huber=c_huber)
+        best_k, flags, best_v = scan_absorption(
+            flat_sub_data,
+            k_grid=k_grid,
+            c_huber=c_huber,
+            return_weights=True,
+            _base_weights=reduced_weights if len(reduced_weights) > 0 else None,
+            _coolest_idx=coolest_idx,
+        )
         k_flag = bool("K_ABSORPTION_AT_BOUND" in flags or any("BOUND" in f for f in flags))
+        if return_weights:
+            if best_k > 0.0 and len(reduced_weights) > 0:
+                updated_w = _apply_v_to_weights(reduced_weights, best_v, coolest_idx)
+            else:
+                updated_w = reduced_weights.copy()
+            return best_k, k_flag, updated_w
         return best_k, k_flag
+
+    # Mode 3: Standalone sub_data list
+    base_weights_opt = kwargs.get("_base_weights")
+    coolest_idx_opt = kwargs.get("_coolest_idx")
 
     d_cool = np.array([float(sb["d_cool"]) for sb in sub_data], dtype=np.float64)
     d_hot = np.array([float(sb["d_hot"]) for sb in sub_data], dtype=np.float64)
@@ -958,24 +1138,34 @@ def scan_absorption(
         phi = np.sum(np.where(u_eval <= c_huber, 0.5 * u_eval ** 2, c_huber * u_eval - 0.5 * c_huber ** 2))
         return float(phi), V
 
-    phi_zero, _ = eval_k(0.0)
+    phi_zero, v_zero = eval_k(0.0)
     best_k = 0.0
     min_phi = phi_zero
+    best_v = v_zero
 
     for k in k_grid:
-        phi, _ = eval_k(float(k))
+        kf = float(k)
+        if kf <= 0.0:
+            continue
+        phi, v_k = eval_k(kf)
+        if not _is_valid_absorbing_zones(v_k, base_weights_opt, coolest_idx_opt):
+            continue
         if phi < min_phi:
             min_phi = phi
-            best_k = float(k)
+            best_k = kf
+            best_v = v_k
 
     # 2% improvement rule
-    if (phi_zero - min_phi) < 0.02 * phi_zero:
+    if best_k <= 0.0 or (phi_zero - min_phi) < 0.02 * phi_zero:
         best_k = 0.0
+        best_v = v_zero
 
     flags = []
     if abs(best_k - 8.0) < 1e-2 or best_k >= 7.95:
         flags.append("K_ABSORPTION_AT_BOUND")
 
+    if return_weights:
+        return best_k, flags, best_v
     return best_k, flags
 
 

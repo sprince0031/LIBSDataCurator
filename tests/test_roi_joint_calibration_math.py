@@ -1003,4 +1003,155 @@ def test_upsert_family_profile_persists_union_channel_indices(tmp_path: Path) ->
     assert rois_legacy["families"]["Steel"]["unionChannelIndices"] == [10, 11, 12, 20, 21]
 
 
+def test_scan_absorption_channel_exact_rte_and_updated_weights_parity() -> None:
+    """C4: Channel-exact RTE scan_absorption recovers planted k, updates weights, and matches apply_multi_zone_rte < 1e-12 for 2- and 3-zone profiles."""
+    from scripts.forward_model import (
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+    )
+    from scripts.roi_joint_calibration import scan_absorption
+
+    rng = np.random.default_rng(777)
+    n_ch = 80
+    resp = np.linspace(0.7, 1.4, n_ch, dtype=np.float64)
+    sub_bins = [list(range(i, i + 4)) for i in range(0, 60, 4)]  # 15 sub-bins of 4 channels each
+    prone_mask = [b % 2 == 0 for b in range(len(sub_bins))]
+
+    for num_zones in (2, 3):
+        n_states = 4
+        D = np.zeros((n_ch, n_states), dtype=np.float64)
+        # Plant sharp peaks inside each 4-channel sub-bin so sub-bin mean d_tilde would have strong Jensen bias
+        for sb in sub_bins:
+            D[sb[0], :] = rng.uniform(5.0, 20.0, size=n_states)
+            D[sb[1], :] = rng.uniform(800.0, 4000.0, size=n_states)  # sharp peak pixel
+            D[sb[2], :] = rng.uniform(10.0, 40.0, size=n_states)
+            D[sb[3], :] = rng.uniform(5.0, 20.0, size=n_states)
+        # Distinct cool-zone peak spectrum (state 0 = coolest)
+        D[:, 0] = rng.uniform(10.0, 100.0, size=n_ch)
+        for b_idx, sb in enumerate(sub_bins):
+            D[sb[1], 0] = 3500.0 if b_idx % 2 == 0 else 400.0
+
+        k_planted = 3.2
+        if num_zones == 2:
+            # Hot state 3 (Te=1.4), cool state 0 (Te=0.6)
+            true_weights = np.array([0.8, 0.0, 0.0, 1.6], dtype=np.float64)
+            init_weights = np.array([1.2, 0.0, 0.0, 0.7], dtype=np.float64)
+            active_specs = [
+                (3, 1.4, 1e17, 0.0),
+                (0, 0.6, 5e16, k_planted),
+            ]
+        else:
+            # Two hot states (3 and 2) scaled together by V_hot, plus cool state 0
+            true_weights = np.array([0.9, 0.0, 0.5, 1.5], dtype=np.float64)
+            # Initial weights have same hot ratio (0.5:1.5 == 1:3) but mismatched global V_hot vs V_cool
+            init_weights = np.array([1.5, 0.0, 0.25, 0.75], dtype=np.float64)
+            active_specs = [
+                (3, 1.4, 1e17, 0.0),
+                (2, 1.0, 1e17, 0.0),
+                (0, 0.6, 5e16, k_planted),
+            ]
+
+        v_tot_true = float(np.sum(true_weights))
+        zones_true = [
+            PlasmaZoneSpec(
+                te=te, ne=ne, volume_fraction=float(true_weights[idx] / v_tot_true), k_absorption=kz
+            )
+            for idx, te, ne, kz in active_specs
+        ]
+        i_rad_true = apply_multi_zone_rte([D[:, idx] for idx, _, _, _ in active_specs], zones_true)
+        y_full_true = apply_response_and_scale(i_rad_true, resp, v_tot_true, emission_scale="absolute")
+        y_sb = np.array([float(np.sum(y_full_true[sb])) for sb in sub_bins], dtype=np.float64)
+        sig_sb = np.full(len(sub_bins), 5.0, dtype=np.float64)
+
+        # Verify default return_weights=False keeps 2-tuple backward compatibility
+        res_2 = scan_absorption(
+            dictionary={"M1": D},
+            sub_bins=sub_bins,
+            spectral_response=resp,
+            y_dict={"M1": y_sb},
+            sigma_dict={"M1": sig_sb},
+            reduced_weights=init_weights,
+            coolest_state_idx=0,
+            prone_mask=prone_mask,
+        )
+        assert len(res_2) == 2
+
+        best_k, k_flag, updated_w = scan_absorption(
+            dictionary={"M1": D},
+            sub_bins=sub_bins,
+            spectral_response=resp,
+            y_dict={"M1": y_sb},
+            sigma_dict={"M1": sig_sb},
+            reduced_weights=init_weights,
+            coolest_state_idx=0,
+            prone_mask=prone_mask,
+            return_weights=True,
+        )
+        assert best_k == pytest.approx(k_planted, abs=1e-9)
+        assert k_flag is False
+        assert updated_w.shape == init_weights.shape
+        assert np.all(updated_w >= 0.0)
+        np.testing.assert_allclose(updated_w, true_weights, rtol=1e-9, atol=1e-9)
+
+        # Verify apply_multi_zone_rte using updated_w reproduces fitted prediction within 1e-12
+        v_tot_est = float(np.sum(updated_w))
+        zones_est = [
+            PlasmaZoneSpec(
+                te=te,
+                ne=ne,
+                volume_fraction=float(updated_w[idx] / v_tot_est),
+                k_absorption=(best_k if idx == 0 else 0.0),
+            )
+            for idx, te, ne, _ in active_specs
+        ]
+        i_rad_est = apply_multi_zone_rte([D[:, idx] for idx, _, _, _ in active_specs], zones_est)
+        y_full_est = apply_response_and_scale(i_rad_est, resp, v_tot_est, emission_scale="absolute")
+        y_sb_est = np.array([float(np.sum(y_full_est[sb])) for sb in sub_bins], dtype=np.float64)
+        np.testing.assert_allclose(y_sb_est, y_sb, rtol=1e-12, atol=1e-12)
+
+
+def test_scan_absorption_rejects_zero_volume_absorbing_ghost_zone() -> None:
+    """C4: Trial k > 0 where NNLS collapses V_cool <= 0 or vf < 1e-3 must be skipped (no ghost zone)."""
+    from scripts.roi_joint_calibration import scan_absorption
+
+    rng = np.random.default_rng(909)
+    n_ch = 60
+    resp = np.ones(n_ch, dtype=np.float64)
+    sub_bins = [list(range(i, i + 4)) for i in range(0, 48, 4)]
+    prone_mask = [True] * len(sub_bins)
+
+    D = np.zeros((n_ch, 2), dtype=np.float64)
+    D[:, 0] = rng.uniform(100.0, 2000.0, size=n_ch)  # cool zone
+    D[:, 1] = rng.uniform(500.0, 3000.0, size=n_ch)  # hot zone
+    d_tilde_cool = D[:, 0] / np.max(D[:, 0])
+
+    # Plant pure attenuated hot core with ZERO cool-zone emission (V_cool == 0.0)!
+    # Unguarded NNLS would fit k=4.5 with V_cool=0.0 (unphysical zero-volume absorbing ghost zone).
+    y_full = D[:, 1] * np.exp(-4.5 * d_tilde_cool)
+    y_sb = np.array([float(np.sum(y_full[sb])) for sb in sub_bins], dtype=np.float64)
+    sig_sb = np.full(len(sub_bins), 5.0, dtype=np.float64)
+    init_w = np.array([0.5, 0.5], dtype=np.float64)
+
+    best_k, _, updated_w = scan_absorption(
+        dictionary={"M1": D},
+        sub_bins=sub_bins,
+        spectral_response=resp,
+        y_dict={"M1": y_sb},
+        sigma_dict={"M1": sig_sb},
+        reduced_weights=init_w,
+        coolest_state_idx=0,
+        prone_mask=prone_mask,
+        return_weights=True,
+    )
+    # Either best_k fell back to 0.0, or if any valid k>0 passed, BOTH zone volume fractions MUST be >= 1e-3
+    if best_k > 0.0:
+        vfs = updated_w / float(np.sum(updated_w))
+        assert vfs[0] >= 1e-3 and vfs[1] >= 1e-3
+    else:
+        assert best_k == 0.0
+        np.testing.assert_allclose(updated_w, init_w)
+
+
+
 

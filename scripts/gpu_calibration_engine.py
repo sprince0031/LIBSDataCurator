@@ -1314,14 +1314,12 @@ class GpuLibsCalibrationEngine:
                     coolest_state_idx = non_zero_states[coolest_local_idx]
 
                     all_roi_sbs = [(r, sb) for r in fam_rois for sb in r.sub_bins]
+                    all_sub_bins = [sb for _, sb in all_roi_sbs]
                     prone_mask_list = [r.self_absorption_prone for r, _ in all_roi_sbs]
                     if any(prone_mask_list):
-                        A_all = {}
                         y_all_sb = {}
                         sigma_all_sb = {}
-                        d_tilde_cool_all = {}
                         for m in fam_mats:
-                            D_m = dictionary[m]
                             cond_m = cond_map[m]
                             y_m_vec = cond_m.preprocessed_mean
                             if cond_m.lit_mask is not None and not np.all(cond_m.lit_mask):
@@ -1330,16 +1328,9 @@ class GpuLibsCalibrationEngine:
                             else:
                                 dark_std = 30.0
 
-                            cool_full = D_m[:, coolest_state_idx]
-                            cool_full_max = max(float(np.max(cool_full)), 1e-12)
-
-                            A_m_full = np.zeros((len(all_roi_sbs), D_m.shape[1]), dtype=np.float64)
                             y_m_full = np.zeros(len(all_roi_sbs), dtype=np.float64)
                             sig_m_full = np.zeros(len(all_roi_sbs), dtype=np.float64)
-                            d_tilde_m = np.zeros(len(all_roi_sbs), dtype=np.float64)
                             for b_idx, (r_obj, sb) in enumerate(all_roi_sbs):
-                                sb_idx = np.array(sb, dtype=np.int64)
-                                A_m_full[b_idx, :] = np.sum(D_m[sb_idx, :] * spectral_response[sb_idx, None], axis=0)
                                 var_info = compute_sub_bin_variances(
                                     channels=list(sb),
                                     mean_spectrum=y_m_vec,
@@ -1350,22 +1341,21 @@ class GpuLibsCalibrationEngine:
                                 )
                                 y_m_full[b_idx] = float(var_info["Y"])
                                 sig_m_full[b_idx] = float(var_info["sigma"])
-                                # Effective cool-zone normalized opacity matching apply_multi_zone_rte
-                                d_tilde_m[b_idx] = float(np.mean(cool_full[sb_idx]) / cool_full_max)
-                            A_all[m] = A_m_full
                             y_all_sb[m] = y_m_full
                             sigma_all_sb[m] = sig_m_full
-                            d_tilde_cool_all[m] = d_tilde_m
 
-                        k_absorption, k_flag = scan_absorption(
-                            A_dict=A_all,
+                        k_absorption, k_flag, reduced_weights = scan_absorption(
+                            dictionary={m: dictionary[m] for m in fam_mats},
+                            sub_bins=all_sub_bins,
+                            spectral_response=spectral_response,
                             y_dict=y_all_sb,
                             sigma_dict=sigma_all_sb,
-                            d_tilde_cool_dict=d_tilde_cool_all,
                             reduced_weights=reduced_weights,
-                            coolest_state_idx=coolest_state_idx,
+                            coolest_state_idx=int(coolest_state_idx),
                             prone_mask=prone_mask_list,
+                            return_weights=True,
                         )
+                        non_zero_states = np.where(reduced_weights > 0)[0]
                         if k_flag:
                             all_flags.append(f"K_ABSORPTION_AT_BOUND:{family_name}")
 
