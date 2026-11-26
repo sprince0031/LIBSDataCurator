@@ -1224,6 +1224,36 @@ def test_compute_family_scales_uses_sigma_dict_and_multi_zone_rte() -> None:
     assert res_att["scaleFactor"] == pytest.approx(2.1, abs=1e-6)
 
 
+def test_compute_element_parity_raises_without_state_mapping() -> None:
+    """M2: compute_element_parity must raise ValueError rather than silently indexing z_idx % n_cols."""
+    from scripts.roi_catalogue import RoiWindow
+    from scripts.roi_joint_calibration import compute_element_parity
+
+    n_ch = 20
+    D = np.ones((n_ch, 4), dtype=np.float64) * 100.0
+    roi = RoiWindow(
+        roi_id="R1",
+        min_nm=400.0,
+        max_nm=405.0,
+        channel_indices=[5, 6, 7],
+        sub_bins=[[5, 6, 7]],
+        self_absorption_prone=False,
+        used_in_response_fit=True,
+        dominant_element="Fe",
+    )
+    zones = [{"zoneIndex": 0, "Te": 1.0, "Ne": 1e17, "volumeFraction": 1.0, "kAbsorption": 0.0}]
+
+    with pytest.raises(ValueError, match="state mapping|stateIndex|nz_indices|te_grid"):
+        compute_element_parity(
+            rois=[roi],
+            dictionary={"M1": D},
+            conditioned={"M1": np.ones(n_ch) * 100.0},
+            plasma_zones=zones,
+            scale_factor=1.0,
+        )
+
+
+
 
 
 

@@ -1386,7 +1386,10 @@ def compute_element_parity(
                     best_d = d_val
                     best_c = c_i
             return best_c
-        return z_idx % max(n_cols, 1)
+        raise ValueError(
+            "compute_element_parity requires explicit state mapping via zone 'stateIndex', "
+            "'nz_indices', or non-empty ('te_grid', 'ne_grid'); refusing silent zoneIndex % n_cols fallback."
+        )
 
     sub_bins_list = []
     for m in dictionary.keys():
