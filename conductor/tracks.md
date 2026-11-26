@@ -29,6 +29,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: TRACK-CORE-02B — Fix Java Synthesis Parity, Deterministic Seeding, DTO Bindings & Composition Bugs in LIBSDataCurator**
+- [x] **Track: TRACK-CORE-02B — Fix Java Synthesis Parity, Deterministic Seeding, DTO Bindings & Composition Bugs in LIBSDataCurator**
 *Link: [./tracks/java_synthesis_parity_and_bug_fixes_20261126/index.md](./tracks/java_synthesis_parity_and_bug_fixes_20261126/index.md)*
 

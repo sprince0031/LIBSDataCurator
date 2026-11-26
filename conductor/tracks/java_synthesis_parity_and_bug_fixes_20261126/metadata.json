@@ -2,8 +2,8 @@
   "track_id": "java_synthesis_parity_and_bug_fixes_20261126",
   "external_ref": "TRACK-CORE-02B",
   "type": "bug",
-  "status": "in_progress",
+  "status": "completed",
   "created_at": "2026-11-26T12:23:30Z",
-  "updated_at": "2026-11-26T13:39:00Z",
+  "updated_at": "2026-11-26T14:06:00Z",
   "description": "TRACK-CORE-02B: Fix Java Synthesis Parity, Deterministic Seeding, DTO Bindings & Composition Bugs in LIBSDataCurator"
 }
