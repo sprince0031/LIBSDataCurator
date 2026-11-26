@@ -9,13 +9,13 @@
 
 ## Phase 1: DTO Bindings & Default Configuration Alignment (`M1`, `H3`)
 
-- [ ] Task: Complete `CalibrationStats.java` Jackson & `org.json` bindings (`M1`, FR-3)
-  - [ ] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/model/CalibrationStatsTest.java` covering: (a) Jackson `ObjectMapper` and `org.json` `toJson()`/`fromJson()` lossless round-trip of all 11 new fields (`roiChi2Reduced`, `roiRSquared`, `roiRmse`, `roiRmseRaw`, `wholeSpectrumRSquared`, `wholeSpectrumRmse`, `wholeSpectrumRmseRaw`, `zoneReductionPenalty`, `familySharingPenalty`, `elementParity`, `perMaterialStats`) alongside legacy fields (`rSquared`, `rmse`, `weightedCorrelationCost`, `numCalibratedMaterials`, `calibratedMaterials`), (b) absence of duplicate lowercased Jackson keys (e.g., no `"rsquared"` alongside `"rSquared"`), and (c) backward-compatible deserialization of legacy JSON containing only `rSquared` and `rmse`
-  - [ ] Confirm failing tests via `mvn test -Dtest=CalibrationStatsTest` (Red)
-  - [ ] Implement the 11 fields, getters/setters, exact `@JsonProperty` annotations, and updated `toJson()` / `fromJson(JSONObject)` in `src/main/java/com/medals/libsdatagenerator/model/CalibrationStats.java`
-  - [ ] Run `mvn test -Dtest=CalibrationStatsTest,InstrumentProfileTest,ModelRefactoringTest` and verify Green
+- [x] Task: Complete `CalibrationStats.java` Jackson & `org.json` bindings (`M1`, FR-3) (856b208)
+  - [x] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/model/CalibrationStatsTest.java` covering: (a) Jackson `ObjectMapper` and `org.json` `toJson()`/`fromJson()` lossless round-trip of all 11 new fields (`roiChi2Reduced`, `roiRSquared`, `roiRmse`, `roiRmseRaw`, `wholeSpectrumRSquared`, `wholeSpectrumRmse`, `wholeSpectrumRmseRaw`, `zoneReductionPenalty`, `familySharingPenalty`, `elementParity`, `perMaterialStats`) alongside legacy fields (`rSquared`, `rmse`, `weightedCorrelationCost`, `numCalibratedMaterials`, `calibratedMaterials`), (b) absence of duplicate lowercased Jackson keys (e.g., no `"rsquared"` alongside `"rSquared"`), and (c) backward-compatible deserialization of legacy JSON containing only `rSquared` and `rmse`
+  - [x] Confirm failing tests via `mvn test -Dtest=CalibrationStatsTest` (Red)
+  - [x] Implement the 11 fields, getters/setters, exact `@JsonProperty` annotations, and updated `toJson()` / `fromJson(JSONObject)` in `src/main/java/com/medals/libsdatagenerator/model/CalibrationStats.java`
+  - [x] Run `mvn test -Dtest=CalibrationStatsTest,InstrumentProfileTest,ModelRefactoringTest` and verify Green
 
-- [ ] Task: Align morphological structuring element defaults to `25` (`H3`, FR-4)
+- [~] Task: Align morphological structuring element defaults to `25` (`H3`, FR-4)
   - [ ] Update assertions in `src/test/java/com/medals/libsdatagenerator/model/BaselineCorrectionParamsTest.java` (`testDefaultValues`, `testLegacyAlsJsonDeserialization`) and add a manifest `baselineCorrectionParams.structuringElementSize == 25` assertion in `src/test/java/com/medals/libsdatagenerator/service/InstrumentProfileServiceRefactoringTest.java`
   - [ ] Confirm failing tests via `mvn test -Dtest=BaselineCorrectionParamsTest,InstrumentProfileServiceRefactoringTest` (Red)
   - [ ] Update `InstrumentProfileService.DEFAULT_MORPHOLOGICAL_STRUCT_SIZE` (`InstrumentProfileService.java:69`) and `BaselineCorrectionParams.DEFAULT_STRUCTURING_ELEMENT_SIZE` (`BaselineCorrectionParams.java:11`) from `65` to `25`
