@@ -269,6 +269,23 @@ public class ConcentrationParameterEstimator {
             adjusted = true;
             total = Arrays.stream(adjustedAlphas).sum();
         }
+        // Eliminate any residual sub-tolerance / 1-ULP IEEE 754 overshoot above MAX_TOTAL_CONCENTRATION
+        while (total > MAX_TOTAL_CONCENTRATION) {
+            int maxIdx = 0;
+            for (int i = 1; i < adjustedAlphas.length; i++) {
+                if (adjustedAlphas[i] > adjustedAlphas[maxIdx]) {
+                    maxIdx = i;
+                }
+            }
+            double overshoot = total - MAX_TOTAL_CONCENTRATION;
+            double step = Math.max(overshoot, Math.ulp(adjustedAlphas[maxIdx]));
+            if (adjustedAlphas[maxIdx] - step < MIN_ALPHA) {
+                break;
+            }
+            adjustedAlphas[maxIdx] -= step;
+            adjusted = true;
+            total = Arrays.stream(adjustedAlphas).sum();
+        }
 
         if (adjusted) {
             logger.info("Parameters were adjusted for numerical stability");

@@ -9,7 +9,9 @@ import org.json.JSONObject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -260,5 +262,44 @@ class LIBSDataServiceTest {
                 List.of(csv), oneZone, null, 2.0, "nm", null);
         assertEquals(srcWl.length, nullProfileResult.length);
         assertTrue(nullProfileResult[1] > 0.0);
+
+        // Empty wavelengthGrid (as produced by InstrumentProfile.fromJson when "wavelengths" is absent)
+        InstrumentProfile emptyGridProfile = new InstrumentProfile();
+        emptyGridProfile.setWavelengthGrid(new double[0]);
+        double[] emptyGridResult = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv), oneZone, emptyGridProfile, 1.0, "nm", null);
+        assertArrayEquals(srcWl, emptyGridProfile.getWavelengthGrid(), 1e-12);
+        assertEquals(srcWl.length, emptyGridResult.length);
+
+        // Malformed / < 2-point NIST CSV throws descriptive IOException instead of ArrayIndexOutOfBoundsException
+        String singleRowCsv = "Wavelength (nm),Sum(calc)\n400.0,10.0\n";
+        assertThrows(IOException.class, () ->
+                libsDataService.synthesizeSpectrumFromZoneCsvs(List.of(singleRowCsv), oneZone, emptyGridProfile, 1.0, "nm", null));
+        String emptyCsv = "Wavelength (nm),Sum(calc)\n";
+        assertThrows(IOException.class, () ->
+                libsDataService.synthesizeSpectrumFromZoneCsvs(List.of(emptyCsv), oneZone, emptyGridProfile, 1.0, "nm", null));
+    }
+
+    @Test
+    @DisplayName("fetchAndProcessSpectra threads global startingSampleIndex so multi-material runs avoid correlated noise")
+    void testFetchAndProcessSpectraThreadsGlobalSampleIndex() throws Exception {
+        Method fetchMethod = LIBSDataService.class.getDeclaredMethod(
+                "fetchAndProcessSpectra",
+                Map.class, List.class, List.class,
+                com.medals.libsdatagenerator.model.UserInputConfig.class,
+                com.medals.libsdatagenerator.model.matweb.MaterialGrade.class,
+                InstrumentProfile.class,
+                double.class,
+                int.class
+        );
+        assertEquals(int.class, fetchMethod.getReturnType(),
+                "fetchAndProcessSpectra must accept startingSampleIndex and return updated sampleIndex across materials");
+
+        // Verify distinct noise streams across consecutive material sample index blocks under identical --seed
+        long seed = 42L;
+        Random mat0Sample0 = LIBSDataService.deriveSampleNoiseRandom(seed, 0);
+        Random mat1Sample0 = LIBSDataService.deriveSampleNoiseRandom(seed, 2);
+        assertNotEquals(mat0Sample0.nextGaussian(), mat1Sample0.nextGaussian(),
+                "Offset sample indices across distinct materials must yield independent deterministic noise streams");
     }
 }

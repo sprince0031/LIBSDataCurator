@@ -191,10 +191,37 @@ public class ConcentrationParameterEstimatorTest {
             assertTrue(a >= 0.1 - 1e-12, "Every alpha must meet MIN_ALPHA floor (0.1), got " + a);
         }
         double total = Arrays.stream(alphas).sum();
-        assertTrue(total <= 1000.0 + 1e-9,
-                "Total concentration must remain <= MAX_TOTAL_CONCENTRATION (1000.0), got " + total);
+        assertTrue(total <= 1000.0,
+                "Total concentration must remain strictly <= MAX_TOTAL_CONCENTRATION (1000.0) without ULP overshoot, got " + total);
         assertTrue(estimator.validateParameters(alphas),
                 "Adjusted parameters for tight alloys with trace elements must pass validateParameters()");
+    }
+
+    @Test
+    @DisplayName("Repeating-binary-fraction tight alloys never fail validateParameters due to 1-ULP IEEE 754 overshoot")
+    void testUlpOvershootGuardAtMaxTotalConcentration() {
+        // Test repeating binary fraction compositions (e.g. 1/3, 1/7, 1/11) + trace elements at tight spreads
+        double[][] compositions = {
+                {70.111, 14.2857, 9.0909, 6.5024, 0.005, 0.005},
+                {33.333, 33.333, 33.324, 0.004, 0.003, 0.003},
+                {85.7143, 7.1428, 7.1329, 0.004, 0.003, 0.003}
+        };
+        String[] elems = {"Fe", "Cr", "Ni", "Mn", "P", "S"};
+        for (double[] comp : compositions) {
+            SeriesStatistics stats = new SeriesStatistics("Repeating Fraction Series", "test-guid");
+            for (int i = 0; i < elems.length; i++) {
+                double avg = comp[i];
+                double delta = Math.min(avg * 0.001, 0.01);
+                stats.addElementStatisticsToComposition(
+                        new ElementStatistics(elems[i], avg, 80, Math.max(0.0, avg - delta), avg + delta));
+            }
+            double[] alphas = estimator.estimateParametersForElements(stats, elems);
+            assertNotNull(alphas);
+            double sum = Arrays.stream(alphas).sum();
+            assertTrue(sum <= 1000.0, "Strict IEEE 754 sum must be <= 1000.0, got " + sum);
+            assertTrue(estimator.validateParameters(alphas),
+                    "validateParameters must pass strictly without ULP overshoot failure");
+        }
     }
 
     @Test

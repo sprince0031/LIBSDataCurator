@@ -353,9 +353,12 @@ public class LIBSDataService {
             Spectrum parsedSpectrum = new Spectrum(waveMap);
             double[] srcWl = parsedSpectrum.getWavelengths();
             double[] srcI = parsedSpectrum.getIntensities();
+            if (srcWl.length < 2) {
+                throw new IOException("Parsed NIST CSV contains fewer than 2 wavelength points.");
+            }
 
             // One-time initialization of detector wavelength grid if instrument profile did not specify one
-            if (detWl == null) {
+            if (detWl == null || detWl.length == 0) {
                 detWl = srcWl;
                 if (instrumentProfile != null) {
                     instrumentProfile.setWavelengthGrid(detWl);
@@ -393,11 +396,12 @@ public class LIBSDataService {
         );
     }
 
-    private void fetchAndProcessSpectra(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions,
-                                        List<List<PlasmaZone>> plasmaZonesVariations, UserInputConfig config,
-                                        MaterialGrade sourceMaterial, InstrumentProfile instrumentProfile, double scaleFactor) {
+    private int fetchAndProcessSpectra(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions,
+                                       List<List<PlasmaZone>> plasmaZonesVariations, UserInputConfig config,
+                                       MaterialGrade sourceMaterial, InstrumentProfile instrumentProfile,
+                                       double scaleFactor, int startingSampleIndex) {
         int compositionsProcessed = 0;
-        int sampleIndex = 0;
+        int sampleIndex = startingSampleIndex;
         PrintStream out = System.out;
 
         // Get selenium instance for reuse across variations
@@ -498,6 +502,7 @@ public class LIBSDataService {
                 logger.info("Browser session closed after processing all compositions");
             }
         }
+        return sampleIndex;
     }
 
     public void generateDataset(List<MaterialGrade> materialGrades, UserInputConfig config,
@@ -512,6 +517,7 @@ public class LIBSDataService {
 
         Set<Double> allWavelengths = new TreeSet<>();
         Map<String, Object> fetchedSpectralData = new HashMap<>();
+        int globalSampleIndex = 0;
 
         for (MaterialGrade materialGrade : materialGrades) {
             List<List<Element>> compositions = new ArrayList<>(); // Dummy list of list just to hold one composition for compatability
@@ -566,8 +572,8 @@ public class LIBSDataService {
             }
 
             System.out.println("Fetching LIBS spectra from NIST for " + materialGrade.getMaterialName());
-            fetchAndProcessSpectra(fetchedSpectralData, compositions, plasmaZones, config, materialGrade,
-                    instrumentProfile, familyProfile.getScaleFactor());
+            globalSampleIndex = fetchAndProcessSpectra(fetchedSpectralData, compositions, plasmaZones, config, materialGrade,
+                    instrumentProfile, familyProfile.getScaleFactor(), globalSampleIndex);
             logger.info("Successfully fetched LIBS data for composition: " + materialGrade);
         }
         fetchedSpectralData.put(LIBSDataGenConstants.SPECTRAL_DATA_MAP_KEY_WAVELENGTHS, instrumentProfile.getWavelengthGrid());
