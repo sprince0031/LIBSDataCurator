@@ -15,13 +15,13 @@
   - [x] Implement the 11 fields, getters/setters, exact `@JsonProperty` annotations, and updated `toJson()` / `fromJson(JSONObject)` in `src/main/java/com/medals/libsdatagenerator/model/CalibrationStats.java`
   - [x] Run `mvn test -Dtest=CalibrationStatsTest,InstrumentProfileTest,ModelRefactoringTest` and verify Green
 
-- [~] Task: Align morphological structuring element defaults to `25` (`H3`, FR-4)
-  - [ ] Update assertions in `src/test/java/com/medals/libsdatagenerator/model/BaselineCorrectionParamsTest.java` (`testDefaultValues`, `testLegacyAlsJsonDeserialization`) and add a manifest `baselineCorrectionParams.structuringElementSize == 25` assertion in `src/test/java/com/medals/libsdatagenerator/service/InstrumentProfileServiceRefactoringTest.java`
-  - [ ] Confirm failing tests via `mvn test -Dtest=BaselineCorrectionParamsTest,InstrumentProfileServiceRefactoringTest` (Red)
-  - [ ] Update `InstrumentProfileService.DEFAULT_MORPHOLOGICAL_STRUCT_SIZE` (`InstrumentProfileService.java:69`) and `BaselineCorrectionParams.DEFAULT_STRUCTURING_ELEMENT_SIZE` (`BaselineCorrectionParams.java:11`) from `65` to `25`
-  - [ ] Run `mvn test -Dtest=BaselineCorrectionParamsTest,InstrumentProfileServiceRefactoringTest,InstrumentProfileServiceTest` and verify Green
+- [x] Task: Align morphological structuring element defaults to `25` (`H3`, FR-4) (c588692)
+  - [x] Update assertions in `src/test/java/com/medals/libsdatagenerator/model/BaselineCorrectionParamsTest.java` (`testDefaultValues`, `testLegacyAlsJsonDeserialization`) and add a manifest `baselineCorrectionParams.structuringElementSize == 25` assertion in `src/test/java/com/medals/libsdatagenerator/service/InstrumentProfileServiceRefactoringTest.java`
+  - [x] Confirm failing tests via `mvn test -Dtest=BaselineCorrectionParamsTest,InstrumentProfileServiceRefactoringTest` (Red)
+  - [x] Update `InstrumentProfileService.DEFAULT_MORPHOLOGICAL_STRUCT_SIZE` (`InstrumentProfileService.java:69`) and `BaselineCorrectionParams.DEFAULT_STRUCTURING_ELEMENT_SIZE` (`BaselineCorrectionParams.java:11`) from `65` to `25`
+  - [x] Run `mvn test -Dtest=BaselineCorrectionParamsTest,InstrumentProfileServiceRefactoringTest,InstrumentProfileServiceTest` and verify Green
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ---
 
