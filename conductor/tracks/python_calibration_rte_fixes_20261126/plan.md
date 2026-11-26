@@ -5,27 +5,27 @@
 
 ---
 
-## Phase 1: Canonical Multi-Zone RTE, `NIST_UNIT_SCALE = 1.0`, & Conditioning Fields
+## Phase 1: Canonical Multi-Zone RTE, `NIST_UNIT_SCALE = 1.0`, & Conditioning Fields [checkpoint: f439415]
 
-- [ ] Task: Write failing unit tests for canonical RTE, `NIST_UNIT_SCALE = 1.0`, `validate_spectral_match`, and `ConditionedMaterial` fields (Red phase)
-  - [ ] Create `tests/test_roi_joint_calibration_math.py` with tests covering:
+- [x] Task: Write failing unit tests for canonical RTE, `NIST_UNIT_SCALE = 1.0`, `validate_spectral_match`, and `ConditionedMaterial` fields (Red phase) (f439415)
+  - [x] Create `tests/test_roi_joint_calibration_math.py` with tests covering:
     - `forward_model.apply_multi_zone_rte` (hot-to-cool sorting, `d_tilde = d_z / max(d_z)`, hot-core attenuation) and `combine_zones` backward-compatible alias.
     - `forward_model.NIST_UNIT_SCALE == 1.0` matching Java raw NIST `Sum(calc)` units across `load_nist_dictionary` and `validate_spectral_match.load_nist_dictionary`.
     - `validate_spectral_match.synthesize_spectrum` producing identical output to `apply_multi_zone_rte` + `apply_response_and_scale` (no unnormalized `exp(-kz * sz)`), and `evaluate_material_match` routing metrics via canonical `compute_spectral_metrics(..., normalization="none")`.
     - `ConditionedMaterial.preprocessed_point_means` (baseline-subtracted with `se_size=25`, non-negative) and `ConditionedMaterial.num_steady_shots` (true steady-shot count across all points, preserving `point_means`).
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py` to confirm Red failure.
-- [ ] Task: Implement Phase 1 fixes in `forward_model.py`, `validate_spectral_match.py`, and `measured_conditioning.py` (Green & Refactor phase)
-  - [ ] Update `scripts/forward_model.py`: set `NIST_UNIT_SCALE = 1.0`, expose `apply_multi_zone_rte(zone_spectra, zones)` as canonical entrypoint with `combine_zones` delegating to it; update any legacy `1e-6` assertion in `scripts/test_forward_model.py` if present.
-  - [ ] Update `scripts/validate_spectral_match.py`: route `synthesize_spectrum` through `apply_multi_zone_rte` + `apply_response_and_scale`, apply `NIST_UNIT_SCALE` in `load_nist_dictionary`, and route `evaluate_material_match` through `compute_spectral_metrics(..., normalization="none")`.
-  - [ ] Update `scripts/measured_conditioning.py`: add defaulted `preprocessed_point_means` and `num_steady_shots` to `ConditionedMaterial` and populate them inside `condition_material(...)` without breaking existing fields or `TRACK-CORE-01` tests.
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py tests/test_match_metrics_parity.py scripts/test_measured_conditioning.py scripts/test_forward_model.py scripts/test_validate_spectral_match.py` and verify 100% pass.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py` to confirm Red failure.
+- [x] Task: Implement Phase 1 fixes in `forward_model.py`, `validate_spectral_match.py`, and `measured_conditioning.py` (Green & Refactor phase) (f439415)
+  - [x] Update `scripts/forward_model.py`: set `NIST_UNIT_SCALE = 1.0`, expose `apply_multi_zone_rte(zone_spectra, zones)` as canonical entrypoint with `combine_zones` delegating to it; update any legacy `1e-6` assertion in `scripts/test_forward_model.py` if present.
+  - [x] Update `scripts/validate_spectral_match.py`: route `synthesize_spectrum` through `apply_multi_zone_rte` + `apply_response_and_scale`, apply `NIST_UNIT_SCALE` in `load_nist_dictionary`, and route `evaluate_material_match` through `compute_spectral_metrics(..., normalization="none")`.
+  - [x] Update `scripts/measured_conditioning.py`: add defaulted `preprocessed_point_means` and `num_steady_shots` to `ConditionedMaterial` and populate them inside `condition_material(...)` without breaking existing fields or `TRACK-CORE-01` tests.
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py tests/test_match_metrics_parity.py scripts/test_measured_conditioning.py scripts/test_forward_model.py scripts/test_validate_spectral_match.py` and verify 100% pass.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (f439415)
 
 ---
 
 ## Phase 2: Physics, Uncertainty Propagation, Continuum & Diagnostics Fixes in `scripts/roi_joint_calibration.py`
 
-- [ ] Task: Write failing unit tests for `roi_joint_calibration.py` math bugs (Red phase)
+- [~] Task: Write failing unit tests for `roi_joint_calibration.py` math bugs (Red phase)
   - [ ] Expand `tests/test_roi_joint_calibration_math.py` to test:
     - `compute_element_parity` recovering `0.0 dex` (within `1e-9`) and `has_bias == False` on noiseless multi-zone synthetic data with non-contiguous `nz_indices` (e.g., `[2, 7]`).
     - `scan_absorption` attenuating `d_hot` (NOT `d_cool`) with full-spectrum cool-zone max normalization matching `apply_multi_zone_rte` 1:1, recovering planted $k > 0$ within `0.1`, using `is_prone` only for residual masking / presence checks.
