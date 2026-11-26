@@ -56,3 +56,9 @@
   - [x] Verify via `git status` and `git diff --name-only` that zero Python files, zero `TRACK-CORE-01` contract/fixture files, zero `forward_model_fixture.json` edits, zero synthetic `.csv` outputs, and neither `notebooks/calibration_inspector.ipynb` nor `conductor/instrument_profile_debugging_and_improvement_specification_v1.md` were modified
 
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) — 165 passed, 0 failed, 0 errors, 0 skipped (`mvn test`)
+
+---
+
+## Phase: Review Fixes
+
+- [x] Task: Apply review suggestions (4d49f05) — exact `Math.ulp` IEEE 754 `MAX_TOTAL_CONCENTRATION` overshoot clamp in `ConcentrationParameterEstimator`, cross-material `globalSampleIndex` threading in `LIBSDataService.generateDataset`, empty `double[0]` `wavelengthGrid` & `< 2`-point NIST CSV guards in `synthesizeSpectrumFromZoneCsvs`, and regression unit tests (167 passed, 0 failed, 0 errors, 0 skipped via `mvn test`)
