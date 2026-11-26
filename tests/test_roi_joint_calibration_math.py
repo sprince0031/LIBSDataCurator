@@ -1406,6 +1406,48 @@ def test_evaluate_diagnostics_and_run_joint_solver_default_composition_scale_unv
     assert "COMPOSITION_SCALE_UNVERIFIED" not in res_verified.diagnostics_flags
 
 
+def test_evaluate_diagnostics_te_grid_edge_uses_modeled_emission_when_dictionary_supplied() -> None:
+    """FR-9: TE_GRID_EDGE must evaluate >5% of modeled emission (sum(D[:, j]) * w[j]) when dictionary is provided."""
+    from scripts.roi_joint_calibration import evaluate_diagnostics
+
+    D = np.zeros((10, 3), dtype=np.float64)
+    D[:, 0] = 0.1      # sum = 1.0 (Boltzmann-suppressed low-Te column)
+    D[:, 1] = 990.0    # sum = 9900.0 (interior column)
+    D[:, 2] = 100.0    # sum = 1000.0
+    w = np.array([100.0, 1.0, 0.0], dtype=np.float64)  # 99% raw weight at min Te, but only 1% modeled emission
+
+    diag_modeled = evaluate_diagnostics(
+        weights_by_mat={"M1": w},
+        te_grid=[0.5, 1.0, 1.5],
+        ne_grid=[1e17],
+        response_curve=np.array([1.0, 2.0]),
+        response_restart_spread=0.01,
+        iterations=5,
+        gap_flag=False,
+        reduced_chi2_by_mat={"M1": 1.0},
+        composition_scale_verified=True,
+        dictionary={"M1": D},
+    )
+    assert not any("TE_GRID_EDGE" in f for f in diag_modeled["flags"])
+
+    # When edge truly carries >5% of modeled emission, TE_GRID_EDGE must fire
+    w_edge = np.array([1000.0, 1.0, 0.0], dtype=np.float64)  # 1000 / 10900 = 9.17% > 5%
+    diag_edge = evaluate_diagnostics(
+        weights_by_mat={"M1": w_edge},
+        te_grid=[0.5, 1.0, 1.5],
+        ne_grid=[1e17],
+        response_curve=np.array([1.0, 2.0]),
+        response_restart_spread=0.01,
+        iterations=5,
+        gap_flag=False,
+        reduced_chi2_by_mat={"M1": 1.0},
+        composition_scale_verified=True,
+        dictionary={"M1": D},
+    )
+    assert "TE_GRID_EDGE:M1" in diag_edge["flags"]
+
+
+
 
 
 

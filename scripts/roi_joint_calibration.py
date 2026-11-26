@@ -176,26 +176,57 @@ def solve_block_a(
     A_m: np.ndarray,
     Y_m: np.ndarray,
     sigma_m: np.ndarray,
+    *,
+    huber_c: Optional[float] = None,
+    l2_reg: float = 0.0,
+    irls_iters: int = 4,
 ) -> np.ndarray:
-    """Solve Block A (plasma weights) via column-scaled NNLS:
-    
-    w_m = argmin_{w >= 0} ||(Y_m - A_m w) / sigma_m||^2
+    """Solve Block A (plasma weights) via column-scaled NNLS (with optional Huber IRLS and ridge):
+
+    w_m = argmin_{w >= 0} ||(Y_m - A_m w) / sigma_m||^2  (+ l2_reg * ||w_scaled||^2)
+
+    When ``l2_reg > 0.0``, columns of the weighted design matrix are normalized to unit L2 norm
+    and augmented with ``[M_scaled; sqrt(l2_reg) * I]``, yielding an effective diagonal ridge of
+    ``l2_reg`` on ``M_scaled^T M_scaled``. Default ``huber_c=None, l2_reg=0.0`` is exact NNLS.
     """
     sig = np.asarray(sigma_m, dtype=np.float64)
-    # Avoid zero division
     sig = np.where(sig > 1e-12, sig, 1.0)
 
-    # Scale rows by 1 / sigma
-    M = A_m / sig[:, np.newaxis]
-    y_scaled = Y_m / sig
+    if huber_c is None and l2_reg <= 0.0:
+        M = A_m / sig[:, np.newaxis]
+        y_scaled = Y_m / sig
+        col_max = np.max(np.abs(M), axis=0)
+        col_max = np.where(col_max > 1e-12, col_max, 1.0)
+        M_scaled = M / col_max[np.newaxis, :]
+        w_scaled = nnls(M_scaled, y_scaled)[0]
+        return w_scaled / col_max
 
-    # Scale columns to unit maximum before solving
-    col_max = np.max(np.abs(M), axis=0)
-    col_max = np.where(col_max > 1e-12, col_max, 1.0)
-    M_scaled = M / col_max[np.newaxis, :]
+    n_iters = max(int(irls_iters), 1) if huber_c is not None else 1
+    w_irls = np.ones(len(Y_m), dtype=np.float64)
+    w_sol = np.zeros(A_m.shape[1], dtype=np.float64)
+    aug_mult = float(np.sqrt(max(l2_reg, 0.0)))
 
-    w_scaled = nnls(M_scaled, y_scaled)[0]
-    return w_scaled / col_max
+    for _ in range(n_iters):
+        eff_sig = sig / np.sqrt(np.maximum(w_irls, 1e-6))
+        M = A_m / eff_sig[:, np.newaxis]
+        y_scaled = Y_m / eff_sig
+        col_norm = np.sqrt(np.sum(M ** 2, axis=0))
+        col_norm = np.where(col_norm > 1e-12, col_norm, 1.0)
+        M_scaled = M / col_norm[np.newaxis, :]
+        if aug_mult > 0.0:
+            n_states = M_scaled.shape[1]
+            M_aug = np.vstack([M_scaled, aug_mult * np.eye(n_states, dtype=np.float64)])
+            y_aug = np.concatenate([y_scaled, np.zeros(n_states, dtype=np.float64)])
+            w_scaled = nnls(M_aug, y_aug)[0]
+        else:
+            w_scaled = nnls(M_scaled, y_scaled)[0]
+        w_sol = w_scaled / col_norm
+
+        if huber_c is not None:
+            u = np.abs((Y_m - A_m @ w_sol) / sig)
+            w_irls = np.where(u <= huber_c, 1.0, huber_c / np.maximum(u, 1e-12))
+
+    return w_sol
 
 
 def solve_block_b(
@@ -255,6 +286,7 @@ def evaluate_diagnostics(
     zone_reduction_penalty: float = 1.0,
     k_absorption_selected: float = 0.0,
     element_biases: Optional[Dict[str, float]] = None,
+    dictionary: Optional[Dict[str, np.ndarray]] = None,
 ) -> Dict[str, Any]:
     """Check R9 criteria and return list of raised flags."""
     flags: List[str] = []
@@ -266,10 +298,17 @@ def evaluate_diagnostics(
     max_te_indices = set(range((n_te - 1) * n_ne, n_te * n_ne))  # last Te row
 
     for mat_name, w in weights_by_mat.items():
-        total_w = float(np.sum(w))
-        if total_w > 1e-12:
-            min_te_frac = sum(w[idx] for idx in min_te_indices if idx < len(w)) / total_w
-            max_te_frac = sum(w[idx] for idx in max_te_indices if idx < len(w)) / total_w
+        w_arr = np.asarray(w, dtype=np.float64)
+        if dictionary is not None and mat_name in dictionary:
+            D_m = np.asarray(dictionary[mat_name], dtype=np.float64)
+            n_cols = min(len(w_arr), D_m.shape[1])
+            contrib = np.sum(D_m[:, :n_cols], axis=0) * w_arr[:n_cols]
+        else:
+            contrib = w_arr
+        total_c = float(np.sum(contrib))
+        if total_c > 1e-12:
+            min_te_frac = sum(float(contrib[idx]) for idx in min_te_indices if idx < len(contrib)) / total_c
+            max_te_frac = sum(float(contrib[idx]) for idx in max_te_indices if idx < len(contrib)) / total_c
             if min_te_frac > 0.05 or max_te_frac > 0.05:
                 flags.append(f"TE_GRID_EDGE:{mat_name}")
 
@@ -344,6 +383,7 @@ def run_joint_solver(
     tol_log_r: float = 1e-4,
     tol_phi: float = 1e-6,
     composition_scale_verified: bool = False,
+    block_a_ridge: float = 0.02,
 ) -> CalibrationResult:
     """Run the 3-start alternating joint calibration solver (R7)."""
     det_wl = np.asarray(detector_wavelengths, dtype=np.float64)
@@ -450,6 +490,7 @@ def run_joint_solver(
                 A_m = np.zeros((n_bins, n_states), dtype=np.float64)
                 Y_m = np.zeros(n_bins, dtype=np.float64)
                 sigma_m = np.zeros(n_bins, dtype=np.float64)
+                meas_sig_m = np.zeros(n_bins, dtype=np.float64)
 
                 for b_idx, sb_info in enumerate(sb_list):
                     chans = sb_info["channels"]
@@ -457,8 +498,25 @@ def run_joint_solver(
                     A_m[b_idx, :] = np.sum(r_det[chans, np.newaxis] * D_m[chans, :], axis=0)
                     Y_m[b_idx] = sb_info["Y"]
                     sigma_m[b_idx] = sb_info["sigma"]
+                    meas_sig_m[b_idx] = sb_info["meas_sigma_sub"]
 
-                w_m = solve_block_a(A_m, Y_m, sigma_m)
+                active_rows = (Y_m > 3.0 * meas_sig_m) & (np.max(A_m, axis=1) > 1e-12)
+                if int(np.sum(active_rows)) >= 2:
+                    w_m = solve_block_a(
+                        A_m[active_rows],
+                        Y_m[active_rows],
+                        sigma_m[active_rows],
+                        huber_c=c_huber,
+                        l2_reg=block_a_ridge,
+                    )
+                else:
+                    w_m = solve_block_a(
+                        A_m,
+                        Y_m,
+                        sigma_m,
+                        huber_c=c_huber,
+                        l2_reg=block_a_ridge,
+                    )
                 current_weights[m] = w_m
 
             # Block B: assemble log-ratios and weights across all materials
@@ -497,11 +555,14 @@ def run_joint_solver(
 
                     total_huber_loss += rho_c
 
-                    # Condition for Block B inclusion: Y > 3 * sigma_meas and a > 0
-                    if Y_mb > 3.0 * sig_meas and a_mb > 1e-12:
+                    # Condition for Block B inclusion: Y > 3 * sigma_meas, a > 0, and
+                    # unmodeled-line ratio gate (M > 0.05 * Y) enforced for iteration >= 2
+                    gate_ok = True if iteration < 2 else (M_mb > 0.05 * Y_mb)
+                    if Y_mb > 3.0 * sig_meas and a_mb > 1e-12 and gate_ok:
                         rho_val = np.log(Y_mb / a_mb)
-                        # v_{m, b} = (1 / n_f) * (Y / sigma)^2 * h
-                        v_val = (1.0 / n_f) * ((Y_mb / sig_mb) ** 2) * h_weight
+                        # Chain-rule Fisher weight uses min(Y, M) so missing-line outliers cannot explode (Y/sigma)^2
+                        eff_signal = min(Y_mb, M_mb)
+                        v_val = (1.0 / n_f) * ((eff_signal / sig_mb) ** 2) * h_weight
 
                         b_centers_list.append(sb_info["center_wl"])
                         rho_list.append(rho_val)
@@ -620,18 +681,38 @@ def run_joint_solver(
                         r_curr = float(
                             np.exp(basis.evaluate(np.array([sb_info["center_wl"]])) @ best_beta)[0]
                         )
-                        abs_u = abs((Y_mb - r_curr * a_mb) / sig_mb)
+                        M_mb = r_curr * a_mb
+                        if M_mb <= 0.05 * Y_mb:
+                            continue
+                        abs_u = abs((Y_mb - M_mb) / sig_mb)
                         h_w = 1.0 if abs_u <= c_huber else (c_huber / abs_u)
+                        eff_signal = min(Y_mb, M_mb)
                         grp_centers.append(sb_info["center_wl"])
                         grp_rho.append(float(np.log(Y_mb / a_mb)))
-                        grp_w.append((1.0 / n_f) * ((Y_mb / sig_mb) ** 2) * h_w)
+                        grp_w.append((1.0 / n_f) * ((eff_signal / sig_mb) ** 2) * h_w)
             return grp_centers, grp_rho, grp_w
+
+        def _weight_support_bounds(centers: List[float], weights: List[float]) -> Tuple[float, float]:
+            c_arr = np.asarray(centers, dtype=np.float64)
+            w_arr = np.asarray(weights, dtype=np.float64)
+            order = np.argsort(c_arr)
+            c_s = c_arr[order]
+            w_s = w_arr[order]
+            w_sum = float(np.sum(w_s))
+            if w_sum <= 1e-12:
+                return float(c_s[0]), float(c_s[-1])
+            cdf = np.cumsum(w_s) / w_sum
+            lo_idx = int(np.searchsorted(cdf, 0.02))
+            hi_idx = min(len(c_s) - 1, int(np.searchsorted(cdf, 0.98)))
+            return float(c_s[lo_idx]), float(c_s[hi_idx])
 
         iron_c, iron_rho, iron_w = _collect_group_block_b(iron_mats)
         other_c, other_rho, other_w = _collect_group_block_b(other_mats)
         if len(iron_c) >= 2 and len(other_c) >= 2:
-            lo_common = max(min(iron_c), min(other_c))
-            hi_common = min(max(iron_c), max(other_c))
+            iron_lo, iron_hi = _weight_support_bounds(iron_c, iron_w)
+            other_lo, other_hi = _weight_support_bounds(other_c, other_w)
+            lo_common = max(iron_lo, other_lo)
+            hi_common = min(iron_hi, other_hi)
             if hi_common - lo_common >= 60.0:
                 grid_common = np.linspace(lo_common, hi_common, 100)
                 beta_iron = solve_block_b(
@@ -667,6 +748,7 @@ def run_joint_solver(
         reduced_chi2_by_mat=reduced_chi2,
         family_group_response_rms_diff=family_group_rms_diff,
         composition_scale_verified=composition_scale_verified,
+        dictionary=dictionary,
     )
 
     return CalibrationResult(
