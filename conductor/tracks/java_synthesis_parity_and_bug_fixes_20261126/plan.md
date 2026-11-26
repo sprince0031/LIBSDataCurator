@@ -43,7 +43,7 @@
 
 ---
 
-## Phase 3: Java Synthesis Parity, Deterministic `--seed` & End-to-End Parity Gate (`SH-02`, `H5`, `M4`)
+## Phase 3: Java Synthesis Parity, Deterministic `--seed` & End-to-End Parity Gate (`SH-02`, `H5`, `M4`) [checkpoint: ba654f4]
 
 - [x] Task: Enforce unconditional flux-conserving resampling (`H5`), deterministic SplitMix64 `--seed` propagation, and end-to-end forward parity testing (`M4`) in `LIBSDataService.java` (FR-1, FR-2, FR-7) (f239b6e)
   - [x] Write failing unit & end-to-end tests in `src/test/java/com/medals/libsdatagenerator/service/LIBSDataServiceTest.java` covering: (a) full Java synthesis chain (`NISTUtils.parseNistCsv` -> `SpectrumUtils.resampleToDetector` -> `SpectrumUtils.combineNZones` -> `SpectrumUtils.applyInstrumentResponseAndNoise`) via `LIBSDataService.synthesizeSpectrumFromZoneCsvs(...)` matching `src/test/resources/forward_model_fixture.json` (`finalAbsoluteExpected` & `finalMaxNormalisedExpected`) within `Math.abs(exp) * 1e-9 + 1e-12`, (b) `null` and empty `lineSpreadAddSigmaNm` matching explicit zero-filled `SpectrumUtils.resampleToDetector(..., new double[detWl.length])` within `1e-12` and conserving flux on a narrow sub-pixel peak (diverging from pointwise `interpolateSpectrum`), (c) bit-exact determinism for identical `(seed, sampleIndex)` when `finotelloNoiseBeta = 0.095` and distinct non-negative outputs for differing seeds/indices, and (d) default `finotelloNoiseBeta == 0.0` preservation
@@ -55,4 +55,4 @@
   - [x] Run full `mvn test` and confirm 100% pass with 0 failures and 0 errors (165 passed, 0 failed, 0 skipped)
   - [x] Verify via `git status` and `git diff --name-only` that zero Python files, zero `TRACK-CORE-01` contract/fixture files, zero `forward_model_fixture.json` edits, zero synthetic `.csv` outputs, and neither `notebooks/calibration_inspector.ipynb` nor `conductor/instrument_profile_debugging_and_improvement_specification_v1.md` were modified
 
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) — 165 passed, 0 failed, 0 errors, 0 skipped (`mvn test`)
