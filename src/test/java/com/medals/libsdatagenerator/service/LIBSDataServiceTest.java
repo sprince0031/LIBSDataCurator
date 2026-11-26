@@ -1,113 +1,264 @@
 package com.medals.libsdatagenerator.service;
 
-import com.medals.libsdatagenerator.model.Element;
+import com.medals.libsdatagenerator.model.InstrumentProfile;
+import com.medals.libsdatagenerator.model.PlasmaZone;
+import com.medals.libsdatagenerator.util.NISTUtils;
+import com.medals.libsdatagenerator.util.SpectrumUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class LIBSDataServiceTest {
 
-    private final CompositionalVariations compVariations = CompositionalVariations.getInstance();
-    private static final double DELTA = 0.01; // Increased tolerance slightly for sums after variation
+    private final LIBSDataService libsDataService = LIBSDataService.getInstance();
 
-    private boolean compositionsDiffer(List<Element> comp1, List<Element> comp2) {
-        if (comp1.size() != comp2.size()) return true;
-        for (int i = 0; i < comp1.size(); i++) {
-            // Compare symbols to ensure elements are in the same order or match them up
-            if (!comp1.get(i).getSymbol().equals(comp2.get(i).getSymbol())) return true; // Should not happen if order is preserved
-            if (Math.abs(comp1.get(i).getPercentageComposition() - comp2.get(i).getPercentageComposition()) > DELTA) {
-                return true;
-            }
+    private static double[] toDoubleArray(JSONArray arr) {
+        double[] res = new double[arr.length()];
+        for (int i = 0; i < arr.length(); i++) {
+            res[i] = arr.getDouble(i);
         }
-        return false;
+        return res;
     }
 
-    private double sumComposition(List<Element> composition) {
-        double sum = 0;
-        for (Element el : composition) {
-            sum += el.getPercentageComposition();
+    private static List<Double> toDoubleList(double[] arr) {
+        List<Double> list = new ArrayList<>(arr.length);
+        for (double v : arr) {
+            list.add(v);
         }
-        return sum;
+        return list;
     }
 
-    //TODO: Need to update tests to check plasma variations with Gaussian sampler
+    private static String buildNistCsv(double[] wavelengths, double[] intensities, double scale, String sumHeader) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Wavelength (nm),").append(sumHeader).append("\n");
+        for (int i = 0; i < wavelengths.length; i++) {
+            sb.append(Double.toString(wavelengths[i]))
+              .append(",")
+              .append(Double.toString(intensities[i] * scale))
+              .append("\n");
+        }
+        return sb.toString();
+    }
 
-    // Helper to check if LIBSDataGenConstants are populated for test symbols
-//    private void assumeGaussianConstantsPresent(String... symbols) {
-//        Map<String, Double> stdDevs = LIBSDataGenConstants.ELEMENT_STD_DEVS_FALLBACK;
-//        if (stdDevs == null) {
-//            // This will cause the test to be skipped.
-//            Assumptions.assumeTrue(false, "ELEMENT_STD_DEVS_FALLBACK map is null. Skipping Gaussian test.");
-//            return;
-//        }
-//        for (String symbol : symbols) {
-//            Assumptions.assumeTrue(stdDevs.containsKey(symbol),
-//                "Skipping Gaussian test: Symbol '" + symbol + "' not in ELEMENT_STD_DEVS_FALLBACK map.");
-//        }
-//    }
-//
-//    @Test
-//    void testGenerateVariations_allFixed_gaussianFallback() throws Exception {
-//        assumeGaussianConstantsPresent("A", "B"); // Gaussian tests need these symbols in constants
-//
-//        List<Element> originalComposition = new ArrayList<>();
-//        originalComposition.add(new Element("A", "A", 50.0, 50.0, 50.0, 50.0));
-//        originalComposition.add(new Element("B", "B", 50.0, 50.0, 50.0, 50.0));
-//
-//        MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
-//        CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
-//                "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "A-50,B-#",
-//                "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.PLASMATEMP.getUserOption()),
-//                "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
-//        UserInputConfig config = new UserInputConfig(cmd);
-//        // samples = 10, so 1 original + 10 variations expected if fallback works
-//        List<List<Element>> compositions = compVariations.generateCompositionalVariations(materialGrade, config);
-//
-//        // Expected size is specified number of samples with original included
-//        assertEquals(5, compositions.size(), "Expected size is specified number of samples with original included");
-//
-//        boolean foundDifferent = false;
-//        for (int i = 1; i < compositions.size(); i++) { // Start from 1 to skip original
-//            List<Element> variedComp = compositions.get(i);
-//            assertEquals(originalComposition.size(), variedComp.size(), "Varied composition should have same number of elements.");
-//            assertEquals(100.0, sumComposition(variedComp), DELTA, "Sum of varied composition should be ~100.");
-//            if (compositionsDiffer(originalComposition, variedComp)) {
-//                foundDifferent = true;
-//            }
-//        }
-//        assertTrue(foundDifferent, "Expected at least one generated composition to differ from the all-fixed original due to Gaussian fallback.");
-//    }
-//
-//    @Test
-//    void testGenerateVariations_mixedFixedAndVariable_gaussian() throws Exception {
-//        assumeGaussianConstantsPresent("Fe", "Cr");
-//
-//        List<Element> originalComposition = new ArrayList<>();
-//        originalComposition.add(new Element("Fe", "Fe", 70.0, 70.0, 70.0, 70.0)); // Fixed
-//        originalComposition.add(new Element("Cr", "Cr", 30.0, 25.0, 35.0, 30.0)); // Variable
-//
-//        MaterialGrade materialGrade = new MaterialGrade(originalComposition, null, null);
-//        CommandLine cmd = new CmdlineParserUtil().getTerminalArgHandler(new String[]{
-//                "-"+LIBSDataGenConstants.CMD_OPT_COMPOSITION_SHORT, "Cr-25:35,Fe-#",
-//                "-"+LIBSDataGenConstants.CMD_OPT_VAR_MODE_SHORT, String.valueOf(VariationMode.PLASMATEMP.getUserOption()),
-//                "-"+LIBSDataGenConstants.CMD_OPT_NUM_VARS_SHORT, "5"});
-//        UserInputConfig config = new UserInputConfig(cmd);
-//        List<List<Element>> compositions = compVariations.generateCompositionalVariations(materialGrade, config);
-//
-//        // Expected size is specified number of samples with original included
-//        assertEquals(5, compositions.size(), "Expected size is specified number of samples with original included");
-//        for (int i = 1; i < compositions.size(); i++) { // Skip original
-//            List<Element> variedComp = compositions.get(i);
-//            assertEquals(2, variedComp.size());
-//            Element fe = variedComp.stream().filter(e -> e.getSymbol().equals("Fe")).findFirst().orElse(null);
-//            Element cr = variedComp.stream().filter(e -> e.getSymbol().equals("Cr")).findFirst().orElse(null);
-//
-//            assertNotNull(fe, "Fe element should be present in varied composition.");
-//            assertNotNull(cr, "Cr element should be present in varied composition.");
-//
-//            assertEquals(70.0, fe.getPercentageComposition(), DELTA, "Fixed element Fe should remain at 70%");
-//            assertTrue(cr.getPercentageComposition() >= (25.0 - DELTA) && cr.getPercentageComposition() <= (35.0 + DELTA),
-//                "Variable element Cr (" + cr.getPercentageComposition() + ") should be within its original range [25,35]");
-//            assertEquals(100.0, sumComposition(variedComp), DELTA, "Sum of varied composition should be ~100.");
-//        }
-//    }
+    @Test
+    @DisplayName("End-to-end Java synthesis chain matches forward_model_fixture.json within 1e-9 (M4)")
+    void testEndToEndSynthesisChainMatchesPythonForwardFixture() throws Exception {
+        InputStream is = getClass().getResourceAsStream("/forward_model_fixture.json");
+        assertNotNull(is, "forward_model_fixture.json must exist in test resources");
+        String content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        JSONObject json = new JSONObject(content);
+
+        double[] srcWl = toDoubleArray(json.getJSONArray("srcWl"));
+        double[] srcI = toDoubleArray(json.getJSONArray("srcI"));
+        double[] detWl = toDoubleArray(json.getJSONArray("detWl"));
+        double[] addSigma = toDoubleArray(json.getJSONArray("addSigmaNm"));
+        double[] response = toDoubleArray(json.getJSONArray("spectralResponse"));
+        double scaleFactor = json.getDouble("scaleFactor");
+        double[] finalAbsExp = toDoubleArray(json.getJSONArray("finalAbsoluteExpected"));
+        double[] finalNormExp = toDoubleArray(json.getJSONArray("finalMaxNormalisedExpected"));
+
+        // Match scripts/test_forward_model.py: d0 = resampled * 1.5, d1 = resampled * 0.8
+        String zone0Csv = buildNistCsv(srcWl, srcI, 1.5, "Sum(calc)");
+        String zone1Csv = buildNistCsv(srcWl, srcI, 0.8, "Sum(calc)");
+
+        JSONArray zonesJson = json.getJSONArray("zones");
+        List<PlasmaZone> zones = new ArrayList<>();
+        for (int i = 0; i < zonesJson.length(); i++) {
+            JSONObject zObj = zonesJson.getJSONObject(i);
+            zones.add(new PlasmaZone(
+                    zObj.getDouble("te"),
+                    zObj.getDouble("ne"),
+                    zObj.getDouble("volumeFraction"),
+                    zObj.getDouble("kAbsorption")
+            ));
+        }
+
+        InstrumentProfile profile = new InstrumentProfile();
+        assertEquals(0.0, profile.getFinotelloNoiseBeta(), 0.0,
+                "finotelloNoiseBeta must default to 0.0 (Python calibration deferred)");
+        profile.setWavelengthGrid(detWl);
+        profile.setSpectralResponse(response);
+        profile.setLineSpreadAddSigmaNm(toDoubleList(addSigma));
+
+        // 1. Absolute emissionScale
+        profile.setEmissionScale("absolute");
+        double[] absActual = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(zone0Csv, zone1Csv), zones, profile, scaleFactor, "nm", null);
+        assertEquals(finalAbsExp.length, absActual.length);
+        for (int i = 0; i < finalAbsExp.length; i++) {
+            assertEquals(finalAbsExp[i], absActual[i], Math.abs(finalAbsExp[i]) * 1e-9 + 1e-12,
+                    "End-to-end absolute channel " + i + " mismatch");
+        }
+
+        // 2. Max-normalised emissionScale
+        profile.setEmissionScale("max_normalised");
+        double[] normActual = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(zone0Csv, zone1Csv), zones, profile, scaleFactor, "nm", null);
+        assertEquals(finalNormExp.length, normActual.length);
+        for (int i = 0; i < finalNormExp.length; i++) {
+            assertEquals(finalNormExp[i], normActual[i], Math.abs(finalNormExp[i]) * 1e-9 + 1e-12,
+                    "End-to-end max_normalised channel " + i + " mismatch");
+        }
+    }
+
+    @Test
+    @DisplayName("Null or empty lineSpreadAddSigmaNm uses flux-conserving zero-broadening boxcar resampling (H5)")
+    void testNullAndEmptyLineSpreadAddSigmaUsesFluxConservingBoxcar() throws Exception {
+        // Dense source spectrum with a narrow emission peak centered halfway between detector pixels 355.0 and 356.0
+        int nSrc = 501;
+        double[] srcWl = new double[nSrc];
+        double[] srcI = new double[nSrc];
+        for (int i = 0; i < nSrc; i++) {
+            srcWl[i] = 350.0 + i * 0.02;
+            double dx = (srcWl[i] - 355.5) / 0.08;
+            srcI[i] = 1000.0 * Math.exp(-0.5 * dx * dx);
+        }
+        double[] detWl = new double[11];
+        double[] unitResponse = new double[11];
+        for (int i = 0; i < detWl.length; i++) {
+            detWl[i] = 350.0 + i;
+            unitResponse[i] = 1.0;
+        }
+
+        String nistCsv = buildNistCsv(srcWl, srcI, 1.0, "Sum");
+        List<PlasmaZone> singleZone = List.of(new PlasmaZone(1.0, 1e17, 1.0, 0.0));
+
+        InstrumentProfile nullSigmaProfile = new InstrumentProfile();
+        nullSigmaProfile.setWavelengthGrid(detWl);
+        nullSigmaProfile.setSpectralResponse(unitResponse);
+        nullSigmaProfile.setEmissionScale("absolute");
+        nullSigmaProfile.setLineSpreadAddSigmaNm(null);
+
+        InstrumentProfile emptySigmaProfile = new InstrumentProfile();
+        emptySigmaProfile.setWavelengthGrid(detWl);
+        emptySigmaProfile.setSpectralResponse(unitResponse);
+        emptySigmaProfile.setEmissionScale("absolute");
+        emptySigmaProfile.setLineSpreadAddSigmaNm(Collections.emptyList());
+
+        double[] nullResult = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(nistCsv), singleZone, nullSigmaProfile, 1.0, "nm", null);
+        double[] emptyResult = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(nistCsv), singleZone, emptySigmaProfile, 1.0, "nm", null);
+        double[] boxcarRef = SpectrumUtils.resampleToDetector(srcWl, srcI, detWl, new double[detWl.length]);
+
+        assertArrayEquals(boxcarRef, nullResult, 1e-12,
+                "null lineSpreadAddSigmaNm must match zero-array flux-conserving resampleToDetector");
+        assertArrayEquals(boxcarRef, emptyResult, 1e-12,
+                "empty lineSpreadAddSigmaNm must match zero-array flux-conserving resampleToDetector");
+
+        // Verify flux conservation vs non-flux-conserving pointwise linear interpolation
+        double srcFlux = 0.0;
+        for (int i = 0; i < nSrc - 1; i++) {
+            srcFlux += 0.5 * (srcI[i] + srcI[i + 1]) * (srcWl[i + 1] - srcWl[i]);
+        }
+        double boxcarFlux = Arrays.stream(nullResult).sum(); // uniform 1.0 nm pixel width
+        assertEquals(srcFlux, boxcarFlux, srcFlux * 1e-3,
+                "Boxcar resampling must conserve integrated line flux");
+
+        Map<Double, Double> waveMap = NISTUtils.parseNistCsv(nistCsv, "nm");
+        double[] pointwiseInterp = new SpectrumUtils().interpolateSpectrum(waveMap, detWl);
+        double interpFlux = Arrays.stream(pointwiseInterp).sum();
+        assertTrue(interpFlux < srcFlux * 0.05,
+                "Sanity check: pointwise linear interpolation misses sub-pixel peak flux");
+        assertTrue(Math.abs(boxcarFlux - interpFlux) > srcFlux * 0.9,
+                "Flux-conserving fallback must diverge dramatically from pointwise linear interpolation on narrow peaks");
+    }
+
+    @Test
+    @DisplayName("Deterministic seed propagation produces bit-exact noisy spectra for identical (seed, sampleIndex)")
+    void testDeterministicSeedPropagationWithFinotelloNoise() throws Exception {
+        double[] srcWl = {350.0, 352.0, 354.0, 356.0, 358.0, 360.0};
+        double[] srcI = {100.0, 300.0, 800.0, 600.0, 200.0, 100.0};
+        double[] detWl = {350.0, 352.5, 355.0, 357.5, 360.0};
+        double[] unitResp = {1.0, 1.0, 1.0, 1.0, 1.0};
+
+        String csv = buildNistCsv(srcWl, srcI, 1.0, "Sum(calc)");
+        List<PlasmaZone> zones = List.of(new PlasmaZone(1.0, 1e17, 1.0, 0.0));
+
+        InstrumentProfile profile = new InstrumentProfile();
+        profile.setWavelengthGrid(detWl);
+        profile.setSpectralResponse(unitResp);
+        profile.setEmissionScale("absolute");
+        profile.setFinotelloNoiseBeta(0.095);
+
+        double[] run1 = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv), zones, profile, 1.0, "nm", LIBSDataService.deriveSampleNoiseRandom(42L, 0));
+        double[] run2 = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv), zones, profile, 1.0, "nm", LIBSDataService.deriveSampleNoiseRandom(42L, 0));
+        double[] diffIndex = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv), zones, profile, 1.0, "nm", LIBSDataService.deriveSampleNoiseRandom(42L, 1));
+        double[] diffSeed = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv), zones, profile, 1.0, "nm", LIBSDataService.deriveSampleNoiseRandom(99L, 0));
+
+        assertArrayEquals(run1, run2, 0.0,
+                "Repeated synthesis runs with identical (seed, sampleIndex) must be bit-exact");
+        assertFalse(Arrays.equals(run1, diffIndex),
+                "Different sampleIndex with same seed must yield distinct noise realization");
+        assertFalse(Arrays.equals(run1, diffSeed),
+                "Different seed with same sampleIndex must yield distinct noise realization");
+
+        for (double val : run1) {
+            assertTrue(val >= 0.0, "Noisy counts must remain non-negative");
+        }
+
+        Random unseeded = LIBSDataService.deriveSampleNoiseRandom(null, 0);
+        assertNotNull(unseeded);
+    }
+
+    @Test
+    @DisplayName("synthesizeSpectrumFromZoneCsvs initializes null wavelengthGrid from first parsed NIST spectrum")
+    void testSynthesizeInitializesNullWavelengthGrid() throws Exception {
+        double[] srcWl = {400.0, 401.0, 402.0, 403.0};
+        double[] srcI = {10.0, 50.0, 20.0, 10.0};
+        String csv = buildNistCsv(srcWl, srcI, 1.0, "Sum(calc)");
+
+        InstrumentProfile profile = new InstrumentProfile();
+        assertNull(profile.getWavelengthGrid());
+
+        double[] result = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv),
+                List.of(new PlasmaZone(1.0, 1e17, 1.0, 0.0)),
+                profile,
+                1.0,
+                "nm",
+                null
+        );
+
+        assertNotNull(profile.getWavelengthGrid());
+        assertArrayEquals(srcWl, profile.getWavelengthGrid(), 1e-12);
+        assertEquals(srcWl.length, result.length);
+    }
+
+    @Test
+    @DisplayName("synthesizeSpectrumFromZoneCsvs validates mismatched inputs and handles null profile safely")
+    void testSynthesizeValidationAndNullProfile() throws Exception {
+        double[] srcWl = {400.0, 401.0, 402.0};
+        double[] srcI = {10.0, 20.0, 10.0};
+        String csv = buildNistCsv(srcWl, srcI, 1.0, "Sum(calc)");
+        List<PlasmaZone> oneZone = List.of(new PlasmaZone(1.0, 1e17, 1.0, 0.0));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                libsDataService.synthesizeSpectrumFromZoneCsvs(null, oneZone, null, 1.0, "nm", null));
+        assertThrows(IllegalArgumentException.class, () ->
+                libsDataService.synthesizeSpectrumFromZoneCsvs(Collections.emptyList(), oneZone, null, 1.0, "nm", null));
+        assertThrows(IllegalArgumentException.class, () ->
+                libsDataService.synthesizeSpectrumFromZoneCsvs(List.of(csv), Collections.emptyList(), null, 1.0, "nm", null));
+
+        double[] nullProfileResult = libsDataService.synthesizeSpectrumFromZoneCsvs(
+                List.of(csv), oneZone, null, 2.0, "nm", null);
+        assertEquals(srcWl.length, nullProfileResult.length);
+        assertTrue(nullProfileResult[1] > 0.0);
+    }
 }

@@ -312,28 +312,110 @@ public class LIBSDataService {
         return nistGridCsvPaths;
     }
 
+    /**
+     * Derives a deterministic per-sample {@link Random} for Finotello noise injection
+     * using SplitMix64 mixing of {@code (baseSeed, sampleIndex)}.
+     * Falls back to an unseeded {@link Random} when {@code baseSeed} is {@code null}.
+     */
+    static Random deriveSampleNoiseRandom(Long baseSeed, int sampleIndex) {
+        if (baseSeed == null) {
+            return new Random();
+        }
+        long z = baseSeed + 0x9E3779B97F4A7C15L * (sampleIndex + 1L);
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        z = z ^ (z >>> 31);
+        return new Random(z);
+    }
+
+    /**
+     * Executes the end-to-end Java forward synthesis chain for a single synthetic sample:
+     * {@code NISTUtils.parseNistCsv -> SpectrumUtils.resampleToDetector -> SpectrumUtils.combineNZones -> SpectrumUtils.applyInstrumentResponseAndNoise}.
+     * Always resamples via flux-conserving {@link SpectrumUtils#resampleToDetector}, passing a
+     * zero-filled broadening array when {@code lineSpreadAddSigmaNm} is null or empty.
+     */
+    double[] synthesizeSpectrumFromZoneCsvs(
+            List<String> zoneCsvs,
+            List<PlasmaZone> plasmaZones,
+            InstrumentProfile instrumentProfile,
+            double scaleFactor,
+            String wavelengthUnit,
+            Random noiseRng) throws IOException {
+        if (zoneCsvs == null || plasmaZones == null || zoneCsvs.isEmpty() || zoneCsvs.size() != plasmaZones.size()) {
+            throw new IllegalArgumentException("Mismatch between zone CSVs and plasma zone definitions.");
+        }
+
+        List<double[]> fetchedZoneSpectra = new ArrayList<>(zoneCsvs.size());
+        double[] detWl = instrumentProfile != null ? instrumentProfile.getWavelengthGrid() : null;
+
+        for (String csvData : zoneCsvs) {
+            Map<Double, Double> waveMap = NISTUtils.parseNistCsv(csvData, wavelengthUnit);
+            Spectrum parsedSpectrum = new Spectrum(waveMap);
+            double[] srcWl = parsedSpectrum.getWavelengths();
+            double[] srcI = parsedSpectrum.getIntensities();
+
+            // One-time initialization of detector wavelength grid if instrument profile did not specify one
+            if (detWl == null) {
+                detWl = srcWl;
+                if (instrumentProfile != null) {
+                    instrumentProfile.setWavelengthGrid(detWl);
+                }
+            }
+
+            double[] addSigma;
+            if (instrumentProfile != null
+                    && instrumentProfile.getLineSpreadAddSigmaNm() != null
+                    && !instrumentProfile.getLineSpreadAddSigmaNm().isEmpty()) {
+                addSigma = instrumentProfile.getLineSpreadAddSigmaNm().stream()
+                        .mapToDouble(Double::doubleValue)
+                        .toArray();
+            } else {
+                // Pure flux-conserving boxcar integration (0.0 nm additional broadening) matching Python 1:1
+                addSigma = new double[detWl.length];
+            }
+
+            double[] zoneSpectrum = SpectrumUtils.resampleToDetector(srcWl, srcI, detWl, addSigma);
+            fetchedZoneSpectra.add(zoneSpectrum);
+        }
+
+        double[] combinedSpectrum = SpectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
+        double finotelloBeta = instrumentProfile != null ? instrumentProfile.getFinotelloNoiseBeta() : 0.0;
+        String emissionScale = (instrumentProfile != null && instrumentProfile.getEmissionScale() != null)
+                ? instrumentProfile.getEmissionScale()
+                : "absolute";
+        return SpectrumUtils.applyInstrumentResponseAndNoise(
+                combinedSpectrum,
+                instrumentProfile != null ? instrumentProfile.getSpectralResponse() : null,
+                scaleFactor,
+                finotelloBeta,
+                noiseRng,
+                emissionScale
+        );
+    }
+
     private void fetchAndProcessSpectra(Map<String, Object> fetchedSpectralData, List<List<Element>> compositions,
                                         List<List<PlasmaZone>> plasmaZonesVariations, UserInputConfig config,
                                         MaterialGrade sourceMaterial, InstrumentProfile instrumentProfile, double scaleFactor) {
         int compositionsProcessed = 0;
+        int sampleIndex = 0;
         PrintStream out = System.out;
 
         // Get selenium instance for reuse across variations
         SeleniumUtils seleniumUtils = SeleniumUtils.getInstance();
-        SpectrumUtils spectrumUtils = new  SpectrumUtils();
         try {
 
-//            List<PlasmaZone> plasmaZones = familyProfile.getPlasmaZones();
             // For each composition, fetch the CSV, parse it, store data
             for (List<Element> composition : compositions) {
                 for (List<PlasmaZone> plasmaZones : plasmaZonesVariations) {
+                    int currentSampleIndex = sampleIndex++;
                     // Store for each composition's *string ID* -> (wave -> intensity) & (element symbol -> percentage)
                     String csvData;
                     Map<String, Object> compWaveIntensityMap = new HashMap<>();
                     String compositionId = CommonUtils.getInstance().buildCompositionStringForFilename(composition);
                     logger.info("Applying instrument profile to synthetic spectra for " + compositionId +
                             " (" + sourceMaterial.getMaterialName() + ")");
-                    List<double[]>  fetchedZoneSpectra = new ArrayList<>();
+                    List<String> fetchedZoneCsvs = new ArrayList<>(plasmaZones.size());
+                    boolean zoneFetchFailed = false;
                     for (PlasmaZone plasmaZone : plasmaZones) {
                         double te = plasmaZone.getTe();
                         double ne = plasmaZone.getNe();
@@ -341,51 +423,27 @@ public class LIBSDataService {
 
                         // Fetch CSV data from NIST
                         csvData = fetchPlasmaZoneSpectrum(composition, config, te, ne, sourceMaterial.getRemainderElementIdx());
-                        // If fetch failed, skip
+                        // If fetch failed, skip this sample
                         if (csvData.equals(String.valueOf(HttpURLConnection.HTTP_NOT_FOUND))) {
                             logger.severe("Failed to fetch data for composition " + compositionId + " and plasma zone "
                                     + plasmaZone.toJson());
+                            zoneFetchFailed = true;
                             break; // Stop if fails for even 1 plasma zone as combination won't work
                         }
                         logger.info("Fetched NIST spectrum for zone: " + plasmaZone.toJson());
-                        // Parse wave->intensity
-                        Map<Double, Double> waveMap;
-                        try {
-                            waveMap = NISTUtils.parseNistCsv(csvData, config.wavelengthUnit.getUnitString());
-                            // One-time check to add first instance of wavelengths if instrument profile not available
-                            if (instrumentProfile.getWavelengthGrid() == null) {
-                                double[] wavelengthGrid = waveMap.keySet()
-                                        .stream().mapToDouble(Double::doubleValue).toArray();
-                                instrumentProfile.setWavelengthGrid(wavelengthGrid);
-                            }
-                        } catch (Exception e) {
-                            logger.log(Level.SEVERE, "Error parsing CSV for " + compositionId, e);
-                            continue;
-                        }
-                        double[] zoneSpectrum;
-                        if (instrumentProfile != null && instrumentProfile.getLineSpreadAddSigmaNm() != null && !instrumentProfile.getLineSpreadAddSigmaNm().isEmpty()) {
-                            Spectrum parsedSpectrum = new Spectrum(waveMap);
-                            double[] srcWl = parsedSpectrum.getWavelengths();
-                            double[] srcI = parsedSpectrum.getIntensities();
-                            double[] addSigma = instrumentProfile.getLineSpreadAddSigmaNm().stream().mapToDouble(Double::doubleValue).toArray();
-                            zoneSpectrum = SpectrumUtils.resampleToDetector(srcWl, srcI, instrumentProfile.getWavelengthGrid(), addSigma);
-                        } else {
-                            zoneSpectrum = spectrumUtils.interpolateSpectrum(waveMap, instrumentProfile.getWavelengthGrid());
-                        }
-                        fetchedZoneSpectra.add(zoneSpectrum);
+                        fetchedZoneCsvs.add(csvData);
                     }
-                    double[] combinedSpectrum = SpectrumUtils.combineNZones(fetchedZoneSpectra, plasmaZones);
-                    double finotelloBeta = instrumentProfile != null ? instrumentProfile.getFinotelloNoiseBeta() : 0.0;
-                    String emissionScale = (instrumentProfile != null && instrumentProfile.getEmissionScale() != null)
-                            ? instrumentProfile.getEmissionScale()
-                            : "absolute";
-                    double[] finalCounts = SpectrumUtils.applyInstrumentResponseAndNoise(
-                            combinedSpectrum,
-                            instrumentProfile != null ? instrumentProfile.getSpectralResponse() : null,
+                    if (zoneFetchFailed) {
+                        continue;
+                    }
+                    Random noiseRng = deriveSampleNoiseRandom(config != null ? config.seed : null, currentSampleIndex);
+                    double[] finalCounts = synthesizeSpectrumFromZoneCsvs(
+                            fetchedZoneCsvs,
+                            plasmaZones,
+                            instrumentProfile,
                             scaleFactor,
-                            finotelloBeta,
-                            new Random(),
-                            emissionScale
+                            config.wavelengthUnit.getUnitString(),
+                            noiseRng
                     );
                     List<Double> scaledSpectrum = new ArrayList<>();
                     for (double val : finalCounts) {
