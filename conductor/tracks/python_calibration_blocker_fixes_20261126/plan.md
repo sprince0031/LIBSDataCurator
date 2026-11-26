@@ -82,3 +82,9 @@
   - [x] Verify `git status` and `git diff --name-only` confirm zero changes to `TRACK-CORE-01` contract files, `.java` files, synthetic `.csv` outputs, or untracked user files
 
 - [x] Task: Phase Verification & Checkpoint (Refer to `workflow.md`) — 139 passed, 7 skipped, 0 failed (`tests/ scripts/`)
+
+---
+
+## Phase: Review Fixes
+
+- [x] Task: Apply review suggestions (157d4dc) — R(lambda)-weighted modeled emission for `TE_GRID_EDGE`, `valid_mask` sub-bin guard in `compute_family_calibration_stats`, docstring `SE=25` alignment; full suite verified at 144 passed, 2 skipped, 0 failed with real measured CSVs
