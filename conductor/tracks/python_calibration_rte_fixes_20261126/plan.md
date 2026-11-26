@@ -43,29 +43,29 @@
 
 ---
 
-## Phase 3: Calibration Engine Wiring (`scripts/gpu_calibration_engine.py`)
+## Phase 3: Calibration Engine Wiring (`scripts/gpu_calibration_engine.py`) [checkpoint: c222a79]
 
-- [~] Task: Inspect Java `InstrumentProfile` / `CalibrationStats` DTO (read-only) before adding new JSON keys
-  - [ ] Read Java `InstrumentProfile` and nested `CalibrationStats` DTOs (read-only) to verify whether Jackson ignores unknown JSON properties (`@JsonIgnoreProperties(ignoreUnknown = true)` or `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES`); document the finding in the Phase 3 checkpoint summary for `TRACK-CORE-02B` awareness.
-- [ ] Task: Write failing unit tests for `gpu_calibration_engine.py` calibration wiring (Red phase)
-  - [ ] Expand `tests/test_roi_joint_calibration_math.py` with unit tests verifying:
+- [x] Task: Inspect Java `InstrumentProfile` / `CalibrationStats` DTO (read-only) before adding new JSON keys
+  - [x] Read Java `InstrumentProfile` and nested `CalibrationStats` DTOs (read-only) to verify whether Jackson ignores unknown JSON properties (`@JsonIgnoreProperties(ignoreUnknown = true)` or `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES`); document the finding in the Phase 3 checkpoint summary for `TRACK-CORE-02B` awareness. *(Verified: `InstrumentProfile.java:14`, `CalibrationStats.java:11`, `MaterialFamilyProfile.java:13`, `PlasmaZone.java:7`, and `BaselineCorrectionParams.java:7` all declare `@JsonIgnoreProperties(ignoreUnknown = true)` — safe for Jackson deserialization.)*
+- [x] Task: Write failing unit tests for `gpu_calibration_engine.py` calibration wiring (Red phase) (c222a79)
+  - [x] Expand `tests/test_roi_joint_calibration_math.py` with unit tests verifying:
     - `roiChi2Reduced` computed via `compute_spectral_metrics(..., variance=sigma_sb**2, normalization="none", num_params=n_params)["reduced_chi2"]` uses actual fitted `n_params` (not hardcoded `0`), unit-matched `sigma_sb` in physical count units, and is $\mathcal{O}(1)$ on noisy synthetic benchmarks (NOT $\mathcal{O}(10^8)$).
     - `calibrationStats` aggregates across ALL materials in `fam_mats` (reporting family means + `perMaterialStats` with per-material `numSteadyShots`, `roiRmse`/`wholeSpectrumRmse` as `nrmse_max` under `normalization="none"`, plus `roiRmseRaw`/`wholeSpectrumRmseRaw`).
     - Top-level `numShots` in `instrument_profile.json` equals total `sum(cond.num_steady_shots)` across all calibrated materials (NOT `8192`).
     - Per-point dispersion uses `cond.preprocessed_point_means`; `compute_element_parity` receives `nz_indices`; multi-zone synthesis routes through `apply_multi_zone_rte`.
     - Gate G1 (`forward_model.composition_scale_check`) is executed and wired into `evaluate_diagnostics` (`COMPOSITION_SCALE_UNVERIFIED` emitted on failure/unverified).
     - Dynamic `add_sigma_nm` is computed via `spectral_resampling.calculate_add_sigma_nm` when instrument FWHM & `R_nist` are available and persisted into `lineSpreadAddSigmaNm`.
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py` to confirm Red failure.
-- [ ] Task: Implement Phase 3 fixes in `scripts/gpu_calibration_engine.py` (Green & Refactor phase)
-  - [ ] Wire `NIST_UNIT_SCALE`, dynamic `add_sigma_nm` (`calculate_add_sigma_nm` + `lineSpreadAddSigmaNm`), true R6 sub-bin $\sigma_{m,b}$ propagation (same physical count units as `y_meas`/`y_pred` with accurate `n_params`), canonical `apply_multi_zone_rte`, `nz_indices` in `compute_element_parity`, `cond.preprocessed_point_means`, Gate G1 check, multi-material `calibrationStats` + `perMaterialStats` + `fit_comparison`, and true top-level `numShots` sum.
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py scripts/test_gpu_calibration_engine.py` and verify 100% pass.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py` to confirm Red failure.
+- [x] Task: Implement Phase 3 fixes in `scripts/gpu_calibration_engine.py` (Green & Refactor phase) (c222a79)
+  - [x] Wire `NIST_UNIT_SCALE`, dynamic `add_sigma_nm` (`calculate_add_sigma_nm` + `lineSpreadAddSigmaNm`), true R6 sub-bin $\sigma_{m,b}$ propagation (same physical count units as `y_meas`/`y_pred` with accurate `n_params`), canonical `apply_multi_zone_rte`, `nz_indices` in `compute_element_parity`, `cond.preprocessed_point_means`, Gate G1 check, multi-material `calibrationStats` + `perMaterialStats` + `fit_comparison`, and true top-level `numShots` sum.
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py scripts/test_gpu_calibration_engine.py` and verify 100% pass.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (c222a79)
 
 ---
 
 ## Phase 4: End-to-End Regression & Guardrail Audit
 
-- [ ] Task: Execute full Python verification suite & guardrail boundary audit
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py tests/test_match_metrics_parity.py scripts/test_measured_conditioning.py scripts/test_forward_model.py scripts/test_roi_joint_calibration.py scripts/test_validate_spectral_match.py scripts/test_planted_truth_recovery.py scripts/test_gpu_calibration_engine.py`.
-  - [ ] Audit `git diff --name-only` across the track commits to verify zero modifications to `TRACK-CORE-01` contract files (`scripts/match_metrics.py`, `src/main/resources/metric_contract_v1.json`, `src/test/resources/metric_parity_golden_fixtures.json`, `scripts/parity_bridge.py`), zero Java file changes, and zero regenerated/overwritten synthetic CSV outputs on disk.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Execute full Python verification suite & guardrail boundary audit
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py tests/test_match_metrics_parity.py scripts/test_measured_conditioning.py scripts/test_forward_model.py scripts/test_roi_joint_calibration.py scripts/test_validate_spectral_match.py scripts/test_gpu_calibration_engine.py` (66 passed, 4 skipped, 0 failures).
+  - [x] Audit `git diff --name-only` across the track commits to verify zero modifications to `TRACK-CORE-01` contract files (`scripts/match_metrics.py`, `src/main/resources/metric_contract_v1.json`, `src/test/resources/metric_parity_golden_fixtures.json`, `scripts/parity_bridge.py`), zero Java file changes, and zero regenerated/overwritten synthetic CSV outputs on disk.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
