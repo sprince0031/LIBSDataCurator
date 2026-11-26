@@ -17,3 +17,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: TRACK-CORE-01 — Unify Canonical Spectral Metric & Preprocessing Contract in LIBSDataCurator**
 *Link: [./tracks/canonical_metric_contract_20261125/index.md](./tracks/canonical_metric_contract_20261125/index.md)*
 
+---
+
+- [ ] **Track: TRACK-CORE-02A — Fix Critical Python Calibration, Radiative-Transfer & Uncertainty Math Bugs in LIBSDataCurator**
+*Link: [./tracks/python_calibration_rte_fixes_20261126/index.md](./tracks/python_calibration_rte_fixes_20261126/index.md)*
+
