@@ -25,7 +25,7 @@
 
 ---
 
-## Phase 2: Compositional Sampling & Coating Immutability / NPE Fixes (`SH-03`, `SH-06`)
+## Phase 2: Compositional Sampling & Coating Immutability / NPE Fixes (`SH-03`, `SH-06`) [checkpoint: f443100]
 
 - [x] Task: Fix Dirichlet algebraic cancellation & sentinel exclusion in `ConcentrationParameterEstimator.java` (FR-5) (713574f)
   - [x] Write failing unit tests in `src/test/java/com/medals/libsdatagenerator/service/ConcentrationParameterEstimatorTest.java` covering: (a) strict monotonic increase in total concentration $\alpha_0$ as empirical alloy `[min, max]` spread narrows (holding means and `gradeCount` constant, proving no $\sqrt{\text{gradeCount}} - 1$ collapse), (b) sentinel `[0.0, 100.0]` balance element (`Fe: 80%`) excluded from the pooled Dirichlet sum whenever alloying elements (`Cr`, `Mn`) have tight explicit ranges so $\alpha_0$ is not collapsed, (c) all-sentinel `[0.0, 100.0]` fallback remaining non-cancelling and valid, (d) `min == max` fixed-composition handling and `gradeCount < 2` $R/4$ fallback, and (e) trace-element `MIN_ALPHA` flooring keeping `sum(alphas) <= MAX_TOTAL_CONCENTRATION` so `validateParameters(alphas)` returns `true`
@@ -39,13 +39,13 @@
   - [x] Implement `copyElement(Element)` deep-copy helper, empty-composition guard, deep copies in both `scaleCoating == false` and `scaleCoating == true` branches, and line-513 `coatedElement.getMax() != null && coatedElement.getMin() != null` fix in `src/main/java/com/medals/libsdatagenerator/util/InputCompositionProcessor.java`
   - [x] Run `mvn test -Dtest=InputCompositionProcessorTest` and verify Green
 
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) — 45 passed, 0 failed (`ConcentrationParameterEstimatorTest`, `CompositionalVariationsTest`, `SeriesStatisticsExtractorTest`, `InputCompositionProcessorTest`)
 
 ---
 
 ## Phase 3: Java Synthesis Parity, Deterministic `--seed` & End-to-End Parity Gate (`SH-02`, `H5`, `M4`)
 
-- [ ] Task: Enforce unconditional flux-conserving resampling (`H5`), deterministic SplitMix64 `--seed` propagation, and end-to-end forward parity testing (`M4`) in `LIBSDataService.java` (FR-1, FR-2, FR-7)
+- [~] Task: Enforce unconditional flux-conserving resampling (`H5`), deterministic SplitMix64 `--seed` propagation, and end-to-end forward parity testing (`M4`) in `LIBSDataService.java` (FR-1, FR-2, FR-7)
   - [ ] Write failing unit & end-to-end tests in `src/test/java/com/medals/libsdatagenerator/service/LIBSDataServiceTest.java` covering: (a) full Java synthesis chain (`NISTUtils.parseNistCsv` -> `SpectrumUtils.resampleToDetector` -> `SpectrumUtils.combineNZones` -> `SpectrumUtils.applyInstrumentResponseAndNoise`) via `LIBSDataService.synthesizeSpectrumFromZoneCsvs(...)` matching `src/test/resources/forward_model_fixture.json` (`finalAbsoluteExpected` & `finalMaxNormalisedExpected`) within `Math.abs(exp) * 1e-9 + 1e-12`, (b) `null` and empty `lineSpreadAddSigmaNm` matching explicit zero-filled `SpectrumUtils.resampleToDetector(..., new double[detWl.length])` within `1e-12` and conserving flux on a narrow sub-pixel peak (diverging from pointwise `interpolateSpectrum`), (c) bit-exact determinism for identical `(seed, sampleIndex)` when `finotelloNoiseBeta = 0.095` and distinct non-negative outputs for differing seeds/indices, and (d) default `finotelloNoiseBeta == 0.0` preservation
   - [ ] Confirm failing tests via `mvn test -Dtest=LIBSDataServiceTest` (Red)
   - [ ] Extract package-private `synthesizeSpectrumFromZoneCsvs(...)` and `deriveSampleNoiseRandom(Long baseSeed, int sampleIndex)` (SplitMix64 mixing) in `src/main/java/com/medals/libsdatagenerator/service/LIBSDataService.java`, replace the `interpolateSpectrum` fallback (`LIBSDataService.java:366-374`) with unconditional `SpectrumUtils.resampleToDetector(...)` using a zero-filled `double[detWl.length]` when `lineSpreadAddSigmaNm` is `null` or empty, replace `new Random()` (`LIBSDataService.java:387`) with `deriveSampleNoiseRandom(config != null ? config.seed : null, sampleIndex)`, and remove the unused local `SpectrumUtils` variable
