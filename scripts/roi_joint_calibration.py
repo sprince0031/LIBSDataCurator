@@ -1175,23 +1175,108 @@ def compute_family_scales_and_sharing_penalty(
     phi_materials: Any = None,
     **kwargs: Any,
 ) -> FamilyScalesResult:
-    """R8.5, R8.7: Compute median scaleFactor, per-material scales, and family sharing penalty."""
+    """R8.5, R8.7: Compute median scaleFactor, per-material scales, and family sharing penalty.
+
+    In dict-mode (``material_scales=A_dict, phi_family=y_dict, phi_materials=reduced_weights``),
+    supports optional ``sigma_dict`` (1/sigma^2 inverse-variance weighting) and channel-exact
+    multi-zone RTE attenuation when ``k_absorption > 0`` alongside ``dictionary``, ``sub_bins``,
+    ``spectral_response``, ``nz_indices``, and ``te_grid``/``ne_grid``.
+    """
     if isinstance(material_scales, dict) and len(material_scales) > 0 and isinstance(next(iter(material_scales.values())), np.ndarray):
         A_dict = material_scales
         y_dict = phi_family
-        reduced_weights = phi_materials
-        mat_scales = {}
-        phi_mats = {}
+        reduced_weights = np.asarray(phi_materials, dtype=np.float64)
+        sigma_dict = kwargs.get("sigma_dict")
+        k_absorption = float(kwargs.get("k_absorption", 0.0))
+        dictionary = kwargs.get("dictionary")
+        sub_bins_arg = kwargs.get("sub_bins")
+        spectral_response = kwargs.get("spectral_response")
+        nz_indices_kw = kwargs.get("nz_indices")
+        te_grid = kwargs.get("te_grid")
+        ne_grid = kwargs.get("ne_grid")
+
+        use_rte = (
+            k_absorption > 0.0
+            and dictionary is not None
+            and sub_bins_arg is not None
+            and np.any(reduced_weights > 0.0)
+        )
+
+        nz_sorted: List[int] = []
+        v_total = 0.0
+        zone_specs_rte: List[PlasmaZoneSpec] = []
+        if use_rte:
+            if nz_indices_kw is not None and len(nz_indices_kw) > 0:
+                nz_raw = [int(i) for i in nz_indices_kw if reduced_weights[int(i)] > 0.0]
+            else:
+                nz_raw = [int(i) for i in np.where(reduced_weights > 0.0)[0]]
+            n_ne = len(ne_grid) if ne_grid is not None and len(ne_grid) > 0 else 1
+            if te_grid is not None and len(te_grid) > 0:
+                nz_sorted = sorted(nz_raw, key=lambda idx: float(te_grid[idx // n_ne]), reverse=True)
+            else:
+                nz_sorted = list(nz_raw)
+            v_total = float(sum(reduced_weights[idx] for idx in nz_sorted))
+            if v_total > 1e-12 and len(nz_sorted) >= 2:
+                for z_i, idx in enumerate(nz_sorted):
+                    te_v = float(te_grid[idx // n_ne]) if (te_grid is not None and len(te_grid) > 0) else float(len(nz_sorted) - z_i)
+                    ne_v = float(ne_grid[idx % n_ne]) if (ne_grid is not None and len(ne_grid) > 0) else 1.0e17
+                    vf_v = float(reduced_weights[idx] / v_total)
+                    kz_v = k_absorption if z_i == len(nz_sorted) - 1 else 0.0
+                    zone_specs_rte.append(
+                        PlasmaZoneSpec(te=te_v, ne=ne_v, volume_fraction=vf_v, k_absorption=kz_v)
+                    )
+            else:
+                use_rte = False
+
+        mat_scales: Dict[str, float] = {}
+        phi_mats: Dict[str, float] = {}
+        preds_by_mat: Dict[str, np.ndarray] = {}
+        sigs_by_mat: Dict[str, np.ndarray] = {}
+
         for m in sorted(A_dict.keys()):
             A_m = A_dict[m]
-            y_m = y_dict[m]
-            pred_m = A_m @ reduced_weights
-            alpha_m = float(np.sum(y_m * pred_m) / max(np.sum(pred_m ** 2), 1e-12))
+            y_m = np.asarray(y_dict[m], dtype=np.float64)
+            if sigma_dict is not None and m in sigma_dict:
+                sig_m = np.maximum(np.asarray(sigma_dict[m], dtype=np.float64), 1e-6)
+            else:
+                sig_m = np.ones_like(y_m, dtype=np.float64)
+
+            if use_rte and m in dictionary:
+                D_m = np.asarray(dictionary[m], dtype=np.float64)
+                resp_m = (
+                    np.asarray(spectral_response, dtype=np.float64)
+                    if spectral_response is not None
+                    else np.ones(D_m.shape[0], dtype=np.float64)
+                )
+                zone_spectra = [D_m[:, idx] for idx in nz_sorted]
+                i_rad = apply_multi_zone_rte(zone_spectra, zone_specs_rte)
+                y_full_pred = apply_response_and_scale(i_rad, resp_m, v_total, emission_scale="absolute")
+                sbs_m = sub_bins_arg[m] if isinstance(sub_bins_arg, dict) else sub_bins_arg
+                pred_m = np.array(
+                    [float(np.sum(y_full_pred[np.asarray(sb, dtype=np.int64)])) for sb in sbs_m],
+                    dtype=np.float64,
+                )
+            else:
+                pred_m = A_m @ reduced_weights
+
+            inv_var = 1.0 / (sig_m ** 2)
+            num = float(np.sum(y_m * pred_m * inv_var))
+            den = float(np.sum((pred_m ** 2) * inv_var))
+            alpha_m = float(num / max(den, 1e-12))
             mat_scales[m] = alpha_m
-            u_mat = y_m - alpha_m * pred_m
+            u_mat = (y_m - alpha_m * pred_m) / sig_m
             phi_mats[m] = float(0.5 * np.sum(u_mat ** 2))
+            preds_by_mat[m] = pred_m
+            sigs_by_mat[m] = sig_m
+
         med_scale = float(np.median(list(mat_scales.values()))) if mat_scales else 1.0
-        phi_fam = float(0.5 * sum(np.sum((y_dict[m] - med_scale * (A_dict[m] @ reduced_weights)) ** 2) for m in A_dict))
+        phi_fam = float(
+            0.5
+            * sum(
+                np.sum(((np.asarray(y_dict[m], dtype=np.float64) - med_scale * preds_by_mat[m]) / sigs_by_mat[m]) ** 2)
+                for m in sorted(A_dict.keys())
+            )
+        )
         return compute_family_scales_and_sharing_penalty(mat_scales, phi_fam, phi_mats)
 
     scales_list = list(material_scales.values())

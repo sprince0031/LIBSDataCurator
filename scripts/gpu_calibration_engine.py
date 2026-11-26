@@ -1359,8 +1359,19 @@ class GpuLibsCalibrationEngine:
                         if k_flag:
                             all_flags.append(f"K_ABSORPTION_AT_BOUND:{family_name}")
 
+                nz_indices = sorted(non_zero_states, key=lambda idx: self.te_grid[idx // self.n_ne], reverse=True)
                 scale_factor, mat_scales, sharing_penalty = compute_family_scales_and_sharing_penalty(
-                    A_dict, y_dict, reduced_weights
+                    A_dict,
+                    y_dict,
+                    reduced_weights,
+                    sigma_dict=sigma_dict,
+                    k_absorption=k_absorption,
+                    dictionary={m: dictionary[m] for m in fam_mats},
+                    sub_bins=thin_sub_bins,
+                    spectral_response=spectral_response,
+                    nz_indices=nz_indices,
+                    te_grid=self.te_grid.tolist(),
+                    ne_grid=self.ne_grid.tolist(),
                 )
 
                 point_solutions = []
@@ -1379,7 +1390,6 @@ class GpuLibsCalibrationEngine:
                     ne_grid=self.ne_grid.tolist(),
                 )
 
-                nz_indices = sorted(non_zero_states, key=lambda idx: self.te_grid[idx // self.n_ne], reverse=True)
                 v_total = float(sum(reduced_weights[idx] for idx in nz_indices))
                 scale_factor_final = float(scale_factor * v_total)
                 mat_scales_final = {m: float(sc * v_total) for m, sc in mat_scales.items()}

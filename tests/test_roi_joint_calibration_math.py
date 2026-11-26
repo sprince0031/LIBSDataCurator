@@ -1153,5 +1153,77 @@ def test_scan_absorption_rejects_zero_volume_absorbing_ghost_zone() -> None:
         np.testing.assert_allclose(updated_w, init_w)
 
 
+def test_compute_family_scales_uses_sigma_dict_and_multi_zone_rte() -> None:
+    """C3: compute_family_scales_and_sharing_penalty respects sigma_dict (1/sigma^2) and k_absorption > 0 RTE."""
+    from scripts.forward_model import (
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+    )
+    from scripts.roi_joint_calibration import compute_family_scales_and_sharing_penalty
+
+    # Part A: sigma_dict inverse-variance weighting suppresses high-sigma outlier bin
+    A_m = np.array([[10.0, 0.0], [10.0, 0.0], [20.0, 0.0]], dtype=np.float64)
+    w_red = np.array([1.0, 0.0], dtype=np.float64)
+    y_m1 = np.array([1.0e6, 20.0, 40.0], dtype=np.float64)  # true alpha = 2.0 on bins 1, 2
+    y_m2 = np.array([1.0e6, 30.0, 60.0], dtype=np.float64)  # true alpha = 3.0 on bins 1, 2
+    sig_m = np.array([1.0e6, 0.1, 0.1], dtype=np.float64)
+
+    res_w = compute_family_scales_and_sharing_penalty(
+        {"M1": A_m, "M2": A_m},
+        {"M1": y_m1, "M2": y_m2},
+        w_red,
+        sigma_dict={"M1": sig_m, "M2": sig_m},
+    )
+    assert res_w["materialScaleFactors"]["M1"] == pytest.approx(2.0, abs=1e-4)
+    assert res_w["materialScaleFactors"]["M2"] == pytest.approx(3.0, abs=1e-4)
+    assert res_w["scaleFactor"] == pytest.approx(2.5, abs=1e-4)
+
+    # Part B: k_absorption > 0 evaluates channel-exact apply_multi_zone_rte
+    rng = np.random.default_rng(314)
+    n_ch = 40
+    resp = np.linspace(0.8, 1.3, n_ch, dtype=np.float64)
+    sub_bins = [list(range(i, i + 4)) for i in range(0, 32, 4)]
+    te_grid = [0.6, 1.2]
+    ne_grid = [1.0e17]
+    D1 = rng.uniform(100.0, 2000.0, size=(n_ch, 2))
+    D2 = rng.uniform(100.0, 2000.0, size=(n_ch, 2))
+    w_zones = np.array([0.4, 0.6], dtype=np.float64)  # state 0 cool (0.6 eV), state 1 hot (1.2 eV)
+    k_abs = 3.0
+
+    def _attenuated_sb(D_mat: np.ndarray, alpha: float) -> np.ndarray:
+        zones = [
+            PlasmaZoneSpec(te=1.2, ne=1e17, volume_fraction=0.6, k_absorption=0.0),
+            PlasmaZoneSpec(te=0.6, ne=1e17, volume_fraction=0.4, k_absorption=k_abs),
+        ]
+        i_rad = apply_multi_zone_rte([D_mat[:, 1], D_mat[:, 0]], zones)
+        y_full = apply_response_and_scale(i_rad, resp, alpha * 1.0, emission_scale="absolute")
+        return np.array([float(np.sum(y_full[sb])) for sb in sub_bins], dtype=np.float64)
+
+    y1_att = _attenuated_sb(D1, 1.8)
+    y2_att = _attenuated_sb(D2, 2.4)
+    A1 = np.array([np.sum(D1[sb, :] * resp[sb, None], axis=0) for sb in sub_bins])
+    A2 = np.array([np.sum(D2[sb, :] * resp[sb, None], axis=0) for sb in sub_bins])
+    sig_att = np.full(len(sub_bins), 5.0, dtype=np.float64)
+
+    res_att = compute_family_scales_and_sharing_penalty(
+        {"M1": A1, "M2": A2},
+        {"M1": y1_att, "M2": y2_att},
+        w_zones,
+        sigma_dict={"M1": sig_att, "M2": sig_att},
+        k_absorption=k_abs,
+        dictionary={"M1": D1, "M2": D2},
+        sub_bins=sub_bins,
+        spectral_response=resp,
+        nz_indices=[1, 0],
+        te_grid=te_grid,
+        ne_grid=ne_grid,
+    )
+    assert res_att["materialScaleFactors"]["M1"] == pytest.approx(1.8, abs=1e-6)
+    assert res_att["materialScaleFactors"]["M2"] == pytest.approx(2.4, abs=1e-6)
+    assert res_att["scaleFactor"] == pytest.approx(2.1, abs=1e-6)
+
+
+
 
 
