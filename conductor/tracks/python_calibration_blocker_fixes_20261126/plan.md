@@ -32,21 +32,21 @@
 
 ---
 
-## Phase 2: Channel-Exact Absorption Scan, Ghost-Zone Guard & Weighted/Attenuated Family Scales (`C3`, `C4`)
+## Phase 2: Channel-Exact Absorption Scan, Ghost-Zone Guard & Weighted/Attenuated Family Scales (`C3`, `C4`) [checkpoint: df0335e]
 
-- [ ] Task: Implement channel-exact RTE `scan_absorption` with `return_weights=True` and physical ghost-zone guard (`C4`)
-  - [ ] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` covering: (a) channel-exact RTE sub-bin evaluation eliminating sub-bin-mean Jensen bias, (b) `return_weights=True` returning `(best_k, k_flag, updated_weights)` while default `return_weights=False` preserves 2-tuple compatibility, (c) `apply_multi_zone_rte` + `apply_response_and_scale` with `updated_weights` reproducing the fitted `scan_absorption` sub-bin prediction within `1e-12` for both 2-zone and 3-zone profiles, and (d) skipping trial $k > 0$ when NNLS yields `V_hot <= 0`, `V_cool <= 0`, or any active zone volume fraction `< 1e-3` (falling back to `k = 0.0` so no zero-volume absorbing ghost zone is emitted)
-  - [ ] Implement channel-exact pre-weighted `(hot_ch, cool_ch)` RTE evaluation, physical zone-fraction validity check (`V_hot > 0`, `V_cool > 0`, all active `vf >= 1e-3`), and `return_weights: bool = False` weight update (`updated_weights[j] *= V[0]` for active hot states, `updated_weights[coolest_state_idx] *= V[1]`) in `scripts/roi_joint_calibration.py:scan_absorption`
-  - [ ] Wire `scripts/gpu_calibration_engine.py:run()` to call `scan_absorption(..., dictionary=..., sub_bins=..., spectral_response=..., return_weights=True)` and propagate `updated_weights` into downstream family scales, `plasmaZones`, `elementParity`, and `calibrationStats`
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Implement channel-exact RTE `scan_absorption` with `return_weights=True` and physical ghost-zone guard (`C4`) (da1f0c1)
+  - [x] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` covering: (a) channel-exact RTE sub-bin evaluation eliminating sub-bin-mean Jensen bias, (b) `return_weights=True` returning `(best_k, k_flag, updated_weights)` while default `return_weights=False` preserves 2-tuple compatibility, (c) `apply_multi_zone_rte` + `apply_response_and_scale` with `updated_weights` reproducing the fitted `scan_absorption` sub-bin prediction within `1e-12` for both 2-zone and 3-zone profiles, and (d) skipping trial $k > 0$ when NNLS yields `V_hot <= 0`, `V_cool <= 0`, or any active zone volume fraction `< 1e-3` (falling back to `k = 0.0` so no zero-volume absorbing ghost zone is emitted)
+  - [x] Implement channel-exact pre-weighted `(hot_ch, cool_ch)` RTE evaluation, physical zone-fraction validity check (`V_hot > 0`, `V_cool > 0`, all active `vf >= 1e-3`), and `return_weights: bool = False` weight update (`updated_weights[j] *= V[0]` for active hot states, `updated_weights[coolest_state_idx] *= V[1]`) in `scripts/roi_joint_calibration.py:scan_absorption`
+  - [x] Wire `scripts/gpu_calibration_engine.py:run()` to call `scan_absorption(..., dictionary=..., sub_bins=..., spectral_response=..., return_weights=True)` and propagate `updated_weights` into downstream family scales, `plasmaZones`, `elementParity`, and `calibrationStats`
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Propagate `sigma_dict` and multi-zone RTE attenuation into `compute_family_scales_and_sharing_penalty` (`C3`)
-  - [ ] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` proving `compute_family_scales_and_sharing_penalty` uses `1 / sigma^2` weighting (downweighting high-`sigma` outlier bins) and evaluates channel-exact `apply_multi_zone_rte` when `k_absorption > 0.0`
-  - [ ] Update `scripts/roi_joint_calibration.py:compute_family_scales_and_sharing_penalty` dict-mode branch to accept `sigma_dict`, `k_absorption`, `dictionary`, `sub_bins`, `spectral_response`, `nz_indices`, and `te_grid`/`ne_grid`, computing inverse-variance weighted `alpha_m`, `phi_m`, and `phi_fam` with attenuated predictions whenever `k_absorption > 0.0`
-  - [ ] Wire `scripts/gpu_calibration_engine.py:run()` to pass `sigma_dict`, `k_absorption`, `dictionary`, `sub_bins`, `spectral_response`, `nz_indices`, `te_grid`, and `ne_grid` using the updated `reduced_weights`
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Propagate `sigma_dict` and multi-zone RTE attenuation into `compute_family_scales_and_sharing_penalty` (`C3`) (df0335e)
+  - [x] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` proving `compute_family_scales_and_sharing_penalty` uses `1 / sigma^2` weighting (downweighting high-`sigma` outlier bins) and evaluates channel-exact `apply_multi_zone_rte` when `k_absorption > 0.0`
+  - [x] Update `scripts/roi_joint_calibration.py:compute_family_scales_and_sharing_penalty` dict-mode branch to accept `sigma_dict`, `k_absorption`, `dictionary`, `sub_bins`, `spectral_response`, `nz_indices`, and `te_grid`/`ne_grid`, computing inverse-variance weighted `alpha_m`, `phi_m`, and `phi_fam` with attenuated predictions whenever `k_absorption > 0.0`
+  - [x] Wire `scripts/gpu_calibration_engine.py:run()` to pass `sigma_dict`, `k_absorption`, `dictionary`, `sub_bins`, `spectral_response`, `nz_indices`, `te_grid`, and `ne_grid` using the updated `reduced_weights`
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to `workflow.md`)
+- [x] Task: Phase Verification & Checkpoint (Refer to `workflow.md`) — 59 passed, 0 failed (`tests/ scripts/test_roi_joint_calibration.py scripts/test_gpu*`)
 
 ---
 
