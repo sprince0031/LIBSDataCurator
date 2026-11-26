@@ -251,7 +251,7 @@ def evaluate_diagnostics(
     reduced_chi2_by_mat: Dict[str, float],
     family_group_response_rms_diff: float = 0.0,
     source_resolving_power_diff: float = 0.0,
-    composition_scale_verified: bool = True,
+    composition_scale_verified: bool = False,
     zone_reduction_penalty: float = 1.0,
     k_absorption_selected: float = 0.0,
     element_biases: Optional[Dict[str, float]] = None,
@@ -343,6 +343,7 @@ def run_joint_solver(
     max_iter: int = 100,
     tol_log_r: float = 1e-4,
     tol_phi: float = 1e-6,
+    composition_scale_verified: bool = False,
 ) -> CalibrationResult:
     """Run the 3-start alternating joint calibration solver (R7)."""
     det_wl = np.asarray(detector_wavelengths, dtype=np.float64)
@@ -665,6 +666,7 @@ def run_joint_solver(
         gap_flag=gap_flag,
         reduced_chi2_by_mat=reduced_chi2,
         family_group_response_rms_diff=family_group_rms_diff,
+        composition_scale_verified=composition_scale_verified,
     )
 
     return CalibrationResult(

@@ -892,52 +892,98 @@ class GpuLibsCalibrationEngine:
         comp_map: Dict[str, Dict[str, float]],
         fam_rois: List[Any],
     ) -> Tuple[bool, Optional[Dict[str, Any]]]:
-        """Execute Gate G1 composition-scale check across two materials in a family."""
+        """Execute Gate G1 composition-scale check across all valid material pairs in a family."""
+        import itertools
         from forward_model import composition_scale_check
 
         if len(fam_mats) < 2 or not fam_rois:
             return False, None
 
-        m1, m2 = fam_mats[0], fam_mats[1]
-        if m1 not in dictionary or m2 not in dictionary:
-            return False, None
-        c1 = comp_map.get(m1, {})
-        c2 = comp_map.get(m2, {})
-        D1 = dictionary[m1]
-        D2 = dictionary[m2]
-        if D1.shape[1] == 0 or D2.shape[1] == 0:
+        pair_results: List[Dict[str, Any]] = []
+        for m1, m2 in itertools.combinations(fam_mats, 2):
+            if m1 not in dictionary or m2 not in dictionary:
+                continue
+            c1 = comp_map.get(m1, {})
+            c2 = comp_map.get(m2, {})
+            D1 = dictionary[m1]
+            D2 = dictionary[m2]
+            if D1.shape[1] == 0 or D2.shape[1] == 0:
+                continue
+
+            n_cols = min(D1.shape[1], D2.shape[1])
+            mid_col = n_cols // 2
+            col_order = [mid_col] + [c for c in range(n_cols) if c != mid_col]
+            pair_checked = False
+            for r in fam_rois:
+                if getattr(r, "self_absorption_prone", False):
+                    continue
+                el = getattr(r, "dominant_element", "")
+                f1 = float(c1.get(el, 0.0))
+                f2 = float(c2.get(el, 0.0))
+                if f1 <= 0.0 or f2 <= 0.0:
+                    continue
+                chans = getattr(r, "channel_indices", [])
+                if not chans:
+                    continue
+                ch_arr = np.asarray(chans, dtype=np.int64)
+                for state_idx in col_order:
+                    peak_1 = float(np.max(D1[ch_arr, state_idx]))
+                    peak_2 = float(np.max(D2[ch_arr, state_idx]))
+                    if peak_1 > 0.0 and peak_2 > 0.0:
+                        res = composition_scale_check(
+                            peak_1=peak_1,
+                            species_frac_1=1.0,
+                            at_frac_1=f1,
+                            peak_2=peak_2,
+                            species_frac_2=1.0,
+                            at_frac_2=f2,
+                        )
+                        pair_entry = dict(res)
+                        pair_entry["pair"] = (m1, m2)
+                        pair_entry["element"] = el
+                        pair_results.append(pair_entry)
+                        pair_checked = True
+                        break
+                if pair_checked:
+                    break
+
+        if not pair_results:
             return False, None
 
-        n_cols = min(D1.shape[1], D2.shape[1])
-        mid_col = n_cols // 2
-        col_order = [mid_col] + [c for c in range(n_cols) if c != mid_col]
-        for r in fam_rois:
-            if getattr(r, "self_absorption_prone", False):
-                continue
-            el = getattr(r, "dominant_element", "")
-            f1 = float(c1.get(el, 0.0))
-            f2 = float(c2.get(el, 0.0))
-            if f1 <= 0.0 or f2 <= 0.0:
-                continue
-            chans = getattr(r, "channel_indices", [])
-            if not chans:
-                continue
-            ch_arr = np.asarray(chans, dtype=np.int64)
-            for state_idx in col_order:
-                peak_1 = float(np.max(D1[ch_arr, state_idx]))
-                peak_2 = float(np.max(D2[ch_arr, state_idx]))
-                if peak_1 > 0.0 and peak_2 > 0.0:
-                    res = composition_scale_check(
-                        peak_1=peak_1,
-                        species_frac_1=1.0,
-                        at_frac_1=f1,
-                        peak_2=peak_2,
-                        species_frac_2=1.0,
-                        at_frac_2=f2,
-                    )
-                    return bool(res["passed"]), res
+        all_passed = all(bool(p["passed"]) for p in pair_results)
+        rep = next((p for p in pair_results if not p["passed"]), pair_results[0])
+        summary = dict(rep)
+        summary["passed"] = all_passed
+        summary["pairs"] = pair_results
+        return all_passed, summary
 
-        return False, None
+    def verify_global_gate_g1(
+        self,
+        families_dict: Dict[str, Any],
+        fam_map: Dict[str, str],
+        dictionary: Dict[str, np.ndarray],
+        comp_map: Dict[str, Dict[str, float]],
+        rois_by_family: Dict[str, List[Any]],
+    ) -> Tuple[bool, Dict[str, Optional[bool]]]:
+        """Evaluate Gate G1 across families, treating single-material families as N/A (None).
+
+        Passes globally iff at least one multi-material family (len >= 2) is evaluated and
+        every multi-material family passes all pairwise checks.
+        """
+        fam_status: Dict[str, Optional[bool]] = {}
+        for fam in families_dict.keys():
+            fam_mats = [m for m, f in fam_map.items() if f == fam and m in dictionary]
+            if len(fam_mats) < 2:
+                fam_status[fam] = None
+            else:
+                passed, _ = self.verify_gate_g1(
+                    fam_mats, dictionary, comp_map, rois_by_family.get(fam, [])
+                )
+                fam_status[fam] = bool(passed)
+
+        multi_mat_results = [v for v in fam_status.values() if v is not None]
+        global_passed = bool(multi_mat_results) and all(multi_mat_results)
+        return global_passed, fam_status
 
     def compute_family_calibration_stats(
         self,
@@ -1234,6 +1280,13 @@ class GpuLibsCalibrationEngine:
 
         # 5. Execute Solver Pipeline (ROI Joint Solver if ROIs available, else legacy fallback)
         if all_rois:
+            global_g1_passed, fam_g1_status = self.verify_global_gate_g1(
+                families_dict=families_dict,
+                fam_map=fam_map,
+                dictionary=dictionary,
+                comp_map=comp_map,
+                rois_by_family=rois_by_family,
+            )
             result = run_joint_solver(
                 rois=all_rois,
                 dictionary=dictionary,
@@ -1242,6 +1295,7 @@ class GpuLibsCalibrationEngine:
                 material_families=fam_map,
                 te_grid=self.te_grid.tolist(),
                 ne_grid=self.ne_grid.tolist(),
+                composition_scale_verified=global_g1_passed,
             )
 
             spectral_response = result.spectral_response
@@ -1252,6 +1306,7 @@ class GpuLibsCalibrationEngine:
             }
 
             all_flags = list(result.flags)
+            fam_g1_failures: List[str] = []
             for family_name in families_dict.keys():
                 fam_mats = [m for m, f in fam_map.items() if f == family_name and m in dictionary]
                 if not fam_mats:
@@ -1263,10 +1318,9 @@ class GpuLibsCalibrationEngine:
                     thin_roi_sbs = [(r, sb) for r in fam_rois for sb in r.sub_bins]
                 thin_sub_bins = [sb for _, sb in thin_roi_sbs]
 
-                # Gate G1 verification across materials in this family
-                g1_passed, _ = self.verify_gate_g1(fam_mats, dictionary, comp_map, fam_rois)
-                if not g1_passed:
-                    all_flags.append(f"COMPOSITION_SCALE_UNVERIFIED:{family_name}")
+                # Per-family Gate G1 failure flag (only for failing multi-material families)
+                if fam_g1_status.get(family_name) is False:
+                    fam_g1_failures.append(f"COMPOSITION_SCALE_UNVERIFIED:{family_name}")
 
                 A_dict = {}
                 y_dict = {}
@@ -1470,6 +1524,10 @@ class GpuLibsCalibrationEngine:
                     solver_trace=trace_data,
                     fit_comparison=fit_comparison,
                 )
+
+            if fam_g1_failures:
+                all_flags = [f for f in all_flags if f != "COMPOSITION_SCALE_UNVERIFIED"]
+                all_flags.extend(fam_g1_failures)
 
             # Update global profile fields
             out_path = Path(self.manifest.get("outputProfilePath", "conf/instrument_profile.json"))

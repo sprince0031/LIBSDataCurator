@@ -243,6 +243,7 @@ def test_planted_truth_clean_scenario():
         material_families=sim.material_families,
         te_grid=sim.te_grid,
         ne_grid=sim.ne_grid,
+        composition_scale_verified=True,
     )
     elapsed = time.time() - t0
     assert elapsed < 60.0, f"Clean scenario took {elapsed:.1f}s (must be < 60s)"

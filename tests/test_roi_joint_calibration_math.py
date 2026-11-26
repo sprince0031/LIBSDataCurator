@@ -1253,6 +1253,160 @@ def test_compute_element_parity_raises_without_state_mapping() -> None:
         )
 
 
+def test_verify_gate_g1_checks_all_material_pairs_in_family(tmp_path: Path) -> None:
+    """M3: verify_gate_g1 must check ALL material pairs (m1, m2), catching a corrupted 3rd material."""
+    import json
+    from scripts.gpu_calibration_engine import GpuLibsCalibrationEngine
+    from scripts.roi_catalogue import RoiWindow
+
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps({"materialFamilies": {}}), encoding="utf-8")
+    engine = GpuLibsCalibrationEngine(str(mpath))
+
+    roi = RoiWindow(
+        roi_id="R_Fe",
+        min_nm=400.0,
+        max_nm=405.0,
+        channel_indices=[4, 5, 6],
+        sub_bins=[[4, 5, 6]],
+        dominant_element="Fe",
+        used_in_response_fit=True,
+        self_absorption_prone=False,
+    )
+    comp_map = {"M1": {"Fe": 80.0}, "M2": {"Fe": 60.0}, "M3": {"Fe": 40.0}}
+    D1 = np.zeros((20, 2), dtype=np.float64); D1[5, :] = 800.0
+    D2 = np.zeros((20, 2), dtype=np.float64); D2[5, :] = 600.0  # (M1, M2) passes 800/600 == 80/60
+    D3_bad = np.zeros((20, 2), dtype=np.float64); D3_bad[5, :] = 800.0  # (M1, M3) fails!
+    D3_good = np.zeros((20, 2), dtype=np.float64); D3_good[5, :] = 400.0
+
+    passed_bad, info_bad = engine.verify_gate_g1(
+        ["M1", "M2", "M3"], {"M1": D1, "M2": D2, "M3": D3_bad}, comp_map, [roi]
+    )
+    assert passed_bad is False
+    assert info_bad is not None and len(info_bad.get("pairs", [])) == 3
+
+    passed_good, info_good = engine.verify_gate_g1(
+        ["M1", "M2", "M3"], {"M1": D1, "M2": D2, "M3": D3_good}, comp_map, [roi]
+    )
+    assert passed_good is True
+    assert info_good is not None and len(info_good.get("pairs", [])) == 3
+
+
+def test_global_gate_g1_ignores_single_material_families_when_multi_material_passes(tmp_path: Path) -> None:
+    """M3: Single-material families (pairwise G1 N/A) must NOT trigger a false global Gate G1 failure."""
+    import json
+    from scripts.gpu_calibration_engine import GpuLibsCalibrationEngine
+    from scripts.roi_catalogue import RoiWindow
+
+    mpath = tmp_path / "manifest.json"
+    mpath.write_text(json.dumps({"materialFamilies": {}}), encoding="utf-8")
+    engine = GpuLibsCalibrationEngine(str(mpath))
+
+    roi_fe = RoiWindow(
+        roi_id="R_Fe", min_nm=400.0, max_nm=405.0, channel_indices=[4, 5, 6], sub_bins=[[4, 5, 6]],
+        dominant_element="Fe", used_in_response_fit=True, self_absorption_prone=False,
+    )
+    roi_cu = RoiWindow(
+        roi_id="R_Cu", min_nm=500.0, max_nm=505.0, channel_indices=[10, 11, 12], sub_bins=[[10, 11, 12]],
+        dominant_element="Cu", used_in_response_fit=True, self_absorption_prone=False,
+    )
+    D1 = np.zeros((20, 2), dtype=np.float64); D1[5, :] = 800.0
+    D2 = np.zeros((20, 2), dtype=np.float64); D2[5, :] = 600.0
+    Db = np.zeros((20, 2), dtype=np.float64); Db[11, :] = 900.0
+
+    global_ok, fam_status = engine.verify_global_gate_g1(
+        families_dict={"Steel": [], "Bronze": []},
+        fam_map={"M1": "Steel", "M2": "Steel", "B1": "Bronze"},
+        dictionary={"M1": D1, "M2": D2, "B1": Db},
+        comp_map={"M1": {"Fe": 80.0}, "M2": {"Fe": 60.0}, "B1": {"Cu": 90.0}},
+        rois_by_family={"Steel": [roi_fe], "Bronze": [roi_cu]},
+    )
+    assert global_ok is True
+    assert fam_status["Steel"] is True
+    assert fam_status["Bronze"] is None  # single-material family -> N/A
+
+    # If ONLY single-material families exist, no pairwise check was performed -> global_ok is False
+    global_only_single, fam_only_single = engine.verify_global_gate_g1(
+        families_dict={"Bronze": []},
+        fam_map={"B1": "Bronze"},
+        dictionary={"B1": Db},
+        comp_map={"B1": {"Cu": 90.0}},
+        rois_by_family={"Bronze": [roi_cu]},
+    )
+    assert global_only_single is False
+    assert fam_only_single["Bronze"] is None
+
+
+def test_evaluate_diagnostics_and_run_joint_solver_default_composition_scale_unverified() -> None:
+    """M3: evaluate_diagnostics and run_joint_solver default composition_scale_verified=False."""
+    from scripts.measured_conditioning import ConditionedMaterial
+    from scripts.roi_catalogue import RoiWindow
+    from scripts.roi_joint_calibration import evaluate_diagnostics, run_joint_solver
+
+    diag_default = evaluate_diagnostics(
+        weights_by_mat={"M1": np.array([0.0, 100.0, 0.0])},
+        te_grid=[0.5, 1.0, 1.5],
+        ne_grid=[1e17],
+        response_curve=np.array([1.0, 2.0]),
+        response_restart_spread=0.01,
+        iterations=5,
+        gap_flag=False,
+        reduced_chi2_by_mat={"M1": 1.0},
+    )
+    assert "COMPOSITION_SCALE_UNVERIFIED" in diag_default["flags"]
+
+    diag_verified = evaluate_diagnostics(
+        weights_by_mat={"M1": np.array([0.0, 100.0, 0.0])},
+        te_grid=[0.5, 1.0, 1.5],
+        ne_grid=[1e17],
+        response_curve=np.array([1.0, 2.0]),
+        response_restart_spread=0.01,
+        iterations=5,
+        gap_flag=False,
+        reduced_chi2_by_mat={"M1": 1.0},
+        composition_scale_verified=True,
+    )
+    assert "COMPOSITION_SCALE_UNVERIFIED" not in diag_verified["flags"]
+
+    # run_joint_solver default must also flag COMPOSITION_SCALE_UNVERIFIED unless passed True
+    n_ch = 60
+    det_wl = np.linspace(380.0, 620.0, n_ch)
+    D = np.zeros((n_ch, 3), dtype=np.float64)
+    rois = []
+    for i, c in enumerate([10, 20, 30, 40, 50]):
+        D[c - 1 : c + 2, 1] = 1000.0
+        rois.append(
+            RoiWindow(
+                roi_id=f"R{i}", min_nm=float(det_wl[c - 1]), max_nm=float(det_wl[c + 1]),
+                channel_indices=[c - 1, c, c + 1], sub_bins=[[c - 1, c, c + 1]],
+                dominant_element="Fe", used_in_response_fit=True, self_absorption_prone=False,
+            )
+        )
+    y = D[:, 1].copy()
+    cond = ConditionedMaterial(
+        wavelengths=det_wl, mean_spectrum=y, preprocessed_mean=y,
+        sigma_mean=np.full(n_ch, 1.0), valid_mask=np.ones(n_ch, dtype=bool),
+        lit_mask=np.ones(n_ch, dtype=bool), dark_level=0.0,
+        point_means={"p1": y}, discarded_shots_per_point={"p1": 0},
+        preprocessed_point_means={"p1": y}, num_steady_shots=10,
+    )
+    res_unverified = run_joint_solver(
+        rois=rois, dictionary={"M1": D}, conditioned={"M1": cond},
+        detector_wavelengths=det_wl, material_families={"M1": "Steel"},
+        te_grid=[0.5, 1.0, 1.5], ne_grid=[1e17],
+    )
+    assert "COMPOSITION_SCALE_UNVERIFIED" in res_unverified.diagnostics_flags
+
+    res_verified = run_joint_solver(
+        rois=rois, dictionary={"M1": D}, conditioned={"M1": cond},
+        detector_wavelengths=det_wl, material_families={"M1": "Steel"},
+        te_grid=[0.5, 1.0, 1.5], ne_grid=[1e17],
+        composition_scale_verified=True,
+    )
+    assert "COMPOSITION_SCALE_UNVERIFIED" not in res_verified.diagnostics_flags
+
+
+
 
 
 
