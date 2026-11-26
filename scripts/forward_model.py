@@ -22,8 +22,8 @@ try:
 except ImportError:
     from spectral_resampling import resample_to_detector
 
-#: Fixed unit scale applied to raw NIST values for numerical stability (R4.5)
-NIST_UNIT_SCALE: float = 1e-6
+#: Canonical unit scale applied to raw NIST values matching Java NISTUtils.parseNistCsv (1.0)
+NIST_UNIT_SCALE: float = 1.0
 
 
 @dataclass
@@ -59,24 +59,24 @@ class PlasmaZoneSpec:
         }
 
 
-def combine_zones(
+def apply_multi_zone_rte(
     zone_spectra: List[np.ndarray],
     zones: List[PlasmaZoneSpec],
 ) -> np.ndarray:
-    """Combine multiple plasma zones using the R4 forward RTE operator.
-    
-    Zones are sorted by Te descending.
-    For zone 0 (core):
+    """Combine multiple plasma zones using the canonical R4 forward RTE operator.
+
+    Zones are sorted by Te descending (hot core -> cool outer shell).
+    For zone 0 (hot core):
         I_0 = V_0 * d_0
     For outer zones z = 1..Q-1:
         d_tilde_z = d_z / max(d_z)
         I_z = I_{z-1} * exp(-k_z * d_tilde_z) + V_z * d_z
-        
+
     Parameters
     ----------
     zone_spectra : list of 1D arrays of resampled NIST spectra for each zone.
     zones : list of PlasmaZoneSpec instances for each zone.
-    
+
     Returns
     -------
     I_final : 1D array of combined forward radiance before spectral response and scale.
@@ -85,15 +85,15 @@ def combine_zones(
         raise ValueError(f"Number of spectra ({len(zone_spectra)}) must match zones ({len(zones)})")
     if not zones:
         raise ValueError("Must provide at least one zone")
-        
+
     # Sort zones by Te descending
     sorted_pairs = sorted(zip(zones, zone_spectra), key=lambda pair: pair[0].te, reverse=True)
-    
-    # Zone 0
+
+    # Zone 0 (hot core)
     z0, d0 = sorted_pairs[0]
     i_rad = z0.volume_fraction * np.asarray(d0, dtype=np.float64)
-    
-    # Outer zones
+
+    # Outer zones (cool shells attenuating hot core)
     for z, d in sorted_pairs[1:]:
         d_arr = np.asarray(d, dtype=np.float64)
         max_d = float(np.max(d_arr))
@@ -101,12 +101,20 @@ def combine_zones(
             d_tilde = d_arr / max_d
         else:
             d_tilde = np.zeros_like(d_arr)
-            
+
         k = max(float(z.k_absorption), 0.0)
         opacity = np.exp(-k * d_tilde)
         i_rad = i_rad * opacity + z.volume_fraction * d_arr
-        
+
     return i_rad
+
+
+def combine_zones(
+    zone_spectra: List[np.ndarray],
+    zones: List[PlasmaZoneSpec],
+) -> np.ndarray:
+    """Backward-compatible alias for apply_multi_zone_rte."""
+    return apply_multi_zone_rte(zone_spectra, zones)
 
 
 def apply_response_and_scale(

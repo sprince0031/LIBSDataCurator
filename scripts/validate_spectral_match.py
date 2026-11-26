@@ -27,7 +27,13 @@ if str(REPO_ROOT) not in sys.path:
 
 try:
     from scripts.measured_conditioning import condition_material, ConditionedMaterial
-    from scripts.forward_model import resample_to_detector
+    from scripts.forward_model import (
+        NIST_UNIT_SCALE,
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+        resample_to_detector,
+    )
     from scripts.roi_joint_calibration import (
         compute_sub_bin_variances,
         solve_family_plasma,
@@ -35,6 +41,7 @@ try:
         compute_family_scales_and_sharing_penalty,
     )
     from scripts.match_metrics import (
+        compute_spectral_metrics,
         calculate_reduced_chi2,
         calculate_roi_metrics,
         calculate_whole_spectrum_metrics,
@@ -43,7 +50,13 @@ try:
     )
 except ImportError:
     from measured_conditioning import condition_material, ConditionedMaterial
-    from forward_model import resample_to_detector
+    from forward_model import (
+        NIST_UNIT_SCALE,
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+        resample_to_detector,
+    )
     from roi_joint_calibration import (
         compute_sub_bin_variances,
         solve_family_plasma,
@@ -51,6 +64,7 @@ except ImportError:
         compute_family_scales_and_sharing_penalty,
     )
     from match_metrics import (
+        compute_spectral_metrics,
         calculate_reduced_chi2,
         calculate_roi_metrics,
         calculate_whole_spectrum_metrics,
@@ -81,7 +95,7 @@ def load_nist_dictionary(
         csv_p = nist_paths[k]
         df = pd.read_csv(csv_p)
         lam_src = df.iloc[:, 0].to_numpy(dtype=np.float64)
-        s_src = df.iloc[:, 1].to_numpy(dtype=np.float64)
+        s_src = df.iloc[:, 1].to_numpy(dtype=np.float64) * NIST_UNIT_SCALE
 
         if legacy_rendering:
             s_res = np.interp(detector_wls, lam_src, s_src, left=0.0, right=0.0)
@@ -106,37 +120,18 @@ def synthesize_spectrum(
     if len(plasma_zones) == 0:
         return np.zeros(p_channels, dtype=np.float64)
 
-    # Zone 0
-    z0 = plasma_zones[0]
-    te0 = float(z0["Te"])
-    ne0 = float(z0["Ne"])
-    v0 = float(z0.get("volumeFraction", 1.0))
-
-    # Find closest state in dictionary for zone 0
-    diffs0 = [abs(s[0] - te0) + abs(np.log10(s[1]) - np.log10(ne0)) for s in states]
-    idx0 = int(np.argmin(diffs0))
-    s0 = dictionary[idx0]
-
-    i_rad = v0 * s0
-
-    # Zone 1+
-    for z in plasma_zones[1:]:
+    zone_spectra: List[np.ndarray] = []
+    zone_specs: List[PlasmaZoneSpec] = []
+    for z in plasma_zones:
         tez = float(z["Te"])
         nez = float(z["Ne"])
-        vz = float(z.get("volumeFraction", 0.0))
-        kz = float(z.get("kAbsorption", 0.0))
+        diffs = [abs(s[0] - tez) + abs(np.log10(s[1]) - np.log10(nez)) for s in states]
+        idxz = int(np.argmin(diffs))
+        zone_spectra.append(dictionary[idxz])
+        zone_specs.append(PlasmaZoneSpec.from_dict(z))
 
-        diffsz = [abs(s[0] - tez) + abs(np.log10(s[1]) - np.log10(nez)) for s in states]
-        idxz = int(np.argmin(diffsz))
-        sz = dictionary[idxz]
-
-        if kz > 0.0:
-            i_rad = i_rad * np.exp(-kz * sz) + vz * sz
-        else:
-            i_rad = i_rad + vz * sz
-
-    # Apply spectral response and scale factor
-    i_det = scale_factor * i_rad * np.asarray(spectral_response, dtype=np.float64)
+    i_rad = apply_multi_zone_rte(zone_spectra, zone_specs)
+    i_det = apply_response_and_scale(i_rad, spectral_response, scale_factor, emission_scale="absolute")
     return np.maximum(i_det, 0.0)
 
 
@@ -199,14 +194,44 @@ def evaluate_material_match(
     sub_synth_arr = np.array(sub_synth, dtype=np.float64)
     sub_vars_arr = np.array(sub_vars, dtype=np.float64)
 
-    # Reduced chi2
-    chi2_red = calculate_reduced_chi2(sub_meas_arr, sub_synth_arr, sub_vars_arr)
+    # Reduced chi2 via canonical compute_spectral_metrics (normalization="none")
+    if len(sub_meas_arr) > 0:
+        chi2_res = compute_spectral_metrics(
+            sub_meas_arr,
+            sub_synth_arr,
+            variance=sub_vars_arr,
+            normalization="none",
+            num_params=0,
+        )
+        chi2_red = float(chi2_res["reduced_chi2"] or 0.0)
+    else:
+        chi2_red = 0.0
 
-    # ROI R^2 and RMSE
-    roi_r2, roi_rmse = calculate_roi_metrics(y_meas, y_synth, union_channel_indices)
+    # ROI R^2 and RMSE (nrmse_max under normalization="none" + raw rmse)
+    roi_mask = np.zeros(len(y_meas), dtype=bool)
+    if union_channel_indices:
+        roi_mask[np.asarray(union_channel_indices, dtype=np.int64)] = True
+    if np.any(roi_mask):
+        roi_metrics = compute_spectral_metrics(
+            y_meas, y_synth, mask=roi_mask, normalization="none"
+        )
+        roi_r2 = float(roi_metrics["r2"])
+        roi_rmse = float(roi_metrics["nrmse_max"])
+        roi_rmse_raw = float(roi_metrics["rmse"])
+    else:
+        roi_r2, roi_rmse, roi_rmse_raw = 0.0, 0.0, 0.0
 
-    # Whole-spectrum R^2 and RMSE
-    whole_r2, whole_rmse = calculate_whole_spectrum_metrics(y_meas, y_synth, lit_mask)
+    # Whole-spectrum R^2 and RMSE (nrmse_max under normalization="none" + raw rmse)
+    lit_mask_arr = np.asarray(lit_mask, dtype=bool)
+    if np.any(lit_mask_arr):
+        whole_metrics = compute_spectral_metrics(
+            y_meas, y_synth, mask=lit_mask_arr, normalization="none"
+        )
+        whole_r2 = float(whole_metrics["r2"])
+        whole_rmse = float(whole_metrics["nrmse_max"])
+        whole_rmse_raw = float(whole_metrics["rmse"])
+    else:
+        whole_r2, whole_rmse, whole_rmse_raw = 0.0, 0.0, 0.0
 
     # Sub-bin residuals
     residuals_dist = calculate_sub_bin_residuals(sub_meas_arr, sub_synth_arr, prone_flags)
@@ -218,8 +243,10 @@ def evaluate_material_match(
         "roiChi2Reduced": round(chi2_red, 4),
         "roiRSquared": round(roi_r2, 6),
         "roiRmse": round(roi_rmse, 6),
+        "roiRmseRaw": round(roi_rmse_raw, 6),
         "wholeSpectrumRSquared": round(whole_r2, 6),
         "wholeSpectrumRmse": round(whole_rmse, 6),
+        "wholeSpectrumRmseRaw": round(whole_rmse_raw, 6),
         "subBinResiduals": residuals_dist,
         "elementParity": parity_table,
         "syntheticSpectrum": y_synth,

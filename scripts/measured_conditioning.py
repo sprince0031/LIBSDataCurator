@@ -11,7 +11,7 @@ Implements:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 import warnings
@@ -36,6 +36,8 @@ class ConditionedMaterial:
     dark_level: float
     point_means: Dict[str, np.ndarray]
     discarded_shots_per_point: Dict[str, int]
+    preprocessed_point_means: Dict[str, np.ndarray] = field(default_factory=dict)
+    num_steady_shots: int = 0
 
 
 def apply_morphological_baseline(
@@ -348,8 +350,9 @@ def condition_material(
             
     preprocessed_mean = apply_morphological_baseline(mean_spectrum, se_size=struct_size)
     
-    # Per-point conditioned means
+    # Per-point conditioned means (raw and post-average baseline-subtracted)
     point_means: Dict[str, np.ndarray] = {}
+    preprocessed_point_means: Dict[str, np.ndarray] = {}
     offset = 0
     for pt_name, pt_steady in steady_shots_by_pt.items():
         k_pt = len(pt_steady)
@@ -357,7 +360,11 @@ def condition_material(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             pt_m = np.nanmean(pt_normed, axis=0)
-        point_means[pt_name] = np.nan_to_num(pt_m, nan=0.0)
+        pt_mean_clean = np.nan_to_num(pt_m, nan=0.0)
+        point_means[pt_name] = pt_mean_clean
+        preprocessed_point_means[pt_name] = apply_morphological_baseline(
+            pt_mean_clean, se_size=struct_size
+        )
         offset += k_pt
         
     return ConditionedMaterial(
@@ -370,4 +377,6 @@ def condition_material(
         dark_level=dark_level,
         point_means=point_means,
         discarded_shots_per_point=discarded_per_pt,
+        preprocessed_point_means=preprocessed_point_means,
+        num_steady_shots=int(n_steady_total),
     )
