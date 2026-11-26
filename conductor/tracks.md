@@ -24,6 +24,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: TRACK-CORE-02A-FIX — Patch Critical Python Calibration Blockers (C1–C5, H1–H4, M2–M3) Before TRACK-CORE-02B**
+- [~] **Track: TRACK-CORE-02A-FIX — Patch Critical Python Calibration Blockers (C1–C5, H1–H4, M2–M3) Before TRACK-CORE-02B**
 *Link: [./tracks/python_calibration_blocker_fixes_20261126/index.md](./tracks/python_calibration_blocker_fixes_20261126/index.md)*
 
