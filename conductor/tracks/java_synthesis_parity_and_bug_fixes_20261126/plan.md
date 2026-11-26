@@ -51,8 +51,8 @@
   - [x] Extract package-private `synthesizeSpectrumFromZoneCsvs(...)` and `deriveSampleNoiseRandom(Long baseSeed, int sampleIndex)` (SplitMix64 mixing) in `src/main/java/com/medals/libsdatagenerator/service/LIBSDataService.java`, replace the `interpolateSpectrum` fallback (`LIBSDataService.java:366-374`) with unconditional `SpectrumUtils.resampleToDetector(...)` using a zero-filled `double[detWl.length]` when `lineSpreadAddSigmaNm` is `null` or empty, replace `new Random()` (`LIBSDataService.java:387`) with `deriveSampleNoiseRandom(config != null ? config.seed : null, sampleIndex)`, and remove the unused local `SpectrumUtils` variable
   - [x] Run `mvn test -Dtest=LIBSDataServiceTest,SpectrumUtilsTest` and verify Green
 
-- [~] Task: Full Java Regression & Guardrail Verification Gate
-  - [ ] Run full `mvn test` and confirm 100% pass with 0 failures and 0 errors
-  - [ ] Verify via `git status` and `git diff --name-only` that zero Python files, zero `TRACK-CORE-01` contract/fixture files, zero `forward_model_fixture.json` edits, zero synthetic `.csv` outputs, and neither `notebooks/calibration_inspector.ipynb` nor `conductor/instrument_profile_debugging_and_improvement_specification_v1.md` were modified
+- [x] Task: Full Java Regression & Guardrail Verification Gate (f239b6e)
+  - [x] Run full `mvn test` and confirm 100% pass with 0 failures and 0 errors (165 passed, 0 failed, 0 skipped)
+  - [x] Verify via `git status` and `git diff --name-only` that zero Python files, zero `TRACK-CORE-01` contract/fixture files, zero `forward_model_fixture.json` edits, zero synthetic `.csv` outputs, and neither `notebooks/calibration_inspector.ipynb` nor `conductor/instrument_profile_debugging_and_improvement_specification_v1.md` were modified
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
