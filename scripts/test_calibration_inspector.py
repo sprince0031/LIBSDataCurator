@@ -189,6 +189,8 @@ def test_plot_spectral_overlay_with_response_curve(sample_debug_dir):
 
 def test_create_interactive_response_tuner(sample_debug_dir):
     """Interactive response tuner builds control panel and responds to slider events."""
+    pytest.importorskip("ipywidgets")
+    pytest.importorskip("IPython")
     panel = create_interactive_response_tuner("Ferritic_Stainless_Steel", "469", sample_debug_dir)
     assert panel is not None
     assert hasattr(panel, "children")

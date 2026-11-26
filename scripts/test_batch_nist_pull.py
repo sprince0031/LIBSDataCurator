@@ -48,6 +48,8 @@ class TestBatchNistPull(unittest.TestCase):
         self.assertEqual(result, expected)
 
     def test_load_reference_materials_counts_and_keys(self):
+        if not Path(DEFAULT_JSON_PATH).exists():
+            self.skipTest(f"External reference JSON not present: {DEFAULT_JSON_PATH}")
         materials = load_reference_materials(DEFAULT_JSON_PATH)
         self.assertEqual(len(materials), 15)
 
