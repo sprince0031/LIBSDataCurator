@@ -50,21 +50,21 @@
 
 ---
 
-## Phase 3: Strict Element-Parity State Mapping, All-Pairs Gate G1 & `composition_scale_verified=False` Default (`M2`, `M3`)
+## Phase 3: Strict Element-Parity State Mapping, All-Pairs Gate G1 & `composition_scale_verified=False` Default (`M2`, `M3`) [checkpoint: e4999d1]
 
-- [ ] Task: Remove silent modulo fallback in `compute_element_parity` (`M2`)
-  - [ ] Write failing unit test in `tests/test_roi_joint_calibration_math.py` verifying `compute_element_parity` raises `ValueError` when no `stateIndex`, valid `nz_indices`, or non-empty `(te_grid, ne_grid)` is provided
-  - [ ] Replace `return z_idx % max(n_cols, 1)` in `scripts/roi_joint_calibration.py:_resolve_state_col` with a descriptive `ValueError`
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Remove silent modulo fallback in `compute_element_parity` (`M2`) (4bf20d8)
+  - [x] Write failing unit test in `tests/test_roi_joint_calibration_math.py` verifying `compute_element_parity` raises `ValueError` when no `stateIndex`, valid `nz_indices`, or non-empty `(te_grid, ne_grid)` is provided
+  - [x] Replace `return z_idx % max(n_cols, 1)` in `scripts/roi_joint_calibration.py:_resolve_state_col` with a descriptive `ValueError`
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Enforce all-pairs Gate G1 (with single-material N/A handling) and safe `composition_scale_verified=False` defaults (`M3`)
-  - [ ] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` verifying (a) `verify_gate_g1` checks every `(m1, m2)` combination in a 3+ material family and fails when `(m1, m3)` violates composition scaling even if `(m1, m2)` passes, (b) global Gate G1 passes iff at least one multi-material family (`len(fam_mats) >= 2`) is checked and all multi-material families pass (ignoring 1-material families where pairwise G1 is N/A), and (c) `evaluate_diagnostics` and `run_joint_solver` default `composition_scale_verified=False`
-  - [ ] Update `scripts/gpu_calibration_engine.py:verify_gate_g1` to evaluate all valid material pairs via `itertools.combinations(fam_mats, 2)` and compute global `composition_scale_verified` across multi-material families only (`len(fam_mats) >= 2`) before calling `run_joint_solver(..., composition_scale_verified=...)` without duplicating flags
-  - [ ] Set `composition_scale_verified: bool = False` default in `scripts/roi_joint_calibration.py:evaluate_diagnostics` and `run_joint_solver`
-  - [ ] Update verified synthetic unit tests (`scripts/test_roi_joint_calibration.py` and `scripts/test_planted_truth_recovery.py:test_planted_truth_clean_scenario`) to pass `composition_scale_verified=True` explicitly where compositions are verified by construction
-  - [ ] Run targeted pytest and verify Green
+- [x] Task: Enforce all-pairs Gate G1 (with single-material N/A handling) and safe `composition_scale_verified=False` defaults (`M3`) (e4999d1)
+  - [x] Write failing unit tests in `tests/test_roi_joint_calibration_math.py` verifying (a) `verify_gate_g1` checks every `(m1, m2)` combination in a 3+ material family and fails when `(m1, m3)` violates composition scaling even if `(m1, m2)` passes, (b) global Gate G1 passes iff at least one multi-material family (`len(fam_mats) >= 2`) is checked and all multi-material families pass (ignoring 1-material families where pairwise G1 is N/A), and (c) `evaluate_diagnostics` and `run_joint_solver` default `composition_scale_verified=False`
+  - [x] Update `scripts/gpu_calibration_engine.py:verify_gate_g1` to evaluate all valid material pairs via `itertools.combinations(fam_mats, 2)` and compute global `composition_scale_verified` across multi-material families only (`len(fam_mats) >= 2`) before calling `run_joint_solver(..., composition_scale_verified=...)` without duplicating flags
+  - [x] Set `composition_scale_verified: bool = False` default in `scripts/roi_joint_calibration.py:evaluate_diagnostics` and `run_joint_solver`
+  - [x] Update verified synthetic unit tests (`scripts/test_roi_joint_calibration.py` and `scripts/test_planted_truth_recovery.py:test_planted_truth_clean_scenario`) to pass `composition_scale_verified=True` explicitly where compositions are verified by construction
+  - [x] Run targeted pytest and verify Green
 
-- [ ] Task: Phase Verification & Checkpoint (Refer to `workflow.md`)
+- [x] Task: Phase Verification & Checkpoint (Refer to `workflow.md`) — 63 passed, 0 failed (`tests/ scripts/test_roi_joint_calibration.py scripts/test_gpu*`)
 
 ---
 
