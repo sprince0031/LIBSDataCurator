@@ -23,29 +23,29 @@
 
 ---
 
-## Phase 2: Physics, Uncertainty Propagation, Continuum & Diagnostics Fixes in `scripts/roi_joint_calibration.py`
+## Phase 2: Physics, Uncertainty Propagation, Continuum & Diagnostics Fixes in `scripts/roi_joint_calibration.py` [checkpoint: f587dd5]
 
-- [~] Task: Write failing unit tests for `roi_joint_calibration.py` math bugs (Red phase)
-  - [ ] Expand `tests/test_roi_joint_calibration_math.py` to test:
+- [x] Task: Write failing unit tests for `roi_joint_calibration.py` math bugs (Red phase) (f587dd5)
+  - [x] Expand `tests/test_roi_joint_calibration_math.py` to test:
     - `compute_element_parity` recovering `0.0 dex` (within `1e-9`) and `has_bias == False` on noiseless multi-zone synthetic data with non-contiguous `nz_indices` (e.g., `[2, 7]`).
     - `scan_absorption` attenuating `d_hot` (NOT `d_cool`) with full-spectrum cool-zone max normalization matching `apply_multi_zone_rte` 1:1, recovering planted $k > 0$ within `0.1`, using `is_prone` only for residual masking / presence checks.
     - `solve_family_plasma`, `reduce_zones_to_num_zones`, and `scan_absorption` dict wrappers propagating true per-material `sigma_dict` ($\sigma_{m,b}$) instead of hardcoding `sigma = 1.0`.
     - `run_joint_solver` using baseline-subtracted `cond.preprocessed_mean` for sub-bin variances & flux centroids, and computing real ferrous-vs-non-ferrous `family_group_rms_diff` (not hardcoded `0.02`).
     - `compute_plasma_dispersion` using `ddof=1` sample standard deviation.
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py` to confirm Red failure.
-- [ ] Task: Implement Phase 2 fixes in `scripts/roi_joint_calibration.py` (Green & Refactor phase)
-  - [ ] Fix `compute_element_parity` to resolve true state-grid column indices (`nz_indices` / `stateIndex` / nearest `(Te, Ne)`) and synthesize via `apply_multi_zone_rte` + `apply_response_and_scale`.
-  - [ ] Fix `scan_absorption` to attenuate `d_hot` using full-spectrum cool-zone max normalization matching `apply_multi_zone_rte` 1:1, propagating `sigma_dict` and keeping `is_prone` strictly as residual mask / presence check; update legacy buggy test expectations in `scripts/test_roi_joint_calibration.py:416, 439`.
-  - [ ] Update `solve_family_plasma` and `reduce_zones_to_num_zones` dict wrappers to accept and propagate `sigma_dict` (no hardcoded `sigma = 1.0`).
-  - [ ] Switch `run_joint_solver` (`lines 387, 394`) to `cond.preprocessed_mean`, switch `compute_plasma_dispersion` (`lines 959, 964`) to `ddof=1`, and implement real ferrous-vs-non-ferrous Block B response RMS comparison (`lines 586-600`).
-  - [ ] Run `pytest tests/test_roi_joint_calibration_math.py scripts/test_roi_joint_calibration.py scripts/test_planted_truth_recovery.py` and verify 100% pass.
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py` to confirm Red failure.
+- [x] Task: Implement Phase 2 fixes in `scripts/roi_joint_calibration.py` (Green & Refactor phase) (f587dd5)
+  - [x] Fix `compute_element_parity` to resolve true state-grid column indices (`nz_indices` / `stateIndex` / nearest `(Te, Ne)`) and synthesize via `apply_multi_zone_rte` + `apply_response_and_scale`.
+  - [x] Fix `scan_absorption` to attenuate `d_hot` using full-spectrum cool-zone max normalization matching `apply_multi_zone_rte` 1:1, propagating `sigma_dict` and keeping `is_prone` strictly as residual mask / presence check; update legacy buggy test expectations in `scripts/test_roi_joint_calibration.py:416, 439`.
+  - [x] Update `solve_family_plasma` and `reduce_zones_to_num_zones` dict wrappers to accept and propagate `sigma_dict` (no hardcoded `sigma = 1.0`).
+  - [x] Switch `run_joint_solver` (`lines 387, 394`) to `cond.preprocessed_mean`, switch `compute_plasma_dispersion` (`lines 959, 964`) to `ddof=1`, and implement real ferrous-vs-non-ferrous Block B response RMS comparison (`lines 586-600`).
+  - [x] Run `pytest tests/test_roi_joint_calibration_math.py scripts/test_roi_joint_calibration.py` and verify 100% pass.
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (f587dd5)
 
 ---
 
 ## Phase 3: Calibration Engine Wiring (`scripts/gpu_calibration_engine.py`)
 
-- [ ] Task: Inspect Java `InstrumentProfile` / `CalibrationStats` DTO (read-only) before adding new JSON keys
+- [~] Task: Inspect Java `InstrumentProfile` / `CalibrationStats` DTO (read-only) before adding new JSON keys
   - [ ] Read Java `InstrumentProfile` and nested `CalibrationStats` DTOs (read-only) to verify whether Jackson ignores unknown JSON properties (`@JsonIgnoreProperties(ignoreUnknown = true)` or `DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES`); document the finding in the Phase 3 checkpoint summary for `TRACK-CORE-02B` awareness.
 - [ ] Task: Write failing unit tests for `gpu_calibration_engine.py` calibration wiring (Red phase)
   - [ ] Expand `tests/test_roi_joint_calibration_math.py` with unit tests verifying:
