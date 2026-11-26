@@ -8,7 +8,7 @@ import org.json.JSONObject;
 public class BaselineCorrectionParams {
 
     public static final String DEFAULT_METHOD = "morphological_opening";
-    public static final int DEFAULT_STRUCTURING_ELEMENT_SIZE = 65;
+    public static final int DEFAULT_STRUCTURING_ELEMENT_SIZE = 25;
 
     @JsonProperty("method")
     private String method = DEFAULT_METHOD;

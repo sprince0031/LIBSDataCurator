@@ -1,6 +1,7 @@
 package com.medals.libsdatagenerator.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.medals.libsdatagenerator.model.BaselineCorrectionParams;
 import com.medals.libsdatagenerator.model.Element;
 import com.medals.libsdatagenerator.util.InputCompositionProcessor;
 import org.junit.jupiter.api.DisplayName;
@@ -78,5 +79,11 @@ public class InstrumentProfileServiceRefactoringTest {
 
         double[] neGrid = (double[]) manifest.get("neAnchorGridCm3");
         assertEquals(4, neGrid.length);
+
+        BaselineCorrectionParams baselineParams = (BaselineCorrectionParams) manifest.get("baselineCorrectionParams");
+        assertNotNull(baselineParams);
+        assertEquals("morphological_opening", baselineParams.getMethod());
+        assertEquals(25, baselineParams.getStructuringElementSize());
+        assertEquals(25, InstrumentProfileService.DEFAULT_MORPHOLOGICAL_STRUCT_SIZE);
     }
 }

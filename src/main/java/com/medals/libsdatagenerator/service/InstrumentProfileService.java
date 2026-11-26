@@ -66,7 +66,7 @@ public class InstrumentProfileService {
             1.0e16, 5.0e16, 1.0e17, 5.0e17
     };
     public static final double NIST_RESOLVING_POWER = 3000.0;
-    public static final int DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 65;
+    public static final int DEFAULT_MORPHOLOGICAL_STRUCT_SIZE = 25;
 
     private LIBSDataService libsDataService;
     private PythonUtils pythonUtils;
