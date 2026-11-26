@@ -408,12 +408,11 @@ def test_absorption_scan():
     sigma = np.full(n_sub_bins, 1.0)
     is_prone = np.array([b % 3 == 0 for b in range(n_sub_bins)])
 
-    # Case 1: Planted k = 2.4 on prone lines for coolest zone
+    # Case 1: Planted k = 2.4 — cool shell attenuates hot core emission (matching apply_multi_zone_rte 1:1)
     k_planted = 2.4
     d_tilde_cool = d_cool / np.max(d_cool)
-    attenuation = np.ones(n_sub_bins)
-    attenuation[is_prone] = np.exp(-k_planted * d_tilde_cool[is_prone])
-    y_synth = 0.6 * d_cool * attenuation + 0.4 * d_hot
+    attenuation = np.exp(-k_planted * d_tilde_cool)
+    y_synth = 0.4 * d_hot * attenuation + 0.6 * d_cool
 
     sub_data = [
         {"d_cool": d_cool[b], "d_hot": d_hot[b], "Y": y_synth[b], "sigma": sigma[b], "is_prone": is_prone[b]}
@@ -434,9 +433,8 @@ def test_absorption_scan():
     assert k_zero == pytest.approx(0.0, abs=1e-5)
 
     # Case 3: Planted k = 8.0 -> hits scan limit, flags K_ABSORPTION_AT_BOUND
-    attenuation_bound = np.ones(n_sub_bins)
-    attenuation_bound[is_prone] = np.exp(-8.0 * d_tilde_cool[is_prone])
-    y_bound = 0.6 * d_cool * attenuation_bound + 0.4 * d_hot
+    attenuation_bound = np.exp(-8.0 * d_tilde_cool)
+    y_bound = 0.4 * d_hot * attenuation_bound + 0.6 * d_cool
     sub_data_bound = [
         {"d_cool": d_cool[b], "d_hot": d_hot[b], "Y": y_bound[b], "sigma": sigma[b], "is_prone": is_prone[b]}
         for b in range(n_sub_bins)

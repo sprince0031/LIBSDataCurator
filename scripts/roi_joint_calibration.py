@@ -16,9 +16,19 @@ from scipy.interpolate import BSpline
 from scipy.optimize import nnls
 
 try:
+    from scripts.forward_model import (
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+    )
     from scripts.measured_conditioning import ConditionedMaterial
     from scripts.roi_catalogue import RoiWindow
 except ImportError:
+    from forward_model import (
+        PlasmaZoneSpec,
+        apply_multi_zone_rte,
+        apply_response_and_scale,
+    )
     from measured_conditioning import ConditionedMaterial
     from roi_catalogue import RoiWindow
 
@@ -379,19 +389,25 @@ def run_joint_solver(
         else:
             dark_std = 30.0
 
+        # Use baseline-subtracted preprocessed_mean consistently across all calibration stages (TRACK-CORE-02A)
+        y_spec = (
+            cond.preprocessed_mean
+            if getattr(cond, "preprocessed_mean", None) is not None
+            else cond.mean_spectrum
+        )
         sb_list = []
         for sb in response_sub_bins:
             chans = sb["channels"]
             var_info = compute_sub_bin_variances(
                 channels=chans,
-                mean_spectrum=cond.mean_spectrum,
+                mean_spectrum=y_spec,
                 sigma_mean=cond.sigma_mean,
                 model_lines=sb["model_lines"],
                 model_error_fraction=model_error_fraction,
                 dark_std=dark_std,
             )
-            # Flux-weighted center wavelength
-            y_meas = cond.mean_spectrum[chans]
+            # Flux-weighted center wavelength on baseline-subtracted spectrum
+            y_meas = y_spec[chans]
             sum_y = np.sum(y_meas)
             if sum_y > 0:
                 flux_center = float(np.sum(det_wl[chans] * y_meas) / sum_y)
@@ -585,18 +601,58 @@ def run_joint_solver(
 
     family_group_rms_diff = 0.0
     if len(iron_mats) > 0 and len(other_mats) > 0:
-        # Check common span
-        # Simple test: compare responses if common span >= 60 nm
-        iron_centers = [sb["center_wl"] for m in iron_mats for sb in mat_sub_data[m]]
-        other_centers = [sb["center_wl"] for m in other_mats for sb in mat_sub_data[m]]
-        if iron_centers and other_centers:
-            lo_common = max(min(iron_centers), min(other_centers))
-            hi_common = min(max(iron_centers), max(other_centers))
+        def _collect_group_block_b(group_mats: List[str]) -> Tuple[List[float], List[float], List[float]]:
+            grp_centers: List[float] = []
+            grp_rho: List[float] = []
+            grp_w: List[float] = []
+            for gm in group_mats:
+                D_gm = dictionary[gm]
+                w_gm = best_weights[gm]
+                n_f = fam_mat_counts.get(material_families.get(gm, "DefaultFamily"), 1)
+                for sb_info in mat_sub_data[gm]:
+                    chans = sb_info["channels"]
+                    Y_mb = sb_info["Y"]
+                    sig_mb = sb_info["sigma"]
+                    sig_meas = sb_info["meas_sigma_sub"]
+                    a_mb = float(np.sum(D_gm[chans, :] @ w_gm))
+                    if Y_mb > 3.0 * sig_meas and a_mb > 1e-12:
+                        r_curr = float(
+                            np.exp(basis.evaluate(np.array([sb_info["center_wl"]])) @ best_beta)[0]
+                        )
+                        abs_u = abs((Y_mb - r_curr * a_mb) / sig_mb)
+                        h_w = 1.0 if abs_u <= c_huber else (c_huber / abs_u)
+                        grp_centers.append(sb_info["center_wl"])
+                        grp_rho.append(float(np.log(Y_mb / a_mb)))
+                        grp_w.append((1.0 / n_f) * ((Y_mb / sig_mb) ** 2) * h_w)
+            return grp_centers, grp_rho, grp_w
+
+        iron_c, iron_rho, iron_w = _collect_group_block_b(iron_mats)
+        other_c, other_rho, other_w = _collect_group_block_b(other_mats)
+        if len(iron_c) >= 2 and len(other_c) >= 2:
+            lo_common = max(min(iron_c), min(other_c))
+            hi_common = min(max(iron_c), max(other_c))
             if hi_common - lo_common >= 60.0:
                 grid_common = np.linspace(lo_common, hi_common, 100)
-                # Run quick Block B fits on iron vs other
-                # In planted truth clean scenario, both match true response within ~0.02
-                family_group_rms_diff = 0.02  # evaluated from comparison
+                beta_iron = solve_block_b(
+                    basis=basis,
+                    sub_bin_centers=np.array(iron_c, dtype=np.float64),
+                    rho=np.array(iron_rho, dtype=np.float64),
+                    weights=np.array(iron_w, dtype=np.float64),
+                    mu_r=mu_r,
+                )
+                beta_other = solve_block_b(
+                    basis=basis,
+                    sub_bin_centers=np.array(other_c, dtype=np.float64),
+                    rho=np.array(other_rho, dtype=np.float64),
+                    weights=np.array(other_w, dtype=np.float64),
+                    mu_r=mu_r,
+                )
+                log_r_iron = basis.evaluate(grid_common) @ beta_iron
+                log_r_iron = log_r_iron - float(np.mean(log_r_iron))
+                log_r_other = basis.evaluate(grid_common) @ beta_other
+                log_r_other = log_r_other - float(np.mean(log_r_other))
+                # RMS difference in log-response space (geometric-mean normalized, consistent with response_restart_spread)
+                family_group_rms_diff = float(np.sqrt(np.mean((log_r_iron - log_r_other) ** 2)))
 
     # Evaluate R9 diagnostics
     diag = evaluate_diagnostics(
@@ -632,6 +688,7 @@ def solve_family_plasma(
     n_states: Any = None,
     max_sweeps: int = 5,
     tol: float = 1e-4,
+    sigma_dict: Optional[Dict[str, np.ndarray]] = None,
 ) -> Tuple[np.ndarray, Dict[str, float]]:
     """R8.1: Solve family-shared plasma weights w_f >= 0 and per-material scales alpha_m > 0.
     
@@ -645,8 +702,15 @@ def solve_family_plasma(
         first_A = next(iter(A_dict.values()))
         actual_n_states = first_A.shape[1] if hasattr(first_A, "shape") and len(first_A.shape) > 1 else len(first_A)
         actual_sub_data = {
-            m: [{"A_row": A_dict[m][b], "Y": float(y_dict[m][b]), "sigma": 1.0, "is_prone": False}
-                for b in range(len(y_dict[m]))]
+            m: [
+                {
+                    "A_row": A_dict[m][b],
+                    "Y": float(y_dict[m][b]),
+                    "sigma": float(sigma_dict[m][b]) if (sigma_dict is not None and m in sigma_dict) else 1.0,
+                    "is_prone": False,
+                }
+                for b in range(len(y_dict[m]))
+            ]
             for m in A_dict.keys()
         }
         return solve_family_plasma(actual_sub_data, n_states=actual_n_states, max_sweeps=max_sweeps, tol=tol)
@@ -739,6 +803,7 @@ def reduce_zones_to_num_zones(
     if isinstance(initial_weights, dict):
         A_dict = initial_weights
         y_dict = sub_data
+        sigma_dict = kwargs.get("sigma_dict")
         w_init = args[0] if len(args) > 0 else kwargs.get("w_family", np.zeros(next(iter(A_dict.values())).shape[1]))
         if "num_zones" in kwargs:
             num_zones = kwargs["num_zones"]
@@ -747,10 +812,11 @@ def reduce_zones_to_num_zones(
         flat_sub_data = []
         for m in sorted(A_dict.keys()):
             for b in range(len(y_dict[m])):
+                sig_val = float(sigma_dict[m][b]) if (sigma_dict is not None and m in sigma_dict) else 1.0
                 flat_sub_data.append({
                     "A_row": A_dict[m][b],
                     "Y": float(y_dict[m][b]),
-                    "sigma": 1.0,
+                    "sigma": sig_val,
                     "is_prone": False,
                 })
         return reduce_zones_to_num_zones(w_init, flat_sub_data, num_zones=num_zones, c_huber=c_huber)
@@ -828,6 +894,9 @@ def scan_absorption(
     if sub_data is None or isinstance(sub_data, dict) or "A_dict" in kwargs:
         A_dict = sub_data if isinstance(sub_data, dict) else kwargs.get("A_dict", {})
         y_dict = kwargs.get("y_dict", {})
+        sigma_dict = kwargs.get("sigma_dict")
+        cool_zone_max_dict = kwargs.get("cool_zone_max_dict")
+        d_tilde_cool_dict = kwargs.get("d_tilde_cool_dict")
         reduced_weights = kwargs.get("reduced_weights")
         coolest_idx = kwargs.get("coolest_state_idx", 0)
         prone_mask = kwargs.get("prone_mask", [])
@@ -840,13 +909,19 @@ def scan_absorption(
                 d_c = float(A_m[b, coolest_idx] * reduced_weights[coolest_idx])
                 d_h = float(sum(A_m[b, j] * reduced_weights[j] for j in range(len(reduced_weights)) if j != coolest_idx))
                 is_p = bool(prone_mask[b]) if b < len(prone_mask) else False
-                flat_sub_data.append({
+                sig_val = float(sigma_dict[m][b]) if (sigma_dict is not None and m in sigma_dict) else 1.0
+                entry: Dict[str, Any] = {
                     "d_cool": d_c,
                     "d_hot": d_h,
                     "Y": float(y_m[b]),
-                    "sigma": 1.0,
+                    "sigma": sig_val,
                     "is_prone": is_p,
-                })
+                }
+                if d_tilde_cool_dict is not None and m in d_tilde_cool_dict:
+                    entry["d_tilde_cool"] = float(d_tilde_cool_dict[m][b])
+                elif cool_zone_max_dict is not None and m in cool_zone_max_dict:
+                    entry["cool_zone_max"] = float(cool_zone_max_dict[m])
+                flat_sub_data.append(entry)
         best_k, flags = scan_absorption(flat_sub_data, k_grid=k_grid, c_huber=c_huber)
         k_flag = bool("K_ABSORPTION_AT_BOUND" in flags or any("BOUND" in f for f in flags))
         return best_k, k_flag
@@ -857,20 +932,30 @@ def scan_absorption(
     sig_all = np.array([max(float(sb.get("sigma", 1.0)), 1e-6) for sb in sub_data], dtype=np.float64)
     is_prone = np.array([bool(sb.get("is_prone", False)) for sb in sub_data], dtype=bool)
 
-    max_cool = max(float(np.max(d_cool)), 1e-12)
-    d_tilde_cool = d_cool / max_cool
+    if all("d_tilde_cool" in sb for sb in sub_data):
+        d_tilde_cool = np.array([float(sb["d_tilde_cool"]) for sb in sub_data], dtype=np.float64)
+    elif all("cool_zone_max" in sb for sb in sub_data):
+        cool_max_arr = np.array([max(float(sb["cool_zone_max"]), 1e-12) for sb in sub_data], dtype=np.float64)
+        d_tilde_cool = d_cool / cool_max_arr
+    else:
+        max_cool = max(float(np.max(d_cool)), 1e-12)
+        d_tilde_cool = d_cool / max_cool
+
+    eval_mask = is_prone if np.any(is_prone) else np.ones(len(sub_data), dtype=bool)
 
     def eval_k(k_val: float) -> Tuple[float, np.ndarray]:
-        attenuation = np.ones(len(sub_data), dtype=np.float64)
-        attenuation[is_prone] = np.exp(-k_val * d_tilde_cool[is_prone])
-        cool_col = (d_cool * attenuation) / sig_all
-        hot_col = d_hot / sig_all
-        X = np.column_stack([cool_col, hot_col])
+        # Match apply_multi_zone_rte 1:1: cool shell attenuates hot core emission
+        # I = V_hot * (d_hot * exp(-k * d_tilde_cool)) + V_cool * d_cool
+        attenuation = np.exp(-float(k_val) * d_tilde_cool)
+        hot_col = (d_hot * attenuation) / sig_all
+        cool_col = d_cool / sig_all
+        X = np.column_stack([hot_col, cool_col])
         y = Y_all / sig_all
         V, _ = nnls(X, y)
-        pred = (d_cool * attenuation) * V[0] + d_hot * V[1]
+        pred = (d_hot * attenuation) * V[0] + d_cool * V[1]
         u = np.abs((Y_all - pred) / sig_all)
-        phi = np.sum(np.where(u <= c_huber, 0.5 * u ** 2, c_huber * u - 0.5 * c_huber ** 2))
+        u_eval = u[eval_mask]
+        phi = np.sum(np.where(u_eval <= c_huber, 0.5 * u_eval ** 2, c_huber * u_eval - 0.5 * c_huber ** 2))
         return float(phi), V
 
     phi_zero, _ = eval_k(0.0)
@@ -956,12 +1041,12 @@ def compute_plasma_dispersion(
     te_arr = np.asarray(point_te, dtype=np.float64)
     ne_arr = np.asarray(point_ne, dtype=np.float64)
 
-    te_std = float(np.std(te_arr)) if len(te_arr) > 1 else 0.01
+    te_std = float(np.std(te_arr, ddof=1)) if len(te_arr) > 1 else 0.01
     if np.any(ne_arr > 100.0):
         ne_log_arr = np.log10(np.maximum(ne_arr, 1.0))
     else:
         ne_log_arr = ne_arr
-    ne_log_std = float(np.std(ne_log_arr)) if len(ne_log_arr) > 1 else 0.02
+    ne_log_std = float(np.std(ne_log_arr, ddof=1)) if len(ne_log_arr) > 1 else 0.02
 
     te_clamped = min(0.10, max(0.01, te_std))
     ne_log_clamped = min(0.30, max(0.02, ne_log_std))
@@ -1002,22 +1087,49 @@ def compute_element_parity(
     plasma_zones = kwargs.get("plasma_zones", [])
     scale_factor = float(kwargs.get("scale_factor", 1.0))
     spectral_response = kwargs.get("spectral_response")
+    nz_indices = kwargs.get("nz_indices")
+    te_grid = kwargs.get("te_grid")
+    ne_grid = kwargs.get("ne_grid")
+
+    def _resolve_state_col(z: Dict[str, Any], n_cols: int) -> int:
+        if "stateIndex" in z and z["stateIndex"] is not None:
+            return int(z["stateIndex"])
+        z_idx = int(z.get("zoneIndex", 0))
+        if nz_indices is not None and 0 <= z_idx < len(nz_indices):
+            return int(nz_indices[z_idx])
+        if te_grid is not None and ne_grid is not None and len(te_grid) > 0 and len(ne_grid) > 0:
+            te_t = float(z.get("Te", 0.0))
+            ne_t = float(z.get("Ne", 1.0))
+            best_c = 0
+            best_d = float("inf")
+            n_ne_g = len(ne_grid)
+            for c_i in range(min(n_cols, len(te_grid) * n_ne_g)):
+                d_val = abs(float(te_grid[c_i // n_ne_g]) - te_t) + abs(
+                    np.log10(max(float(ne_grid[c_i % n_ne_g]), 1.0)) - np.log10(max(ne_t, 1.0))
+                )
+                if d_val < best_d:
+                    best_d = d_val
+                    best_c = c_i
+            return best_c
+        return z_idx % max(n_cols, 1)
 
     sub_bins_list = []
     for m in dictionary.keys():
         D_m = dictionary[m]
         y_meas = conditioned[m]
         p_chans = D_m.shape[0]
-        y_synth = np.zeros(p_chans, dtype=np.float64)
-        for z in plasma_zones:
-            vf = float(z.get("volumeFraction", 1.0))
-            kz = float(z.get("kAbsorption", 0.0))
-            s_z = D_m[:, z["zoneIndex"] % D_m.shape[1]]
-            if kz > 0.0:
-                y_synth = y_synth * np.exp(-kz * s_z) + vf * s_z
-            else:
-                y_synth = y_synth + vf * s_z
-        y_synth = scale_factor * y_synth * (spectral_response if spectral_response is not None else 1.0)
+        if plasma_zones:
+            zone_spectra = [D_m[:, _resolve_state_col(z, D_m.shape[1])] for z in plasma_zones]
+            zone_specs = [PlasmaZoneSpec.from_dict(z) for z in plasma_zones]
+            i_rad = apply_multi_zone_rte(zone_spectra, zone_specs)
+            resp_arr = (
+                np.asarray(spectral_response, dtype=np.float64)
+                if spectral_response is not None
+                else np.ones(p_chans, dtype=np.float64)
+            )
+            y_synth = apply_response_and_scale(i_rad, resp_arr, scale_factor, emission_scale="absolute")
+        else:
+            y_synth = np.zeros(p_chans, dtype=np.float64)
 
         for r in rois:
             el = getattr(r, "dominant_element", "Unknown")
